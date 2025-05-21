@@ -82,7 +82,7 @@ const Expenses = () => {
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all-categories">All Categories</SelectItem>
                 {EXPENSE_CATEGORIES.map(category => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
@@ -94,7 +94,7 @@ const Expenses = () => {
                 <SelectValue placeholder="Filter by recipient" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Recipients</SelectItem>
+                <SelectItem value="all-recipients">All Recipients</SelectItem>
                 <SelectItem value="self">Self</SelectItem>
                 {recipients.map(recipient => (
                   <SelectItem key={recipient.id} value={recipient.id}>{recipient.name}</SelectItem>
@@ -131,7 +131,7 @@ const Expenses = () => {
               <Calendar
                 mode="range"
                 selected={dateRange}
-                onSelect={setDateRange}
+                onSelect={(value) => value && setDateRange(value)}
                 initialFocus
                 className="p-3 pointer-events-auto"
               />

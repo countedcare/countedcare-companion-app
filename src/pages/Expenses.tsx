@@ -5,10 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Search, Filter } from 'lucide-react';
+import { PlusCircle, Search, Filter, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { Expense, CareRecipient } from '@/types/User';
+import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 
 const Expenses = () => {
   const navigate = useNavigate();
@@ -17,9 +21,7 @@ const Expenses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterRecipient, setFilterRecipient] = useState('');
-  
-  // Get unique categories
-  const categories = Array.from(new Set(expenses.map(expense => expense.category)));
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
   // Filter expenses
   const filteredExpenses = expenses.filter(expense => {
@@ -30,7 +32,21 @@ const Expenses = () => {
     const matchesCategory = !filterCategory || expense.category === filterCategory;
     const matchesRecipient = !filterRecipient || expense.careRecipientId === filterRecipient;
     
-    return matchesSearch && matchesCategory && matchesRecipient;
+    // Date range filter
+    let matchesDateRange = true;
+    if (dateRange && dateRange.from) {
+      const expenseDate = new Date(expense.date);
+      
+      if (dateRange.to) {
+        // Filter for range
+        matchesDateRange = expenseDate >= dateRange.from && expenseDate <= dateRange.to;
+      } else {
+        // Filter for single day
+        matchesDateRange = expenseDate.toDateString() === dateRange.from.toDateString();
+      }
+    }
+    
+    return matchesSearch && matchesCategory && matchesRecipient && matchesDateRange;
   });
   
   // Sort expenses by date (newest first)
@@ -61,14 +77,14 @@ const Expenses = () => {
             />
           </div>
           
-          <div className="flex space-x-3">
+          <div className="grid grid-cols-2 gap-3">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Categories</SelectItem>
-                {categories.map(category => (
+                {EXPENSE_CATEGORIES.map(category => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
               </SelectContent>
@@ -80,12 +96,88 @@ const Expenses = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Recipients</SelectItem>
+                <SelectItem value="self">Self</SelectItem>
                 {recipients.map(recipient => (
                   <SelectItem key={recipient.id} value={recipient.id}>{recipient.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !dateRange && "text-muted-foreground"
+                )}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} -{" "}
+                      {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Filter by date</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+              <div className="p-3 border-t border-border flex justify-between">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setDateRange(undefined)}
+                >
+                  Clear
+                </Button>
+                <div className="space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      const today = new Date();
+                      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                      setDateRange({
+                        from: firstDay,
+                        to: today
+                      });
+                    }}
+                  >
+                    This Month
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      const today = new Date();
+                      const thirtyDaysAgo = new Date(today);
+                      thirtyDaysAgo.setDate(today.getDate() - 30);
+                      setDateRange({
+                        from: thirtyDaysAgo,
+                        to: today
+                      });
+                    }}
+                  >
+                    Last 30 Days
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         
         {/* Expense List */}
@@ -93,6 +185,7 @@ const Expenses = () => {
           <div className="space-y-4">
             {sortedExpenses.map((expense) => {
               const recipient = recipients.find(r => r.id === expense.careRecipientId);
+              const recipientName = expense.careRecipientId === 'self' ? 'Self' : recipient?.name;
               
               return (
                 <Card key={expense.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/expenses/${expense.id}`)}>
@@ -103,7 +196,7 @@ const Expenses = () => {
                         <div className="text-sm text-gray-500 space-y-1">
                           <div>
                             {new Date(expense.date).toLocaleDateString()}
-                            {recipient && ` • ${recipient.name}`}
+                            {recipientName && ` • ${recipientName}`}
                           </div>
                           <div className="inline-block bg-neutral px-2 py-0.5 rounded text-xs">
                             {expense.category}

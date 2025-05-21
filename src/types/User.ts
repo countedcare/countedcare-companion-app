@@ -7,6 +7,8 @@ export interface User {
   caregivingFor?: string[];
   yearlyExpenses?: number;
   onboardingComplete: boolean;
+  zipCode?: string;
+  householdAGI?: number;
 }
 
 export interface CareRecipient {
@@ -35,6 +37,9 @@ export interface Resource {
   description: string;
   link?: string;
   isFavorite?: boolean;
+  type?: "Discount" | "Government Program" | "Local Support" | "Tax Prep" | "Product"; 
+  partnerName?: string;
+  tags?: string[];
 }
 
 export type RelationshipType = 
@@ -54,4 +59,31 @@ export const RELATIONSHIP_TYPES: RelationshipType[] = [
   "Sibling",
   "Friend",
   "Other"
+];
+
+export const EXPENSE_CATEGORIES = [
+  "Medical",
+  "Transportation",
+  "Home Care",
+  "Supplies",
+  "Insurance Premium",
+  "Other"
+];
+
+export const RESOURCE_TAGS = [
+  "Transportation",
+  "Home Aid",
+  "Food",
+  "Medical",
+  "Tax Relief",
+  "Respite Care",
+  "Financial Assistance"
+];
+
+export const RESOURCE_TYPES = [
+  "Discount", 
+  "Government Program", 
+  "Local Support", 
+  "Tax Prep", 
+  "Product"
 ];

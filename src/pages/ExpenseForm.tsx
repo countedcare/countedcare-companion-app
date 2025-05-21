@@ -15,24 +15,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { Expense, CareRecipient } from '@/types/User';
-
-// IRS Publication 502 categories
-const expenseCategories = [
-  'Doctor Visits',
-  'Hospital Services',
-  'Prescriptions',
-  'Medical Equipment',
-  'Dental Care',
-  'Vision Care',
-  'Therapy',
-  'Transportation',
-  'Home Care',
-  'Nursing Services',
-  'Long-term Care',
-  'Insurance Premiums',
-  'Other Medical'
-];
+import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -41,6 +24,7 @@ const ExpenseForm = () => {
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
   
+  const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [category, setCategory] = useState('');
@@ -52,6 +36,7 @@ const ExpenseForm = () => {
     if (id) {
       const expenseToEdit = expenses.find(expense => expense.id === id);
       if (expenseToEdit) {
+        setTitle(expenseToEdit.description || '');
         setAmount(expenseToEdit.amount.toString());
         setDate(new Date(expenseToEdit.date));
         setCategory(expenseToEdit.category);
@@ -65,7 +50,7 @@ const ExpenseForm = () => {
     e.preventDefault();
     
     // Validate required fields
-    if (!amount || !category || !careRecipientId) {
+    if (!amount || !category) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -79,7 +64,7 @@ const ExpenseForm = () => {
       amount: parseFloat(amount),
       date: date.toISOString(),
       category,
-      description,
+      description: title || description,
       careRecipientId,
       careRecipientName: recipients.find(r => r.id === careRecipientId)?.name
     };
@@ -97,7 +82,7 @@ const ExpenseForm = () => {
       // Add new expense
       setExpenses([...expenses, expenseData]);
       toast({
-        title: "Expense Added",
+        title: "Expense Added!",
         description: "Your expense has been saved successfully."
       });
     }
@@ -120,13 +105,24 @@ const ExpenseForm = () => {
     <Layout>
       <div className="container-padding py-6">
         <h1 className="text-2xl font-heading mb-6">
-          {id ? 'Edit' : 'Add'} Expense
+          {id ? 'Edit' : 'Add New'} Expense
         </h1>
         
         <form onSubmit={handleSubmit}>
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Expense Title*</Label>
+                  <Input
+                    id="title"
+                    placeholder="Enter expense title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount ($)*</Label>
                   <Input
@@ -179,7 +175,7 @@ const ExpenseForm = () => {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {expenseCategories.map(cat => (
+                      {EXPENSE_CATEGORIES.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
                     </SelectContent>
@@ -187,27 +183,17 @@ const ExpenseForm = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Enter expense details"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="recipient">Care Recipient*</Label>
+                  <Label htmlFor="recipient">Who this is for</Label>
                   {recipients.length > 0 ? (
                     <Select 
                       value={careRecipientId} 
                       onValueChange={setCareRecipientId}
-                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select care recipient" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="self">Self</SelectItem>
                         {recipients.map(recipient => (
                           <SelectItem key={recipient.id} value={recipient.id}>
                             {recipient.name}
@@ -229,6 +215,17 @@ const ExpenseForm = () => {
                       </Button>
                     </div>
                   )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Enter any additional information about this expense"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="min-h-[100px]"
+                  />
                 </div>
               </div>
               

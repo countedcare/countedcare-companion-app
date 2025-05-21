@@ -27,7 +27,9 @@ const Index = () => {
     email: '',
     isCaregiver: true,
     caregivingFor: [],
-    onboardingComplete: false
+    onboardingComplete: false,
+    zipCode: '',
+    householdAGI: undefined
   });
   
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
@@ -50,6 +52,7 @@ const Index = () => {
           caregivingFor: [...(user.caregivingFor || []), selectedRelationship]
         });
       }
+      setSelectedRelationship("");
     }
     
     if (step < 3) {
@@ -137,6 +140,15 @@ const Index = () => {
                     onChange={(e) => setUser({...user, email: e.target.value})}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">ZIP Code (for local resources)</Label>
+                  <Input 
+                    id="zipCode" 
+                    placeholder="Enter your ZIP code" 
+                    value={user.zipCode} 
+                    onChange={(e) => setUser({...user, zipCode: e.target.value})}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -204,6 +216,18 @@ const Index = () => {
                     )}
                   </div>
                 )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="householdAGI">Household AGI (Optional)</Label>
+                  <Input 
+                    id="householdAGI" 
+                    type="number"
+                    placeholder="Enter your adjusted gross income" 
+                    value={user.householdAGI || ''} 
+                    onChange={(e) => setUser({...user, householdAGI: parseFloat(e.target.value) || undefined})}
+                  />
+                  <p className="text-xs text-gray-500">This helps us calculate your potential tax deduction threshold.</p>
+                </div>
               </div>
             </div>
           )}
@@ -222,6 +246,11 @@ const Index = () => {
               <p className="text-gray-600 mb-4">
                 We'll help you organize receipts and track expenses to maximize your tax benefits.
               </p>
+              <div className="bg-primary/10 p-4 rounded-md">
+                <p className="text-sm">
+                  <span className="font-medium">Did you know?</span> Caregivers spend 26% of their income on care expenses on average.
+                </p>
+              </div>
             </div>
           )}
           

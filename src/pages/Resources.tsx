@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,24 +89,6 @@ const Resources = () => {
     zipCode: ''
   });
   
-  // Filter resources based on search, active tab, and user's ZIP code
-  const filteredResources = resources.filter(resource => {
-    const matchesSearch = !searchTerm || 
-      resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      resource.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesTab = activeTab === 'favorites' 
-      ? resource.isFavorite 
-      : activeTab === 'all'
-      ? true
-      : resource.category === activeTab;
-    
-    // Filter by ZIP code if it's a state, county, or local resource
-    const matchesZipCode = isResourceRelevantToZip(resource, user.zipCode || '');
-    
-    return matchesSearch && matchesTab && matchesZipCode;
-  });
-  
   // Function to check if a resource is relevant to the user's ZIP code
   const isResourceRelevantToZip = (resource: Resource, zipCode: string): boolean => {
     // Federal resources are available everywhere
@@ -130,6 +111,24 @@ const Resources = () => {
     
     return false;
   };
+  
+  // Filter resources based on search, active tab, and user's ZIP code
+  const filteredResources = resources.filter(resource => {
+    const matchesSearch = !searchTerm || 
+      resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      resource.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesTab = activeTab === 'favorites' 
+      ? resource.isFavorite 
+      : activeTab === 'all'
+      ? true
+      : resource.category === activeTab;
+    
+    // Filter by ZIP code if it's a state, county, or local resource
+    const matchesZipCode = isResourceRelevantToZip(resource, user.zipCode || '');
+    
+    return matchesSearch && matchesTab && matchesZipCode;
+  });
   
   const toggleFavorite = (id: string) => {
     setResources(resources.map(resource =>

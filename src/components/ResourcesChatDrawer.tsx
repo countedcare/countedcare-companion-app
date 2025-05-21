@@ -10,8 +10,9 @@ const ResourcesChatDrawer: React.FC = () => {
     <Drawer>
       <DrawerTrigger asChild>
         <Button
-          className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg"
+          className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50"
           size="icon"
+          variant="default"
         >
           <MessageCircle className="h-6 w-6" />
         </Button>

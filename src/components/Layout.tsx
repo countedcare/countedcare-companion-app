@@ -17,7 +17,6 @@ const Layout: React.FC<LayoutProps> = ({
   showBottomNav = true 
 }) => {
   const location = useLocation();
-  const isResourcesPage = location.pathname === '/resources';
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -27,8 +26,8 @@ const Layout: React.FC<LayoutProps> = ({
       </main>
       {showBottomNav && <BottomNav />}
       
-      {/* Show chat bot only on the resources page */}
-      {isResourcesPage && <ResourcesChatDrawer />}
+      {/* Show chat bot on all pages */}
+      <ResourcesChatDrawer />
     </div>
   );
 };

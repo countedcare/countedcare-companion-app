@@ -38,9 +38,12 @@ const UserInfoStep: React.FC<UserInfoStepProps> = ({ user, setUser }) => {
           <Input 
             id="zipCode" 
             placeholder="Enter your ZIP code" 
-            value={user.zipCode} 
+            value={user.zipCode || ''} 
             onChange={(e) => setUser({...user, zipCode: e.target.value})}
           />
+          <p className="text-xs text-muted-foreground">
+            We'll use this to connect you with relevant federal, state, county and local resources
+          </p>
         </div>
       </div>
     </div>

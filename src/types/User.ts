@@ -59,6 +59,7 @@ export interface Resource {
   type?: "Discount" | "Government Program" | "Local Support" | "Tax Prep" | "Product"; 
   partnerName?: string;
   tags?: string[];
+  zipRegions?: string[]; // ZIP code regions (can be prefixes like "90", "941", or "all")
 }
 
 export const RESOURCE_TAGS = [

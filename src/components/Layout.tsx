@@ -1,7 +1,9 @@
 
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import BottomNav from './BottomNav';
+import ResourcesChatDrawer from './ResourcesChatDrawer';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +16,9 @@ const Layout: React.FC<LayoutProps> = ({
   showHeader = true, 
   showBottomNav = true 
 }) => {
+  const location = useLocation();
+  const isResourcesPage = location.pathname === '/resources';
+
   return (
     <div className="flex flex-col min-h-screen">
       {showHeader && <Header />}
@@ -21,6 +26,9 @@ const Layout: React.FC<LayoutProps> = ({
         {children}
       </main>
       {showBottomNav && <BottomNav />}
+      
+      {/* Show chat bot only on the resources page */}
+      {isResourcesPage && <ResourcesChatDrawer />}
     </div>
   );
 };

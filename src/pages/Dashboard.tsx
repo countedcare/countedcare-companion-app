@@ -1,16 +1,16 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { PlusCircle, TrendingUp, Receipt, PieChart, ArrowRight, Filter } from 'lucide-react';
+import { PlusCircle, TrendingUp, Receipt, PieChart, ArrowRight, Filter, Info } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User, Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
-import { useState } from 'react';
 
 const COLORS = ['#6DAAE2', '#A0D5D8', '#7FC7D9', '#5F9EA0', '#87CEEB', '#B0C4DE'];
 
@@ -54,6 +54,10 @@ const Dashboard = () => {
   
   // Calculate total expenses
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const yearlyExpenses = expenses.filter(expense => {
+    const expenseDate = new Date(expense.date);
+    return expenseDate.getFullYear() === currentYear;
+  }).reduce((sum, expense) => sum + expense.amount, 0);
   
   // Calculate category totals
   const categoryTotals = useMemo(() => {
@@ -75,9 +79,11 @@ const Dashboard = () => {
   // Find most expensive category
   const mostExpensiveCategory = categoryTotals[0]?.name || 'None';
   
-  // Mock data for the tax threshold (normally this would come from a calculation based on user income)
-  const taxThreshold = 7500;
-  const progressPercentage = Math.min((totalExpenses / taxThreshold) * 100, 100);
+  // Calculate tax threshold based on income
+  // If householdAGI is not set, use default threshold
+  const householdAGI = user.householdAGI || 100000; // Default 100k if not set
+  const incomeThreshold = householdAGI * 0.075; // 7.5% of income
+  const incomeProgressPercentage = Math.min((yearlyExpenses / incomeThreshold) * 100, 100);
   
   // Get the latest expenses
   const latestExpenses = [...expenses].sort((a, b) => 
@@ -127,64 +133,152 @@ const Dashboard = () => {
     }
   }, [filteredExpenses, timeFrame, EXPENSE_CATEGORIES, expenses, currentYear]);
 
+  // Format currency helper
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString()}`;
+  };
+
+  const nextPayday = useMemo(() => {
+    // Just a simple calculation - assuming payday is every 2 weeks on Friday
+    const today = new Date();
+    const friday = new Date();
+    friday.setDate(today.getDate() + (5 - today.getDay() + 7) % 7);
+    if ((friday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) < 7) {
+      friday.setDate(friday.getDate() + 14);
+    }
+    const daysUntil = Math.ceil((friday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntil;
+  }, []);
+
   return (
     <Layout>
       <div className="container-padding py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-heading">Hi, {user.name || 'there'}!</h1>
-          <p className="text-gray-600">Here's your caregiving expense summary</p>
+        {/* Header with name and overview stats */}
+        <div className="bg-primary rounded-lg p-5 text-white mb-6">
+          <div className="mb-4">
+            <h1 className="text-2xl font-heading">Hi, {user.name || 'there'}!</h1>
+            <p className="text-white/90">Your caregiving expense summary</p>
+          </div>
+          
+          <Card className="bg-white text-foreground">
+            <CardContent className="p-4">
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Current spend this {timeFrame}</p>
+                    <h2 className="text-3xl font-bold mt-1">{formatCurrency(totalExpenses)}</h2>
+                  </div>
+                  <div className="text-right">
+                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm flex items-center">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      <span>{formatCurrency(incomeThreshold - yearlyExpenses)} below threshold</span>
+                    </div>
+                    <Select value={timeFrame} onValueChange={(value: 'month' | 'year') => setTimeFrame(value)}>
+                      <SelectTrigger className="w-[120px] h-8 mt-2 bg-muted/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="month">This Month</SelectItem>
+                        <SelectItem value="year">This Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-4 mb-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium">Tax Threshold Progress</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 ml-1 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Medical expenses over 7.5% of your income may be tax deductible</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{incomeProgressPercentage.toFixed(0)}% of threshold</span>
+                  </div>
+                  <Progress value={incomeProgressPercentage} className="h-2" />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Current: {formatCurrency(yearlyExpenses)}</span>
+                    <span>Threshold: {formatCurrency(incomeThreshold)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center mt-4 pt-3 border-t">
+                  <div className="bg-green-100 text-green-800 p-1 rounded">
+                    <Receipt className="h-4 w-4" />
+                  </div>
+                  <div className="ml-2">
+                    <p className="text-sm">Payday in {nextPayday} days</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Main Stats Card */}
-        <Card className="mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Expense Summary</CardTitle>
-            <CardDescription>
-              Track your progress towards tax deduction threshold
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center mb-2">
-              <div>
-                <span className="text-lg font-medium">${totalExpenses.toLocaleString()}</span>
-                <span className="text-sm text-gray-500 ml-2">
-                  {timeFrame === 'month' ? 'this month' : 'this year'}
-                </span>
-              </div>
-              <Select value={timeFrame} onValueChange={(value: 'month' | 'year') => setTimeFrame(value)}>
-                <SelectTrigger className="w-[120px] h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="year">This Year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Account Summary */}
+        <div className="mb-6">
+          <h2 className="text-lg font-medium mb-3">Expense Accounts</h2>
+          <div className="space-y-3">
+            <Card className="bg-neutral">
+              <CardContent className="p-4 flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <Receipt className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-medium">Medical Expenses</h3>
+                    <p className="text-sm text-muted-foreground">{(categoryTotals.find(c => c.name === 'Medical Care')?.value || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-primary border-primary" onClick={() => navigate('/expenses')}>
+                  View
+                </Button>
+              </CardContent>
+            </Card>
             
-            <div className="space-y-1 mb-4">
-              <div className="flex justify-between text-sm">
-                <span>Medical Expenses</span>
-                <span>${(categoryTotals.find(c => c.name === 'Medical')?.value || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Most Expensive: {mostExpensiveCategory}</span>
-                <span>${(categoryTotals[0]?.value || 0).toLocaleString()}</span>
-              </div>
-            </div>
-            
-            <div className="flex justify-between mb-2">
-              <span className="font-medium">Tax Threshold Progress</span>
-              <span className="text-sm text-gray-500">Threshold: ${taxThreshold.toLocaleString()}</span>
-            </div>
-            <Progress value={progressPercentage} className="h-2 mb-2" />
-            
-            <div className="flex justify-between text-sm">
-              <span>{progressPercentage.toFixed(0)}% of threshold</span>
-              <span>${(taxThreshold - totalExpenses).toLocaleString()} to go</span>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="bg-neutral">
+              <CardContent className="p-4 flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <Receipt className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-medium">In-Home Care</h3>
+                    <p className="text-sm text-muted-foreground">{(categoryTotals.find(c => c.name === 'In-Home Care')?.value || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-primary border-primary" onClick={() => navigate('/expenses')}>
+                  View
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Button 
+            onClick={() => navigate('/expenses/new')} 
+            className="flex-col h-24 bg-primary text-white"
+          >
+            <PlusCircle className="mb-1" size={24} />
+            <span>Add Expense</span>
+          </Button>
+          <Button 
+            onClick={() => navigate('/care-recipients/new')} 
+            className="flex-col h-24 bg-accent text-accent-foreground"
+          >
+            <PlusCircle className="mb-1" size={24} />
+            <span>Add Care Recipient</span>
+          </Button>
+        </div>
 
         {/* Expense Charts */}
         <Card className="mb-6">
@@ -219,7 +313,7 @@ const Dashboard = () => {
                         ))}
                       </Pie>
                       <Legend />
-                      <Tooltip formatter={(value) => `$${value}`} />
+                      <RechartTooltip formatter={(value) => `$${value}`} />
                     </RechartsPieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -234,7 +328,7 @@ const Dashboard = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `$${value}`} />
+                    <RechartTooltip formatter={(value) => `$${value}`} />
                     <Bar dataKey="amount" fill="#6DAAE2" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -242,24 +336,6 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Button 
-            onClick={() => navigate('/expenses/new')} 
-            className="flex-col h-24 bg-primary text-white"
-          >
-            <PlusCircle className="mb-1" size={24} />
-            <span>Add Expense</span>
-          </Button>
-          <Button 
-            onClick={() => navigate('/care-recipients/new')} 
-            className="flex-col h-24 bg-accent text-accent-foreground"
-          >
-            <PlusCircle className="mb-1" size={24} />
-            <span>Add Care Recipient</span>
-          </Button>
-        </div>
 
         {/* Latest Expenses */}
         <Card>

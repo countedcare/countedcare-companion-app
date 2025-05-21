@@ -1,12 +1,13 @@
 
 export interface User {
-  id: string;
+  id?: string;
   name: string;
   email: string;
   isCaregiver: boolean;
   caregivingFor?: string[];
   householdAGI?: number;
   onboardingComplete?: boolean;
+  zipCode?: string;
 }
 
 export interface CareRecipient {

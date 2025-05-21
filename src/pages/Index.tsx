@@ -9,7 +9,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/components/ui/use-toast';
 import Logo from '@/components/Logo';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { User } from '@/types/User';
+import { User, RELATIONSHIP_TYPES } from '@/types/User';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -22,6 +29,8 @@ const Index = () => {
     caregivingFor: [],
     onboardingComplete: false
   });
+  
+  const [selectedRelationship, setSelectedRelationship] = useState<string>("");
 
   const handleNext = () => {
     if (step === 1 && (!user.name || !user.email)) {
@@ -31,6 +40,16 @@ const Index = () => {
         variant: "destructive",
       });
       return;
+    }
+    
+    if (step === 2 && user.isCaregiver && selectedRelationship) {
+      // Add the selected relationship to caregivingFor if it's not already there
+      if (!user.caregivingFor?.includes(selectedRelationship)) {
+        setUser({
+          ...user,
+          caregivingFor: [...(user.caregivingFor || []), selectedRelationship]
+        });
+      }
     }
     
     if (step < 3) {
@@ -128,15 +147,43 @@ const Index = () => {
                 {user.isCaregiver && (
                   <div className="space-y-2">
                     <Label htmlFor="caregivingFor">Who are you caring for?</Label>
-                    <Input 
-                      id="caregivingFor"
-                      placeholder="e.g., Parent, Child, Spouse" 
-                      value={user.caregivingFor?.join(', ') || ''}
-                      onChange={(e) => setUser({
-                        ...user, 
-                        caregivingFor: e.target.value.split(',').map(item => item.trim())
-                      })}
-                    />
+                    <Select 
+                      value={selectedRelationship}
+                      onValueChange={(value) => setSelectedRelationship(value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select relationship" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RELATIONSHIP_TYPES.map((relationship) => (
+                          <SelectItem key={relationship} value={relationship}>
+                            {relationship}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {user.caregivingFor && user.caregivingFor.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500">Selected relationships:</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {user.caregivingFor.map((relation, index) => (
+                            <div key={index} className="bg-primary/10 text-primary px-2 py-1 rounded-md text-sm flex items-center">
+                              {relation}
+                              <button 
+                                className="ml-2 hover:text-destructive"
+                                onClick={() => setUser({
+                                  ...user,
+                                  caregivingFor: user.caregivingFor?.filter((r) => r !== relation)
+                                })}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

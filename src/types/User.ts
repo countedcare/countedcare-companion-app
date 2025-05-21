@@ -36,3 +36,22 @@ export interface Resource {
   link?: string;
   isFavorite?: boolean;
 }
+
+export type RelationshipType = 
+  | "Parent" 
+  | "Child" 
+  | "Spouse" 
+  | "Grandparent" 
+  | "Sibling" 
+  | "Friend" 
+  | "Other";
+
+export const RELATIONSHIP_TYPES: RelationshipType[] = [
+  "Parent",
+  "Child",
+  "Spouse",
+  "Grandparent",
+  "Sibling",
+  "Friend",
+  "Other"
+];

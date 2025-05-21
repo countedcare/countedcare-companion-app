@@ -61,6 +61,24 @@ const Index = () => {
     }
   };
 
+  const skipOnboarding = () => {
+    // Set minimum required fields and mark onboarding as complete
+    setUser({
+      name: user.name || 'Anonymous User',
+      email: user.email || '',
+      isCaregiver: user.isCaregiver,
+      caregivingFor: user.caregivingFor || [],
+      onboardingComplete: true
+    });
+    
+    toast({
+      title: "Onboarding Skipped",
+      description: "You can always update your information in your profile."
+    });
+    
+    navigate('/dashboard');
+  };
+
   const resetOnboarding = () => {
     setUser({
       name: '',
@@ -224,8 +242,16 @@ const Index = () => {
             
             <Button 
               variant="ghost" 
+              onClick={skipOnboarding} 
+              className="w-full text-muted-foreground"
+            >
+              Skip for now
+            </Button>
+            
+            <Button 
+              variant="ghost" 
               onClick={resetOnboarding} 
-              className="mt-4 text-sm text-gray-500"
+              className="mt-1 text-sm text-gray-500"
             >
               Reset Onboarding
             </Button>

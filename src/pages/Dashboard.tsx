@@ -2,12 +2,17 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { PlusCircle, CheckCircle, TrendingUp, Award, Calendar, LightbulbIcon } from 'lucide-react';
+import { PlusCircle, TrendingUp, Receipt, PieChart, ArrowRight, Filter, Info } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { User, Expense, CareRecipient } from '@/types/User';
+import { User, Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
+
+const COLORS = ['#6DAAE2', '#A0D5D8', '#7FC7D9', '#5F9EA0', '#87CEEB', '#B0C4DE'];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,6 +25,7 @@ const Dashboard = () => {
   
   const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
+  const [timeFrame, setTimeFrame] = useState<'month' | 'year'>('month');
   
   // Redirect to onboarding if not completed
   React.useEffect(() => {
@@ -28,154 +34,359 @@ const Dashboard = () => {
     }
   }, [user, navigate]);
 
-  // Calculate total expenses
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calculate total expenses for current period
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
   
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      
+      if (timeFrame === 'month') {
+        return expenseDate.getMonth() === currentMonth && 
+               expenseDate.getFullYear() === currentYear;
+      } else {
+        return expenseDate.getFullYear() === currentYear;
+      }
+    });
+  }, [expenses, timeFrame, currentMonth, currentYear]);
+  
+  // Calculate total expenses
+  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const yearlyExpenses = expenses.filter(expense => {
+    const expenseDate = new Date(expense.date);
+    return expenseDate.getFullYear() === currentYear;
+  }).reduce((sum, expense) => sum + expense.amount, 0);
+  
+  // Calculate category totals
+  const categoryTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    
+    filteredExpenses.forEach(expense => {
+      if (!totals[expense.category]) {
+        totals[expense.category] = 0;
+      }
+      totals[expense.category] += expense.amount;
+    });
+    
+    return Object.entries(totals).map(([name, value]) => ({
+      name,
+      value
+    })).sort((a, b) => b.value - a.value);
+  }, [filteredExpenses]);
+  
+  // Find most expensive category
+  const mostExpensiveCategory = categoryTotals[0]?.name || 'None';
+  
+  // Calculate tax threshold based on income
+  // If householdAGI is not set, use default threshold
+  const householdAGI = user.householdAGI || 100000; // Default 100k if not set
+  const incomeThreshold = householdAGI * 0.075; // 7.5% of income
+  const incomeProgressPercentage = Math.min((yearlyExpenses / incomeThreshold) * 100, 100);
+  
+  // Get the latest expenses
+  const latestExpenses = [...expenses].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  ).slice(0, 3);
+  
+  // Monthly data for bar chart
+  const monthlyData = useMemo(() => {
+    const data: Record<string, number> = {};
+    
+    // Initialize all months/categories
+    if (timeFrame === 'month') {
+      EXPENSE_CATEGORIES.forEach(category => {
+        data[category] = 0;
+      });
+      
+      // Fill in actual data
+      filteredExpenses.forEach(expense => {
+        data[expense.category] += expense.amount;
+      });
+      
+      return Object.entries(data).map(([name, amount]) => ({
+        name,
+        amount
+      }));
+    } else {
+      // Initialize all months
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      monthNames.forEach(month => {
+        data[month] = 0;
+      });
+      
+      // Fill in actual data
+      expenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate.getFullYear() === currentYear;
+      }).forEach(expense => {
+        const expenseDate = new Date(expense.date);
+        const monthName = monthNames[expenseDate.getMonth()];
+        data[monthName] += expense.amount;
+      });
+      
+      return Object.entries(data).map(([name, amount]) => ({
+        name,
+        amount
+      }));
+    }
+  }, [filteredExpenses, timeFrame, EXPENSE_CATEGORIES, expenses, currentYear]);
+
   // Format currency helper
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString()}`;
   };
 
-  // Get current date for welcome banner
-  const currentDate = new Date();
-  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
-  const formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
-  
-  // Find the most recent expense date
-  const lastTrackedDate = expenses.length > 0 
-    ? new Date(Math.max(...expenses.map(e => new Date(e.date).getTime())))
-    : null;
-  
-  const formattedLastTracked = lastTrackedDate 
-    ? lastTrackedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : "No expenses yet";
-    
-  // Calculate progress percentage (for demonstration - in real app this could be based on goals)
-  const progressPercentage = 70;
-  
-  // Get caregiving quotes
-  const quotes = [
-    "Setting boundaries is essential for long-term caregiving",
-    "Self-care isn't selfish, it's necessary for caregivers",
-    "Take one day at a time and celebrate small victories",
-    "Asking for help is a sign of strength, not weakness",
-    "Every caregiver has a unique journey worth honoring"
-  ];
-  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-  
-  // Get unique care recipients from expenses
-  const uniqueRecipients = new Set(
-    expenses
-      .filter(expense => expense.careRecipientName)
-      .map(expense => expense.careRecipientName)
-  );
-  
-  // Get upcoming appointments (placeholder - in a real app, this would come from a calendar)
-  const upcomingAppointment = {
-    title: "Annual checkup",
-    date: new Date(currentDate.getFullYear(), 5, 4), // June 4
-    daysAway: 14
-  };
+  const nextPayday = useMemo(() => {
+    // Just a simple calculation - assuming payday is every 2 weeks on Friday
+    const today = new Date();
+    const friday = new Date();
+    friday.setDate(today.getDate() + (5 - today.getDay() + 7) % 7);
+    if ((friday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) < 7) {
+      friday.setDate(friday.getDate() + 14);
+    }
+    const daysUntil = Math.ceil((friday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntil;
+  }, []);
 
   return (
     <Layout>
-      <div className="container py-6">
-        {/* Welcome Banner with Quote */}
-        <Card className="mb-6 bg-blue-50 border-0">
-          <CardContent className="p-6">
-            <div className="mb-6 flex items-center">
-              <div className="bg-white p-4 rounded-full mr-4">
-                <div className="text-blue-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" className="w-8 h-8" viewBox="0 0 24 24">
-                    <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-                  </svg>
+      <div className="container-padding py-6">
+        {/* Header with name and overview stats */}
+        <div className="bg-primary rounded-lg p-5 text-white mb-6">
+          <div className="mb-4">
+            <h1 className="text-2xl font-heading">Hi, {user.name || 'there'}!</h1>
+            <p className="text-white/90">Your caregiving expense summary</p>
+          </div>
+          
+          <Card className="bg-white text-foreground">
+            <CardContent className="p-4">
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Current spend this {timeFrame}</p>
+                    <h2 className="text-3xl font-bold mt-1">{formatCurrency(totalExpenses)}</h2>
+                  </div>
+                  <div className="text-right">
+                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm flex items-center">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      <span>{formatCurrency(incomeThreshold - yearlyExpenses)} below threshold</span>
+                    </div>
+                    <Select value={timeFrame} onValueChange={(value: 'month' | 'year') => setTimeFrame(value)}>
+                      <SelectTrigger className="w-[120px] h-8 mt-2 bg-muted/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="month">This Month</SelectItem>
+                        <SelectItem value="year">This Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-4 mb-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium">Tax Threshold Progress</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 ml-1 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Medical expenses over 7.5% of your income may be tax deductible</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{incomeProgressPercentage.toFixed(0)}% of threshold</span>
+                  </div>
+                  <Progress value={incomeProgressPercentage} className="h-2" />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Current: {formatCurrency(yearlyExpenses)}</span>
+                    <span>Threshold: {formatCurrency(incomeThreshold)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center mt-4 pt-3 border-t">
+                  <div className="bg-green-100 text-green-800 p-1 rounded">
+                    <Receipt className="h-4 w-4" />
+                  </div>
+                  <div className="ml-2">
+                    <p className="text-sm">Payday in {nextPayday} days</p>
+                  </div>
                 </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-heading font-semibold">Welcome, {user.name || 'Caregiver'}!</h1>
-                <p className="text-gray-600">Today is {formattedDate}</p>
-              </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg flex items-start">
-              <LightbulbIcon className="text-amber-500 mr-3 mt-1" />
-              <p className="text-gray-800 italic text-lg">"{randomQuote}"</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Tracking Progress Card */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center mb-4">
-                <CheckCircle className="text-green-500 mr-2" />
-                <h2 className="text-lg font-medium">Tracking Progress</h2>
-              </div>
-              <div className="mb-4">
-                <span className="text-5xl font-bold">{progressPercentage}%</span>
-              </div>
-              <Progress value={progressPercentage} className="h-3 mb-2" />
-              <p className="text-gray-500">Last tracked: {formattedLastTracked}</p>
-            </CardContent>
-          </Card>
-          
-          {/* Total Tracked Card */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center mb-4">
-                <TrendingUp className="text-blue-500 mr-2" />
-                <h2 className="text-lg font-medium">Total Tracked</h2>
-              </div>
-              <div className="mb-4">
-                <span className="text-5xl font-bold">{formatCurrency(totalExpenses)}</span>
-              </div>
-              <p className="text-gray-500">
-                Across {expenses.length} expenses for {uniqueRecipients.size} {uniqueRecipients.size === 1 ? 'person' : 'people'}
-              </p>
-            </CardContent>
-          </Card>
-          
-          {/* Upcoming Appointments */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center mb-4">
-                <Calendar className="text-purple-500 mr-2" />
-                <h2 className="text-lg font-medium">Upcoming</h2>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">{upcomingAppointment.title}</h3>
-              <div className="flex items-center">
-                <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
-                  June 4
-                </span>
-                <span className="ml-2 text-gray-500">{upcomingAppointment.daysAway} days away</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Achievement Card */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center mb-4">
-                <Award className="text-amber-500 mr-2" />
-                <h2 className="text-lg font-medium">Achievement</h2>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Dedicated Caregiver</h3>
-              <p className="text-gray-500">
-                You've been consistently tracking expenses for {uniqueRecipients.size} {uniqueRecipients.size === 1 ? 'person' : 'people'}
-              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Call to Action */}
-        <Button 
-          className="w-full py-6 text-lg bg-blue-500 hover:bg-blue-600"
-          onClick={() => navigate('/resources')}
-        >
-          Get Personalized Caregiving Tips
-        </Button>
+        {/* Account Summary */}
+        <div className="mb-6">
+          <h2 className="text-lg font-medium mb-3">Expense Accounts</h2>
+          <div className="space-y-3">
+            <Card className="bg-neutral">
+              <CardContent className="p-4 flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <Receipt className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-medium">Medical Expenses</h3>
+                    <p className="text-sm text-muted-foreground">{(categoryTotals.find(c => c.name === 'Medical Care')?.value || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-primary border-primary" onClick={() => navigate('/expenses')}>
+                  View
+                </Button>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-neutral">
+              <CardContent className="p-4 flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <Receipt className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-medium">In-Home Care</h3>
+                    <p className="text-sm text-muted-foreground">{(categoryTotals.find(c => c.name === 'In-Home Care')?.value || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-primary border-primary" onClick={() => navigate('/expenses')}>
+                  View
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Button 
+            onClick={() => navigate('/expenses/new')} 
+            className="flex-col h-24 bg-primary text-white"
+          >
+            <PlusCircle className="mb-1" size={24} />
+            <span>Add Expense</span>
+          </Button>
+          <Button 
+            onClick={() => navigate('/care-recipients/new')} 
+            className="flex-col h-24 bg-accent text-accent-foreground"
+          >
+            <PlusCircle className="mb-1" size={24} />
+            <span>Add Care Recipient</span>
+          </Button>
+        </div>
+
+        {/* Expense Charts */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Expense Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex mb-4 justify-between items-center">
+              <h3 className="font-medium">
+                {timeFrame === 'month' ? 'By Category' : 'Monthly Spending'}
+              </h3>
+            </div>
+            
+            <div className="h-[250px]">
+              {timeFrame === 'month' ? (
+                // Pie Chart for category breakdown
+                filteredExpenses.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={categoryTotals}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {categoryTotals.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                      <RechartTooltip formatter={(value) => `$${value}`} />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    No expense data to display
+                  </div>
+                )
+              ) : (
+                // Bar Chart for monthly spending
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartTooltip formatter={(value) => `$${value}`} />
+                    <Bar dataKey="amount" fill="#6DAAE2" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Latest Expenses */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg">Latest Expenses</CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/expenses')}
+                className="text-primary"
+              >
+                View All
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {latestExpenses.length > 0 ? (
+              <div className="space-y-3">
+                {latestExpenses.map((expense) => (
+                  <div 
+                    key={expense.id} 
+                    className="flex justify-between items-center p-3 bg-neutral rounded-md"
+                    onClick={() => navigate(`/expenses/${expense.id}`)}
+                  >
+                    <div>
+                      <div className="font-medium">{expense.description || expense.category}</div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(expense.date).toLocaleDateString()}
+                        {expense.careRecipientName && ` • ${expense.careRecipientName}`}
+                      </div>
+                    </div>
+                    <div className="font-medium">${expense.amount.toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-500">
+                <p>No expenses recorded yet</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-2"
+                  onClick={() => navigate('/expenses/new')}
+                >
+                  Add Your First Expense
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

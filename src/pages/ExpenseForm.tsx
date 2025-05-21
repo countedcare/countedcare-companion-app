@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Upload, Receipt, Scan, FileImage } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
@@ -30,6 +30,8 @@ const ExpenseForm = () => {
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [careRecipientId, setCareRecipientId] = useState('');
+  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
+  const [isUploading, setIsUploading] = useState(false);
   
   // For editing mode
   useEffect(() => {
@@ -42,6 +44,7 @@ const ExpenseForm = () => {
         setCategory(expenseToEdit.category);
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
+        setReceiptUrl(expenseToEdit.receiptUrl);
       }
     }
   }, [id, expenses]);
@@ -66,7 +69,8 @@ const ExpenseForm = () => {
       category,
       description: title || description,
       careRecipientId,
-      careRecipientName: recipients.find(r => r.id === careRecipientId)?.name
+      careRecipientName: recipients.find(r => r.id === careRecipientId)?.name,
+      receiptUrl
     };
     
     if (id) {
@@ -101,6 +105,57 @@ const ExpenseForm = () => {
     }
   };
   
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    
+    // Simulate file upload with a delay
+    setTimeout(() => {
+      // Create object URL for preview
+      const fileUrl = URL.createObjectURL(file);
+      setReceiptUrl(fileUrl);
+      setIsUploading(false);
+      
+      toast({
+        title: "Receipt Uploaded",
+        description: "Your receipt has been attached to this expense."
+      });
+    }, 1000);
+  };
+  
+  const handleScan = () => {
+    // Simulate scanning with camera
+    setIsUploading(true);
+    
+    toast({
+      title: "Accessing Camera",
+      description: "Please allow camera access to scan your receipt."
+    });
+    
+    // Simulate delay for scanning
+    setTimeout(() => {
+      // In a real app, this would use the device camera API
+      // For now, we'll just set a placeholder image
+      setReceiptUrl("/placeholder.svg");
+      setIsUploading(false);
+      
+      toast({
+        title: "Receipt Scanned",
+        description: "Your receipt has been scanned and attached to this expense."
+      });
+    }, 1500);
+  };
+  
+  const removeReceipt = () => {
+    setReceiptUrl(undefined);
+    toast({
+      title: "Receipt Removed",
+      description: "The receipt has been removed from this expense."
+    });
+  };
+  
   return (
     <Layout>
       <div className="container-padding py-6">
@@ -112,6 +167,7 @@ const ExpenseForm = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                {/* Expense Title */}
                 <div className="space-y-2">
                   <Label htmlFor="title">Expense Title*</Label>
                   <Input
@@ -123,6 +179,7 @@ const ExpenseForm = () => {
                   />
                 </div>
                 
+                {/* Amount */}
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount ($)*</Label>
                   <Input
@@ -137,6 +194,7 @@ const ExpenseForm = () => {
                   />
                 </div>
                 
+                {/* Date */}
                 <div className="space-y-2">
                   <Label>Date*</Label>
                   <Popover>
@@ -164,6 +222,7 @@ const ExpenseForm = () => {
                   </Popover>
                 </div>
                 
+                {/* Category */}
                 <div className="space-y-2">
                   <Label htmlFor="category">Category*</Label>
                   <Select 
@@ -182,6 +241,7 @@ const ExpenseForm = () => {
                   </Select>
                 </div>
                 
+                {/* Care Recipient */}
                 <div className="space-y-2">
                   <Label htmlFor="recipient">Who this is for</Label>
                   {recipients.length > 0 ? (
@@ -217,6 +277,77 @@ const ExpenseForm = () => {
                   )}
                 </div>
                 
+                {/* Receipt Upload Section */}
+                <div className="space-y-2">
+                  <Label>Receipt</Label>
+                  
+                  {receiptUrl ? (
+                    <div className="border rounded-md p-3">
+                      <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
+                        <img 
+                          src={receiptUrl} 
+                          alt="Receipt" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={removeReceipt}
+                        className="w-full"
+                      >
+                        Remove Receipt
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <input
+                          type="file"
+                          id="receipt-upload"
+                          accept="image/*"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          disabled={isUploading}
+                        />
+                        <label htmlFor="receipt-upload">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full cursor-pointer"
+                            asChild
+                            disabled={isUploading}
+                          >
+                            <div>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Receipt
+                            </div>
+                          </Button>
+                        </label>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleScan}
+                        disabled={isUploading}
+                        className="w-full"
+                      >
+                        <Scan className="mr-2 h-4 w-4" />
+                        Scan Receipt
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {isUploading && (
+                    <div className="text-center py-3">
+                      <div className="animate-pulse text-sm text-gray-500">
+                        Processing receipt...
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Notes */}
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
@@ -229,6 +360,7 @@ const ExpenseForm = () => {
                 </div>
               </div>
               
+              {/* Form Buttons */}
               <div className="mt-6 space-y-3">
                 <Button type="submit" className="w-full bg-primary">
                   {id ? 'Update' : 'Save'} Expense

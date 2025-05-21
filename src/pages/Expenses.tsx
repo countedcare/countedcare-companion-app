@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Search, Filter, Calendar } from 'lucide-react';
+import { PlusCircle, Search, Filter, Calendar, Receipt } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -204,7 +204,15 @@ const Expenses = () => {
                           </div>
                         </div>
                       </div>
-                      <span className="font-semibold">${expense.amount.toLocaleString()}</span>
+                      <div className="flex flex-col items-end">
+                        <span className="font-semibold">${expense.amount.toLocaleString()}</span>
+                        {expense.receiptUrl && (
+                          <div className="mt-1 text-primary flex items-center">
+                            <Receipt className="h-3 w-3 mr-1" />
+                            <span className="text-xs">Receipt</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

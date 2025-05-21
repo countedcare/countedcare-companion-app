@@ -5,50 +5,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, BookOpen, ShoppingBag, Heart, ExternalLink } from 'lucide-react';
+import { Search, Heart, ExternalLink, Landmark } from 'lucide-react';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Resource } from '@/types/User';
 
-// Initial resources data
+// Updated resources data with location categories
 const defaultResources: Resource[] = [
   {
     id: 'res-1',
     title: 'IRS Publication 502: Medical and Dental Expenses',
-    category: 'article',
+    category: 'federal',
     description: 'Official IRS guide to medical expense deductions, including qualifying expenses and calculation methods.',
     link: 'https://www.irs.gov/publications/p502',
     isFavorite: false
   },
   {
     id: 'res-2',
-    title: 'Eligible HSA/FSA Products',
-    category: 'article',
-    description: 'A comprehensive list of products eligible for purchase with HSA or FSA funds.',
-    link: 'https://fsastore.com/fsa-eligibility-list',
+    title: 'Medicare Extra Help Program',
+    category: 'federal',
+    description: 'Information about Medicare\'s Extra Help program for prescription drug costs.',
+    link: 'https://www.ssa.gov/benefits/medicare/prescriptionhelp.html',
     isFavorite: false
   },
   {
     id: 'res-3',
-    title: 'Caregiver Tax Breaks & Credits',
-    category: 'article',
-    description: 'Learn about available tax credits specifically for family caregivers.',
+    title: 'State Tax Credits for Caregivers',
+    category: 'state',
+    description: 'Learn about available tax credits specifically for family caregivers in your state.',
     link: 'https://www.aarp.org/caregiving/financial-legal/info-2020/tax-tips-family-caregivers.html',
     isFavorite: false
   },
   {
     id: 'res-4',
-    title: 'Home Medical Equipment',
-    category: 'product',
-    description: 'Tax-deductible medical equipment for home use, including mobility aids and safety items.',
-    link: 'https://www.amazon.com/s?k=medical+equipment+home',
+    title: 'County Health Department Resources',
+    category: 'county',
+    description: 'Local county health department resources for caregivers and their care recipients.',
+    link: 'https://www.naccho.org/membership/lhd-directory',
     isFavorite: false
   },
   {
     id: 'res-5',
-    title: 'Caregiver Support Groups',
-    category: 'support',
-    description: 'Find local and online support groups for caregivers to share experiences and advice.',
+    title: 'Local Caregiver Support Groups',
+    category: 'local',
+    description: 'Find local support groups for caregivers to share experiences and advice.',
     link: 'https://www.caregiver.org/connecting-caregivers/support-groups/',
     isFavorite: false
   }
@@ -57,7 +57,7 @@ const defaultResources: Resource[] = [
 const Resources = () => {
   const [resources, setResources] = useLocalStorage<Resource[]>('countedcare-resources', defaultResources);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('federal');
   
   // Filter resources based on search and active tab
   const filteredResources = resources.filter(resource => {
@@ -65,8 +65,11 @@ const Resources = () => {
       resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       resource.description.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesTab = activeTab === 'all' || 
-      activeTab === 'favorites' ? resource.isFavorite : resource.category === activeTab;
+    const matchesTab = activeTab === 'favorites' 
+      ? resource.isFavorite 
+      : activeTab === 'all'
+      ? true
+      : resource.category === activeTab;
     
     return matchesSearch && matchesTab;
   });
@@ -94,12 +97,12 @@ const Resources = () => {
         </div>
         
         {/* Resource Tabs */}
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="federal" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="article">Articles</TabsTrigger>
-            <TabsTrigger value="product">Products</TabsTrigger>
-            <TabsTrigger value="support">Support</TabsTrigger>
+            <TabsTrigger value="federal">Federal</TabsTrigger>
+            <TabsTrigger value="state">State</TabsTrigger>
+            <TabsTrigger value="county">County</TabsTrigger>
+            <TabsTrigger value="local">Local</TabsTrigger>
             <TabsTrigger value="favorites">Favorites</TabsTrigger>
           </TabsList>
           
@@ -113,14 +116,19 @@ const Resources = () => {
                         <div>
                           <CardTitle className="text-lg">{resource.title}</CardTitle>
                           <CardDescription className="mt-1">
-                            <Badge variant={resource.category === 'article' ? 'default' : 
-                                            resource.category === 'product' ? 'secondary' : 
-                                            'outline'} 
-                                  className={resource.category === 'article' ? 'bg-primary' :
-                                            resource.category === 'product' ? 'bg-accent text-accent-foreground' :
-                                            'border-primary text-primary'}>
-                              {resource.category === 'article' && <BookOpen className="h-3 w-3 mr-1" />}
-                              {resource.category === 'product' && <ShoppingBag className="h-3 w-3 mr-1" />}
+                            <Badge variant={
+                              resource.category === 'federal' ? 'default' :
+                              resource.category === 'state' ? 'secondary' :
+                              resource.category === 'county' ? 'outline' :
+                              'destructive'
+                            } 
+                            className={
+                              resource.category === 'federal' ? 'bg-blue-600' :
+                              resource.category === 'state' ? 'bg-green-600' :
+                              resource.category === 'county' ? 'border-orange-500 text-orange-500' :
+                              'bg-red-600'
+                            }>
+                              <Landmark className="h-3 w-3 mr-1" />
                               {resource.category.charAt(0).toUpperCase() + resource.category.slice(1)}
                             </Badge>
                           </CardDescription>

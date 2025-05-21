@@ -2,26 +2,28 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/components/ui/use-toast';
-import { LogOut, User, Download } from 'lucide-react';
+import { LogOut, User, Download, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { User as UserType, Expense } from '@/types/User';
+import { User as UserType, CareRecipient, Expense, RELATIONSHIP_TYPES } from '@/types/User';
 
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useLocalStorage<UserType>('countedcare-user', {
+    id: '',
     name: '',
     email: '',
     isCaregiver: true,
     onboardingComplete: false
   });
+  const [careRecipients, setCareRecipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
   const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   
   // Form state
@@ -50,6 +52,7 @@ const Profile = () => {
   const handleLogout = () => {
     // Clear user data and navigate to onboarding
     setUser({
+      id: '',
       name: '',
       email: '',
       isCaregiver: true,
@@ -57,6 +60,28 @@ const Profile = () => {
     });
     
     navigate('/');
+  };
+
+  const handleDeleteCareRecipient = (id: string) => {
+    // Check if there are any expenses linked to this care recipient
+    const linkedExpenses = expenses.filter(expense => expense.careRecipientId === id);
+    
+    if (linkedExpenses.length > 0) {
+      toast({
+        title: "Cannot Delete",
+        description: `This person has ${linkedExpenses.length} expense(s) linked to them. Please reassign or delete those expenses first.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // If no linked expenses, proceed with deletion
+    setCareRecipients(careRecipients.filter(recipient => recipient.id !== id));
+    
+    toast({
+      title: "Person Removed",
+      description: "The care recipient has been removed from your profile."
+    });
   };
   
   const exportData = () => {
@@ -151,6 +176,61 @@ const Profile = () => {
                 Save Changes
               </Button>
             </CardContent>
+          </Card>
+
+          {/* Care Recipients Management Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>People I Care For</CardTitle>
+              <CardDescription>Manage profiles of people you are caring for</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {careRecipients.length > 0 ? (
+                <div className="space-y-4">
+                  {careRecipients.map((recipient) => (
+                    <div 
+                      key={recipient.id} 
+                      className="flex items-center justify-between border rounded-md p-3"
+                    >
+                      <div>
+                        <h3 className="font-medium">{recipient.name}</h3>
+                        <p className="text-sm text-gray-500">{recipient.relationship}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => navigate(`/care-recipients/${recipient.id}`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => handleDeleteCareRecipient(recipient.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  You haven't added any care recipients yet.
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={() => navigate('/care-recipients/new')} 
+                className="w-full"
+                variant="outline"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Someone
+              </Button>
+            </CardFooter>
           </Card>
           
           {/* Preferences Section */}

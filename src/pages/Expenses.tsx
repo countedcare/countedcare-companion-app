@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 const Expenses = () => {
   const navigate = useNavigate();
@@ -28,8 +30,8 @@ const Expenses = () => {
       expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       expense.category.toLowerCase().includes(searchTerm.toLowerCase());
       
-    const matchesCategory = !filterCategory || expense.category === filterCategory;
-    const matchesRecipient = !filterRecipient || expense.careRecipientId === filterRecipient;
+    const matchesCategory = !filterCategory || filterCategory === 'all-categories' || expense.category === filterCategory;
+    const matchesRecipient = !filterRecipient || filterRecipient === 'all-recipients' || expense.careRecipientId === filterRecipient;
     
     // Date range filter
     let matchesDateRange = true;
@@ -128,7 +130,7 @@ const Expenses = () => {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
+              <CalendarComponent
                 mode="range"
                 selected={dateRange}
                 onSelect={(value) => value && setDateRange(value)}

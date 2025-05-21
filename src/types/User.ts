@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -5,12 +6,15 @@ export interface User {
   isCaregiver: boolean;
   caregivingFor?: string[];
   householdAGI?: number;
+  onboardingComplete?: boolean;
 }
 
 export interface CareRecipient {
   id: string;
   name: string;
   relationship: string;
+  conditions?: string[];
+  insuranceInfo?: string;
 }
 
 export const RELATIONSHIP_TYPES = [
@@ -33,7 +37,6 @@ export const EXPENSE_CATEGORIES = [
   "Other",
 ];
 
-// Add Expense type if it doesn't exist
 export interface Expense {
   id: string;
   amount: number;
@@ -42,4 +45,35 @@ export interface Expense {
   description: string;
   careRecipientId: string;
   careRecipientName?: string;
+  receiptUrl?: string;
 }
+
+export interface Resource {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  link?: string;
+  isFavorite?: boolean;
+  type?: "Discount" | "Government Program" | "Local Support" | "Tax Prep" | "Product"; 
+  partnerName?: string;
+  tags?: string[];
+}
+
+export const RESOURCE_TAGS = [
+  "Transportation",
+  "Home Aid",
+  "Food",
+  "Medical",
+  "Tax Relief",
+  "Respite Care",
+  "Financial Assistance"
+];
+
+export const RESOURCE_TYPES = [
+  "Discount", 
+  "Government Program", 
+  "Local Support", 
+  "Tax Prep", 
+  "Product"
+];

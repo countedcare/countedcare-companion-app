@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, Heart, ExternalLink, Landmark } from 'lucide-react';
+import { Search, Heart, ExternalLink, Landmark, MapPin } from 'lucide-react';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Resource, User } from '@/types/User';
@@ -89,6 +90,19 @@ const Resources = () => {
     zipCode: ''
   });
   
+  // Added state for location filter inputs
+  const [locationFilter, setLocationFilter] = useState({
+    city: '',
+    zipCode: user.zipCode || ''
+  });
+  
+  // Update location filter when user.zipCode changes
+  useEffect(() => {
+    if (user.zipCode) {
+      setLocationFilter(prev => ({...prev, zipCode: user.zipCode}));
+    }
+  }, [user.zipCode]);
+  
   // Function to check if a resource is relevant to the user's ZIP code
   const isResourceRelevantToZip = (resource: Resource, zipCode: string): boolean => {
     // Federal resources are available everywhere
@@ -112,7 +126,7 @@ const Resources = () => {
     return false;
   };
   
-  // Filter resources based on search, active tab, and user's ZIP code
+  // Filter resources based on search, active tab, user's ZIP code, and city
   const filteredResources = resources.filter(resource => {
     const matchesSearch = !searchTerm || 
       resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,10 +138,18 @@ const Resources = () => {
       ? true
       : resource.category === activeTab;
     
-    // Filter by ZIP code if it's a state, county, or local resource
-    const matchesZipCode = isResourceRelevantToZip(resource, user.zipCode || '');
+    // Filter by ZIP code if provided in the location filter
+    const matchesZipCode = locationFilter.zipCode ? 
+      isResourceRelevantToZip(resource, locationFilter.zipCode) : 
+      true;
     
-    return matchesSearch && matchesTab && matchesZipCode;
+    // Simple city filter - check if resource description or title contains the city name
+    // In a real app, you might want a more sophisticated matching system
+    const matchesCity = !locationFilter.city || 
+      resource.title.toLowerCase().includes(locationFilter.city.toLowerCase()) ||
+      resource.description.toLowerCase().includes(locationFilter.city.toLowerCase());
+    
+    return matchesSearch && matchesTab && matchesZipCode && matchesCity;
   });
   
   const toggleFavorite = (id: string) => {
@@ -136,13 +158,28 @@ const Resources = () => {
     ));
   };
   
+  const handleLocationFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setLocationFilter(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const clearLocationFilters = () => {
+    setLocationFilter({
+      city: '',
+      zipCode: ''
+    });
+  };
+  
   return (
     <Layout>
       <div className="container-padding py-6">
         <h1 className="text-2xl font-heading mb-6">Resources</h1>
         
         {/* Search Bar */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
           <Input 
             placeholder="Search resources..." 
@@ -150,6 +187,46 @@ const Resources = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        
+        {/* Location Filter Section */}
+        <div className="mb-6 bg-gray-50 p-4 rounded-md">
+          <h3 className="text-sm font-medium mb-3 flex items-center">
+            <MapPin className="h-4 w-4 mr-1" />
+            Filter by Location
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="city" className="text-sm text-gray-600 block mb-1">City</label>
+              <Input
+                id="city"
+                name="city"
+                placeholder="Enter city"
+                value={locationFilter.city}
+                onChange={handleLocationFilterChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="zipCode" className="text-sm text-gray-600 block mb-1">ZIP Code</label>
+              <Input
+                id="zipCode"
+                name="zipCode"
+                placeholder="Enter ZIP code"
+                value={locationFilter.zipCode}
+                onChange={handleLocationFilterChange}
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={clearLocationFilters}
+              className="text-xs"
+            >
+              Clear Filters
+            </Button>
+          </div>
         </div>
         
         {/* Resource Tabs */}
@@ -220,11 +297,9 @@ const Resources = () => {
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
-                {searchTerm 
-                  ? 'No resources match your search' 
-                  : user.zipCode
-                    ? `No ${activeTab} resources found for your ZIP code (${user.zipCode})`
-                    : `No resources in this category. Add your ZIP code in Profile to see location-specific resources.`
+                {searchTerm || locationFilter.city || locationFilter.zipCode
+                  ? 'No resources match your search criteria'
+                  : `No ${activeTab} resources found`
                 }
               </div>
             )}

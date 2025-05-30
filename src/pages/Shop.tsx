@@ -1,117 +1,59 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Search, ShoppingBag, Star, Filter, Check, X } from 'lucide-react';
+import { Search, ShoppingBag, Star, Filter, Check, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  hsaEligible: boolean;
-  fsaEligible: boolean;
-  rating: number;
-  image: string;
-}
-
-const products: Product[] = [
-  {
-    id: 'prod-1',
-    name: 'Digital Blood Pressure Monitor',
-    category: 'Medical Devices',
-    price: 49.99,
-    hsaEligible: true,
-    fsaEligible: true,
-    rating: 4.5,
-    image: '/placeholder.svg'
-  },
-  {
-    id: 'prod-2',
-    name: 'Pulse Oximeter',
-    category: 'Medical Devices',
-    price: 29.99,
-    hsaEligible: true,
-    fsaEligible: true,
-    rating: 4.3,
-    image: '/placeholder.svg'
-  },
-  {
-    id: 'prod-3',
-    name: 'Heating Pad',
-    category: 'Pain Management',
-    price: 24.99,
-    hsaEligible: true,
-    fsaEligible: true,
-    rating: 4.1,
-    image: '/placeholder.svg'
-  },
-  {
-    id: 'prod-4',
-    name: 'Bathroom Safety Rail',
-    category: 'Mobility',
-    price: 39.99,
-    hsaEligible: false,
-    fsaEligible: false,
-    rating: 4.7,
-    image: '/placeholder.svg'
-  },
-  {
-    id: 'prod-5',
-    name: 'Pill Organizer with Alarm',
-    category: 'Medication Management',
-    price: 18.99,
-    hsaEligible: false,
-    fsaEligible: false,
-    rating: 4.0,
-    image: '/placeholder.svg'
-  }
-];
+import { useShopifyProducts } from '@/hooks/useShopifyProducts';
 
 const Shop = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
-  const [showHsaOnly, setShowHsaOnly] = useState(false);
-  
-  const categories = Array.from(new Set(products.map(product => product.category)));
-  
-  // Filter products based on search, tab, and HSA filter
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = !searchTerm || 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesTab = activeTab === 'all' || product.category === activeTab;
-    
-    const matchesHsa = !showHsaOnly || product.hsaEligible;
-    
-    return matchesSearch && matchesTab && matchesHsa;
-  });
-  
-  // Stars for ratings display
-  const renderRatingStars = (rating: number) => {
-    const fullStars = Math.floor(rating);
-    const halfStar = rating % 1 >= 0.5;
-    
-    return (
-      <div className="flex items-center">
-        {Array(fullStars).fill(0).map((_, i) => (
-          <Star key={`full-${i}`} className="h-4 w-4 fill-primary text-primary" />
-        ))}
-        {halfStar && (
-          <Star className="h-4 w-4 fill-primary text-primary" />
-        )}
-        {Array(5 - fullStars - (halfStar ? 1 : 0)).fill(0).map((_, i) => (
-          <Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />
-        ))}
-        <span className="ml-1 text-sm text-gray-600">{rating}</span>
-      </div>
+  const {
+    products,
+    categories,
+    isLoading,
+    error,
+    searchTerm,
+    setSearchTerm,
+    selectedCategory,
+    setSelectedCategory,
+    showHsaOnly,
+    setShowHsaOnly,
+  } = useShopifyProducts();
+
+  const handleProductClick = (product: any) => {
+    // Open product in new tab for now - you can customize this later
+    window.open(`https://your-shop-name.myshopify.com/products/${product.handle}`, '_blank');
+  };
+
+  const isHsaEligible = (product: any) => {
+    return product.tags.some((tag: string) => 
+      tag.toLowerCase().includes('hsa') || tag.toLowerCase().includes('fsa')
     );
   };
-  
+
+  const getProductPrice = (product: any) => {
+    return parseFloat(product.priceRange.minVariantPrice.amount);
+  };
+
+  const getProductImage = (product: any) => {
+    return product.images.edges[0]?.node.url || '/placeholder.svg';
+  };
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="container-padding py-6">
+          <div className="text-center py-12">
+            <p className="text-red-600">Error loading products. Please check your Shopify configuration.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="container-padding py-6">
@@ -148,7 +90,7 @@ const Shop = () => {
         </div>
         
         {/* Category Tabs */}
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
           <TabsList className="mb-6 overflow-auto">
             <TabsTrigger value="all">All</TabsTrigger>
             {categories.map(category => (
@@ -156,33 +98,60 @@ const Shop = () => {
             ))}
           </TabsList>
           
-          <TabsContent value={activeTab} className="mt-0">
-            {filteredProducts.length > 0 ? (
+          <TabsContent value={selectedCategory} className="mt-0">
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : products.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredProducts.map((product) => (
-                  <Card key={product.id}>
+                {products.map((product) => (
+                  <Card key={product.id} className="cursor-pointer hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">{product.name}</CardTitle>
-                          <CardDescription>{product.category}</CardDescription>
+                          <CardTitle className="text-lg">{product.title}</CardTitle>
+                          <CardDescription className="line-clamp-2">
+                            {product.description.substring(0, 100)}...
+                          </CardDescription>
                         </div>
-                        <Badge variant={product.hsaEligible ? 'default' : 'outline'} className={product.hsaEligible ? 'bg-green-600' : ''}>
-                          {product.hsaEligible ? 'HSA/FSA Eligible' : 'Not Eligible'}
+                        <Badge variant={isHsaEligible(product) ? 'default' : 'outline'} className={isHsaEligible(product) ? 'bg-green-600' : ''}>
+                          {isHsaEligible(product) ? 'HSA/FSA Eligible' : 'Not Eligible'}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-32 mb-4 flex items-center justify-center bg-gray-100 rounded-md">
-                        <ShoppingBag className="h-12 w-12 text-gray-300" />
+                      <div className="h-32 mb-4 flex items-center justify-center bg-gray-100 rounded-md overflow-hidden">
+                        <img 
+                          src={getProductImage(product)} 
+                          alt={product.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full"><svg class="h-12 w-12 text-gray-300" fill="currentColor" viewBox="0 0 24 24"><path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v10z"/></svg></div>';
+                          }}
+                        />
                       </div>
                       <div className="flex justify-between items-center">
-                        <div>{renderRatingStars(product.rating)}</div>
-                        <div className="text-lg font-medium">${product.price.toFixed(2)}</div>
+                        <div className="flex items-center">
+                          <Star className="h-4 w-4 fill-primary text-primary" />
+                          <Star className="h-4 w-4 fill-primary text-primary" />
+                          <Star className="h-4 w-4 fill-primary text-primary" />
+                          <Star className="h-4 w-4 fill-primary text-primary" />
+                          <Star className="h-4 w-4 text-gray-300" />
+                          <span className="ml-1 text-sm text-gray-600">4.0</span>
+                        </div>
+                        <div className="text-lg font-medium">${getProductPrice(product).toFixed(2)}</div>
                       </div>
                     </CardContent>
                     <CardFooter>
-                      <Button className="w-full">View Details</Button>
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleProductClick(product)}
+                      >
+                        View Details
+                      </Button>
                     </CardFooter>
                   </Card>
                 ))}

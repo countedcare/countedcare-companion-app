@@ -24,7 +24,14 @@ export const useLinkedAccounts = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAccounts(data || []);
+      
+      // Type assertion to ensure the data matches our interface
+      const typedAccounts = (data || []).map(account => ({
+        ...account,
+        account_type: account.account_type as LinkedAccount['account_type']
+      })) as LinkedAccount[];
+      
+      setAccounts(typedAccounts);
     } catch (error) {
       console.error('Error fetching linked accounts:', error);
       toast({
@@ -52,13 +59,19 @@ export const useLinkedAccounts = () => {
 
       if (error) throw error;
 
-      setAccounts(prev => [data, ...prev]);
+      // Type assertion for the returned data
+      const typedAccount = {
+        ...data,
+        account_type: data.account_type as LinkedAccount['account_type']
+      } as LinkedAccount;
+
+      setAccounts(prev => [typedAccount, ...prev]);
       toast({
         title: "Account Added",
         description: `${accountData.account_name} has been linked successfully`
       });
 
-      return data;
+      return typedAccount;
     } catch (error) {
       console.error('Error adding account:', error);
       toast({

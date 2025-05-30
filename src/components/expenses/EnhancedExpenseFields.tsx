@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { EXPENSE_TAGS, REIMBURSEMENT_SOURCES } from '@/types/FinancialAccount';
+import { LinkedAccount } from '@/types/FinancialAccount';
 
 interface EnhancedExpenseFieldsProps {
   expenseTags: string[];
@@ -14,6 +15,9 @@ interface EnhancedExpenseFieldsProps {
   setIsTaxDeductible: (value: boolean) => void;
   reimbursementSource: string;
   setReimbursementSource: (value: string) => void;
+  linkedAccountId: string;
+  setLinkedAccountId: (value: string) => void;
+  linkedAccounts: LinkedAccount[];
 }
 
 const EnhancedExpenseFields = ({
@@ -22,7 +26,10 @@ const EnhancedExpenseFields = ({
   isTaxDeductible,
   setIsTaxDeductible,
   reimbursementSource,
-  setReimbursementSource
+  setReimbursementSource,
+  linkedAccountId,
+  setLinkedAccountId,
+  linkedAccounts
 }: EnhancedExpenseFieldsProps) => {
   const addTag = (tag: string) => {
     if (!expenseTags.includes(tag)) {
@@ -37,6 +44,25 @@ const EnhancedExpenseFields = ({
   return (
     <div className="space-y-4 border-t pt-4">
       <h3 className="font-medium text-sm text-gray-700">Enhanced Tracking</h3>
+      
+      {/* Linked Account */}
+      <div className="space-y-2">
+        <Label htmlFor="linked-account">Account Used</Label>
+        <Select value={linkedAccountId} onValueChange={setLinkedAccountId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select the account this expense came from" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Not specified</SelectItem>
+            {linkedAccounts.map(account => (
+              <SelectItem key={account.id} value={account.id}>
+                {account.account_name} ({account.account_type.toUpperCase()})
+                {account.institution_name && ` - ${account.institution_name}`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       
       {/* Tax Deductible Toggle */}
       <div className="flex items-center justify-between">

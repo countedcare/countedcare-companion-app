@@ -16,6 +16,7 @@ import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
+import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -23,6 +24,7 @@ const ExpenseForm = () => {
   const { toast } = useToast();
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
+  const { accounts: linkedAccounts } = useLinkedAccounts();
   
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -37,6 +39,7 @@ const ExpenseForm = () => {
   const [expenseTags, setExpenseTags] = useState<string[]>([]);
   const [isTaxDeductible, setIsTaxDeductible] = useState(false);
   const [reimbursementSource, setReimbursementSource] = useState('');
+  const [linkedAccountId, setLinkedAccountId] = useState('');
   
   // For editing mode
   useEffect(() => {
@@ -53,6 +56,7 @@ const ExpenseForm = () => {
         setExpenseTags(expenseToEdit.expense_tags || []);
         setIsTaxDeductible(expenseToEdit.is_tax_deductible || false);
         setReimbursementSource(expenseToEdit.reimbursement_source || '');
+        setLinkedAccountId(expenseToEdit.synced_transaction_id || '');
       }
     }
   }, [id, expenses]);
@@ -81,7 +85,8 @@ const ExpenseForm = () => {
       receiptUrl,
       expense_tags: expenseTags.length > 0 ? expenseTags : undefined,
       is_tax_deductible: isTaxDeductible,
-      reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : undefined
+      reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : undefined,
+      synced_transaction_id: linkedAccountId && linkedAccountId !== 'none' ? linkedAccountId : undefined
     };
     
     if (id) {
@@ -378,6 +383,9 @@ const ExpenseForm = () => {
                   setIsTaxDeductible={setIsTaxDeductible}
                   reimbursementSource={reimbursementSource}
                   setReimbursementSource={setReimbursementSource}
+                  linkedAccountId={linkedAccountId}
+                  setLinkedAccountId={setLinkedAccountId}
+                  linkedAccounts={linkedAccounts}
                 />
               </div>
               

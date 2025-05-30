@@ -4,7 +4,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Expenses from "./pages/Expenses";
 import ExpenseForm from "./pages/ExpenseForm";
@@ -22,22 +25,65 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/expenses" element={<Expenses />} />
-          <Route path="/expenses/new" element={<ExpenseForm />} />
-          <Route path="/expenses/:id" element={<ExpenseForm />} />
-          <Route path="/care-recipients" element={<CareRecipients />} />
-          <Route path="/care-recipients/new" element={<CareRecipientForm />} />
-          <Route path="/care-recipients/:id" element={<CareRecipientForm />} />
-          <Route path="/resources" element={<Resources />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/expenses" element={
+              <ProtectedRoute>
+                <Expenses />
+              </ProtectedRoute>
+            } />
+            <Route path="/expenses/new" element={
+              <ProtectedRoute>
+                <ExpenseForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/expenses/:id" element={
+              <ProtectedRoute>
+                <ExpenseForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/care-recipients" element={
+              <ProtectedRoute>
+                <CareRecipients />
+              </ProtectedRoute>
+            } />
+            <Route path="/care-recipients/new" element={
+              <ProtectedRoute>
+                <CareRecipientForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/care-recipients/:id" element={
+              <ProtectedRoute>
+                <CareRecipientForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/resources" element={
+              <ProtectedRoute>
+                <Resources />
+              </ProtectedRoute>
+            } />
+            <Route path="/shop" element={
+              <ProtectedRoute>
+                <Shop />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

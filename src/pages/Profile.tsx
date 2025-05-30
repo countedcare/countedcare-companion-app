@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/components/ui/use-toast';
 import { LogOut, User, Download, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User as UserType, CareRecipient, Expense, RELATIONSHIP_TYPES } from '@/types/User';
@@ -16,7 +17,8 @@ import { User as UserType, CareRecipient, Expense, RELATIONSHIP_TYPES } from '@/
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [user, setUser] = useLocalStorage<UserType>('countedcare-user', {
+  const { user, signOut } = useAuth();
+  const [localUser, setLocalUser] = useLocalStorage<UserType>('countedcare-user', {
     id: '',
     name: '',
     email: '',
@@ -27,16 +29,16 @@ const Profile = () => {
   const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   
   // Form state
-  const [name, setName] = useState(user.name || '');
-  const [email, setEmail] = useState(user.email || '');
-  const [isCaregiver, setIsCaregiver] = useState(user.isCaregiver);
-  const [caregivingFor, setCaregivingFor] = useState(user.caregivingFor?.join(', ') || '');
+  const [name, setName] = useState(user?.user_metadata?.name || localUser.name || '');
+  const [email, setEmail] = useState(user?.email || localUser.email || '');
+  const [isCaregiver, setIsCaregiver] = useState(localUser.isCaregiver);
+  const [caregivingFor, setCaregivingFor] = useState(localUser.caregivingFor?.join(', ') || '');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
   const handleSaveProfile = () => {
     // Update user info in localStorage
-    setUser({
-      ...user,
+    setLocalUser({
+      ...localUser,
       name,
       email,
       isCaregiver,
@@ -49,17 +51,26 @@ const Profile = () => {
     });
   };
   
-  const handleLogout = () => {
-    // Clear user data and navigate to onboarding
-    setUser({
-      id: '',
-      name: '',
-      email: '',
-      isCaregiver: true,
-      onboardingComplete: false
-    });
-    
-    navigate('/');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      // Clear local storage
+      setLocalUser({
+        id: '',
+        name: '',
+        email: '',
+        isCaregiver: true,
+        onboardingComplete: false
+      });
+      
+      navigate('/');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteCareRecipient = (id: string) => {
@@ -87,7 +98,7 @@ const Profile = () => {
   const exportData = () => {
     // Create a data export object with user info and expenses
     const exportData = {
-      userProfile: user,
+      userProfile: localUser,
       expenses
     };
     
@@ -139,7 +150,9 @@ const Profile = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email"
+                  disabled
                 />
+                <p className="text-sm text-gray-500">Email cannot be changed here. Contact support if needed.</p>
               </div>
               
               <div className="space-y-2">
@@ -280,7 +293,7 @@ const Profile = () => {
           {/* Sign Out */}
           <Button 
             variant="outline" 
-            onClick={handleLogout} 
+            onClick={handleSignOut} 
             className="w-full flex items-center justify-center border-gray-300"
           >
             <LogOut className="mr-2 h-4 w-4" />

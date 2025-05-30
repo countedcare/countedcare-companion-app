@@ -9,7 +9,134 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      care_recipients: {
+        Row: {
+          created_at: string | null
+          date_of_birth: string | null
+          id: string
+          name: string
+          notes: string | null
+          relationship: string
+          ssn_last_four: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date_of_birth?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          relationship: string
+          ssn_last_four?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date_of_birth?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          relationship?: string
+          ssn_last_four?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          care_recipient_id: string | null
+          category: string
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          is_reimbursed: boolean | null
+          notes: string | null
+          receipt_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          care_recipient_id?: string | null
+          category: string
+          created_at?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          is_reimbursed?: boolean | null
+          notes?: string | null
+          receipt_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          care_recipient_id?: string | null
+          category?: string
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          is_reimbursed?: boolean | null
+          notes?: string | null
+          receipt_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_care_recipient_id_fkey"
+            columns: ["care_recipient_id"]
+            isOneToOne: false
+            referencedRelation: "care_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          caregiving_for: string[] | null
+          created_at: string | null
+          email: string | null
+          household_agi: number | null
+          id: string
+          is_caregiver: boolean | null
+          name: string | null
+          onboarding_complete: boolean | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          caregiving_for?: string[] | null
+          created_at?: string | null
+          email?: string | null
+          household_agi?: number | null
+          id: string
+          is_caregiver?: boolean | null
+          name?: string | null
+          onboarding_complete?: boolean | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          caregiving_for?: string[] | null
+          created_at?: string | null
+          email?: string | null
+          household_agi?: number | null
+          id?: string
+          is_caregiver?: boolean | null
+          name?: string | null
+          onboarding_complete?: boolean | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,7 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User } from '@/types/User';
@@ -15,8 +18,9 @@ import { Heart, LightbulbIcon } from 'lucide-react';
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading } = useAuth();
   const [step, setStep] = useState(1);
-  const [user, setUser] = useLocalStorage<User>('countedcare-user', {
+  const [localUser, setLocalUser] = useLocalStorage<User>('countedcare-user', {
     name: '',
     email: '',
     isCaregiver: true,
@@ -33,8 +37,19 @@ const Index = () => {
   // Quote of the day - could be randomized or pulled from an API in a real app
   const caregiverQuote = "Setting boundaries is essential for long-term caregiving";
 
+  // If loading, show nothing (auth context will handle loading state)
+  if (loading) {
+    return null;
+  }
+
+  // If user is authenticated, redirect to dashboard
+  if (user) {
+    navigate('/dashboard');
+    return null;
+  }
+
   const handleNext = () => {
-    if (step === 1 && (!user.name || !user.email)) {
+    if (step === 1 && (!localUser.name || !localUser.email)) {
       toast({
         title: "Missing Information",
         description: "Please enter your name and email to continue.",
@@ -43,12 +58,12 @@ const Index = () => {
       return;
     }
     
-    if (step === 2 && user.isCaregiver && selectedRelationship) {
+    if (step === 2 && localUser.isCaregiver && selectedRelationship) {
       // Add the selected relationship to caregivingFor if it's not already there
-      if (!user.caregivingFor?.includes(selectedRelationship)) {
-        setUser({
-          ...user,
-          caregivingFor: [...(user.caregivingFor || []), selectedRelationship]
+      if (!localUser.caregivingFor?.includes(selectedRelationship)) {
+        setLocalUser({
+          ...localUser,
+          caregivingFor: [...(localUser.caregivingFor || []), selectedRelationship]
         });
       }
       setSelectedRelationship("");
@@ -57,19 +72,19 @@ const Index = () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Complete onboarding
-      setUser({ ...user, onboardingComplete: true });
-      navigate('/dashboard');
+      // Complete onboarding and redirect to auth
+      setLocalUser({ ...localUser, onboardingComplete: true });
+      navigate('/auth');
     }
   };
 
   const skipOnboarding = () => {
-    // Set minimum required fields and mark onboarding as complete
-    setUser({
-      name: user.name || 'Anonymous User',
-      email: user.email || '',
-      isCaregiver: user.isCaregiver,
-      caregivingFor: user.caregivingFor || [],
+    // Set minimum required fields and redirect to auth
+    setLocalUser({
+      name: localUser.name || 'Anonymous User',
+      email: localUser.email || '',
+      isCaregiver: localUser.isCaregiver,
+      caregivingFor: localUser.caregivingFor || [],
       onboardingComplete: true
     });
     
@@ -78,11 +93,11 @@ const Index = () => {
       description: "You can always update your information in your profile."
     });
     
-    navigate('/dashboard');
+    navigate('/auth');
   };
 
   const resetOnboarding = () => {
-    setUser({
+    setLocalUser({
       name: '',
       email: '',
       isCaregiver: true,
@@ -95,13 +110,6 @@ const Index = () => {
     });
   };
 
-  // Check if user has completed onboarding
-  useEffect(() => {
-    if (user.onboardingComplete) {
-      navigate('/dashboard');
-    }
-  }, [user.onboardingComplete, navigate]);
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">
       {/* Welcome Banner */}
@@ -112,7 +120,7 @@ const Index = () => {
           </div>
           <div>
             <h1 className="text-2xl font-heading font-semibold text-gray-800">
-              Welcome, {user.name || 'there'}!
+              Welcome, {localUser.name || 'there'}!
             </h1>
             <p className="text-gray-600">Today is {formattedDate}</p>
           </div>
@@ -140,13 +148,13 @@ const Index = () => {
       <Card className="w-full max-w-md animate-fade-in">
         <CardContent className="pt-6">
           {step === 1 && (
-            <UserInfoStep user={user} setUser={setUser} />
+            <UserInfoStep user={localUser} setUser={setLocalUser} />
           )}
           
           {step === 2 && (
             <CaregiverRoleStep 
-              user={user} 
-              setUser={setUser}
+              user={localUser} 
+              setUser={setLocalUser}
               selectedRelationship={selectedRelationship}
               setSelectedRelationship={setSelectedRelationship}
             />
@@ -166,6 +174,16 @@ const Index = () => {
           />
         </CardContent>
       </Card>
+
+      <div className="mt-4 w-full max-w-md">
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => navigate('/auth')}
+        >
+          Already have an account? Sign In
+        </Button>
+      </div>
       
       <div className="mt-4 text-sm text-gray-500">
         <p>© 2025 CountedCare. All rights reserved.</p>

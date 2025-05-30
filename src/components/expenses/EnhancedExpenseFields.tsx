@@ -94,7 +94,7 @@ const EnhancedExpenseFields = ({
             <SelectValue placeholder="Select if this was reimbursed" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Not Reimbursed</SelectItem>
+            <SelectItem value="none">Not Reimbursed</SelectItem>
             {REIMBURSEMENT_SOURCES.map(source => (
               <SelectItem key={source.value} value={source.value}>
                 {source.label}

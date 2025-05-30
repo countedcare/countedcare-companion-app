@@ -81,7 +81,7 @@ const ExpenseForm = () => {
       receiptUrl,
       expense_tags: expenseTags.length > 0 ? expenseTags : undefined,
       is_tax_deductible: isTaxDeductible,
-      reimbursement_source: reimbursementSource || undefined
+      reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : undefined
     };
     
     if (id) {

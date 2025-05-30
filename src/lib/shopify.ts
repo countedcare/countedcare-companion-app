@@ -3,7 +3,7 @@ import Client from 'shopify-buy';
 
 // Initialize the Shopify client
 export const shopifyClient = Client.buildClient({
-  domain: 'your-shop-name.myshopify.com', // ⚠️ REPLACE THIS with your actual Shopify domain
+  domain: 'apex-quality-resources.myshopify.com',
   storefrontAccessToken: '4331aad078787f581d09a23b56f7acae',
 });
 

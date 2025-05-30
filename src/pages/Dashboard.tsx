@@ -1,16 +1,16 @@
-
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { PlusCircle, TrendingUp, Receipt, PieChart, ArrowRight, Filter, Info } from 'lucide-react';
+import { PlusCircle, TrendingUp, Receipt, PieChart, ArrowRight, Filter, Info, Heart, LightbulbIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User, Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
+import { format } from 'date-fns';
 
 const COLORS = ['#6DAAE2', '#A0D5D8', '#7FC7D9', '#5F9EA0', '#87CEEB', '#B0C4DE'];
 
@@ -26,6 +26,11 @@ const Dashboard = () => {
   const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
   const [timeFrame, setTimeFrame] = useState<'month' | 'year'>('month');
+  
+  // Date and quote for welcome banner
+  const currentDate = new Date();
+  const formattedDate = format(currentDate, "EEEE, MMMM d");
+  const caregiverQuote = "Setting boundaries is essential for long-term caregiving";
   
   // Redirect to onboarding if not completed
   React.useEffect(() => {
@@ -153,11 +158,33 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="container-padding py-6">
-        {/* Header with name and overview stats */}
+        {/* Welcome Banner */}
+        <div className="w-full mb-6 bg-blue-100 rounded-lg p-6">
+          <div className="flex items-start">
+            <div className="bg-white p-3 rounded-full mr-4">
+              <Heart className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-heading font-semibold text-gray-800">
+                Welcome, {user.name || 'there'}!
+              </h1>
+              <p className="text-gray-600">Today is {formattedDate}</p>
+            </div>
+          </div>
+          
+          {/* Quote Card */}
+          <div className="bg-white rounded-lg p-4 mt-4 flex items-start">
+            <div className="text-amber-500 mr-3">
+              <LightbulbIcon className="h-5 w-5" />
+            </div>
+            <p className="text-gray-800 italic">"{caregiverQuote}"</p>
+          </div>
+        </div>
+
+        {/* Header with overview stats */}
         <div className="bg-primary rounded-lg p-5 text-white mb-6">
           <div className="mb-4">
-            <h1 className="text-2xl font-heading">Hi, {user.name || 'there'}!</h1>
-            <p className="text-white/90">Your caregiving expense summary</p>
+            <h2 className="text-xl font-heading">Your caregiving expense summary</h2>
           </div>
           
           <Card className="bg-white text-foreground">

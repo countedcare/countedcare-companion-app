@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User as UserType, CareRecipient, Expense, RELATIONSHIP_TYPES } from '@/types/User';
+import LinkedAccountsSection from '@/components/profile/LinkedAccountsSection';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -190,6 +191,9 @@ const Profile = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Linked Financial Accounts Section */}
+          <LinkedAccountsSection />
 
           {/* Care Recipients Management Section */}
           <Card>

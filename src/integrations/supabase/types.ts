@@ -53,10 +53,14 @@ export type Database = {
           created_at: string | null
           date: string
           description: string | null
+          expense_tags: string[] | null
           id: string
           is_reimbursed: boolean | null
+          is_tax_deductible: boolean | null
           notes: string | null
           receipt_url: string | null
+          reimbursement_source: string | null
+          synced_transaction_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -67,10 +71,14 @@ export type Database = {
           created_at?: string | null
           date: string
           description?: string | null
+          expense_tags?: string[] | null
           id?: string
           is_reimbursed?: boolean | null
+          is_tax_deductible?: boolean | null
           notes?: string | null
           receipt_url?: string | null
+          reimbursement_source?: string | null
+          synced_transaction_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -81,10 +89,14 @@ export type Database = {
           created_at?: string | null
           date?: string
           description?: string | null
+          expense_tags?: string[] | null
           id?: string
           is_reimbursed?: boolean | null
+          is_tax_deductible?: boolean | null
           notes?: string | null
           receipt_url?: string | null
+          reimbursement_source?: string | null
+          synced_transaction_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -96,7 +108,56 @@ export type Database = {
             referencedRelation: "care_recipients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "expenses_synced_transaction_id_fkey"
+            columns: ["synced_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "synced_transactions"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      linked_accounts: {
+        Row: {
+          account_name: string
+          account_type: string
+          created_at: string
+          id: string
+          institution_name: string | null
+          is_active: boolean
+          last_sync_at: string | null
+          plaid_access_token: string | null
+          plaid_account_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_type: string
+          created_at?: string
+          id?: string
+          institution_name?: string | null
+          is_active?: boolean
+          last_sync_at?: string | null
+          plaid_access_token?: string | null
+          plaid_account_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_type?: string
+          created_at?: string
+          id?: string
+          institution_name?: string | null
+          is_active?: boolean
+          last_sync_at?: string | null
+          plaid_access_token?: string | null
+          plaid_account_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -136,6 +197,81 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      synced_transactions: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          date: string
+          description: string
+          expense_id: string | null
+          id: string
+          is_confirmed_medical: boolean | null
+          is_potential_medical: boolean | null
+          is_reimbursed: boolean | null
+          is_tax_deductible: boolean | null
+          linked_account_id: string | null
+          merchant_name: string | null
+          reimbursement_source: string | null
+          transaction_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          date: string
+          description: string
+          expense_id?: string | null
+          id?: string
+          is_confirmed_medical?: boolean | null
+          is_potential_medical?: boolean | null
+          is_reimbursed?: boolean | null
+          is_tax_deductible?: boolean | null
+          linked_account_id?: string | null
+          merchant_name?: string | null
+          reimbursement_source?: string | null
+          transaction_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          date?: string
+          description?: string
+          expense_id?: string | null
+          id?: string
+          is_confirmed_medical?: boolean | null
+          is_potential_medical?: boolean | null
+          is_reimbursed?: boolean | null
+          is_tax_deductible?: boolean | null
+          linked_account_id?: string | null
+          merchant_name?: string | null
+          reimbursement_source?: string | null
+          transaction_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "synced_transactions_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "synced_transactions_linked_account_id_fkey"
+            columns: ["linked_account_id"]
+            isOneToOne: false
+            referencedRelation: "linked_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

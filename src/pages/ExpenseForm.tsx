@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
+import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -33,6 +33,11 @@ const ExpenseForm = () => {
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
   
+  // Enhanced tracking fields
+  const [expenseTags, setExpenseTags] = useState<string[]>([]);
+  const [isTaxDeductible, setIsTaxDeductible] = useState(false);
+  const [reimbursementSource, setReimbursementSource] = useState('');
+  
   // For editing mode
   useEffect(() => {
     if (id) {
@@ -45,6 +50,9 @@ const ExpenseForm = () => {
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
         setReceiptUrl(expenseToEdit.receiptUrl);
+        setExpenseTags(expenseToEdit.expense_tags || []);
+        setIsTaxDeductible(expenseToEdit.is_tax_deductible || false);
+        setReimbursementSource(expenseToEdit.reimbursement_source || '');
       }
     }
   }, [id, expenses]);
@@ -70,7 +78,10 @@ const ExpenseForm = () => {
       description: title || description,
       careRecipientId,
       careRecipientName: recipients.find(r => r.id === careRecipientId)?.name,
-      receiptUrl
+      receiptUrl,
+      expense_tags: expenseTags.length > 0 ? expenseTags : undefined,
+      is_tax_deductible: isTaxDeductible,
+      reimbursement_source: reimbursementSource || undefined
     };
     
     if (id) {
@@ -358,6 +369,16 @@ const ExpenseForm = () => {
                     className="min-h-[100px]"
                   />
                 </div>
+                
+                {/* Enhanced Expense Fields */}
+                <EnhancedExpenseFields
+                  expenseTags={expenseTags}
+                  setExpenseTags={setExpenseTags}
+                  isTaxDeductible={isTaxDeductible}
+                  setIsTaxDeductible={setIsTaxDeductible}
+                  reimbursementSource={reimbursementSource}
+                  setReimbursementSource={setReimbursementSource}
+                />
               </div>
               
               {/* Form Buttons */}

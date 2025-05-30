@@ -1,4 +1,3 @@
-
 export interface User {
   id?: string;
   name: string;
@@ -47,6 +46,10 @@ export interface Expense {
   careRecipientId: string;
   careRecipientName?: string;
   receiptUrl?: string;
+  expense_tags?: string[];
+  is_tax_deductible?: boolean;
+  reimbursement_source?: string;
+  synced_transaction_id?: string;
 }
 
 export interface Resource {

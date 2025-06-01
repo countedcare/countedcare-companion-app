@@ -216,21 +216,32 @@ export const useShopifyProducts = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showHsaOnly, setShowHsaOnly] = useState(false);
 
-  const { data: products = [], isLoading, error } = useQuery({
+  const { data: products = mockProducts, isLoading, error } = useQuery({
     queryKey: ['shopify-products'],
     queryFn: async () => {
       console.log('Attempting to fetch Shopify products...');
-      const shopifyProducts = await fetchShopifyProducts(50);
-      
-      // If no products from Shopify (likely due to configuration), return mock data
-      if (shopifyProducts.length === 0) {
-        console.log('No Shopify products found, using mock data for demo');
+      try {
+        const shopifyProducts = await fetchShopifyProducts(50);
+        console.log('Fetched products:', shopifyProducts);
+        
+        // If no products from Shopify (likely due to configuration), return mock data
+        if (!shopifyProducts || shopifyProducts.length === 0) {
+          console.log('No Shopify products found, using mock data for demo');
+          return mockProducts;
+        }
+        
+        console.log(`Successfully fetched ${shopifyProducts.length} products from Shopify`);
+        return shopifyProducts;
+      } catch (error) {
+        console.error('Error in queryFn:', error);
+        console.log('Falling back to mock data');
         return mockProducts;
       }
-      
-      return shopifyProducts;
     },
   });
+
+  console.log('Current products in hook:', products);
+  console.log('Products length:', products?.length);
 
   // Extract categories from product tags
   const categories = Array.from(
@@ -260,6 +271,9 @@ export const useShopifyProducts = () => {
     
     return matchesSearch && matchesCategory && matchesHsa;
   });
+
+  console.log('Filtered products:', filteredProducts);
+  console.log('Filtered products length:', filteredProducts.length);
 
   return {
     products: filteredProducts,

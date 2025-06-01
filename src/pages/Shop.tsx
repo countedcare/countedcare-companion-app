@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Search, ShoppingBag, Star, Filter, Check, Loader2 } from 'lucide-react';
+import { Search, Star, Filter, Check, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { useShopifyProducts } from '@/hooks/useShopifyProducts';
+import { useProducts } from '@/hooks/useProducts';
+import { Product } from '@/lib/products';
 
 const Shop = () => {
   const {
@@ -21,25 +22,17 @@ const Shop = () => {
     setSelectedCategory,
     showHsaOnly,
     setShowHsaOnly,
-  } = useShopifyProducts();
+  } = useProducts();
 
-  const handleProductClick = (product: any) => {
-    // Open product in new tab for now - you can customize this later
-    window.open(`https://your-shop-name.myshopify.com/products/${product.handle}`, '_blank');
+  const handleProductClick = (product: Product) => {
+    // For demo purposes, just show an alert
+    alert(`Product: ${product.title}\nPrice: $${product.price}\nDescription: ${product.description}`);
   };
 
-  const isHsaEligible = (product: any) => {
+  const isHsaEligible = (product: Product) => {
     return product.tags.some((tag: string) => 
       tag.toLowerCase().includes('hsa') || tag.toLowerCase().includes('fsa')
     );
-  };
-
-  const getProductPrice = (product: any) => {
-    return parseFloat(product.priceRange.minVariantPrice.amount);
-  };
-
-  const getProductImage = (product: any) => {
-    return product.images.edges[0]?.node.url || '/placeholder.svg';
   };
 
   if (error) {
@@ -47,7 +40,7 @@ const Shop = () => {
       <Layout>
         <div className="container-padding py-6">
           <div className="text-center py-12">
-            <p className="text-red-600">Error loading products. Please check your Shopify configuration.</p>
+            <p className="text-red-600">Error loading products. Please try again later.</p>
           </div>
         </div>
       </Layout>
@@ -123,8 +116,8 @@ const Shop = () => {
                     <CardContent>
                       <div className="h-32 mb-4 flex items-center justify-center bg-gray-100 rounded-md overflow-hidden">
                         <img 
-                          src={getProductImage(product)} 
-                          alt={product.title}
+                          src={product.imageUrl} 
+                          alt={product.imageAlt || product.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
@@ -142,7 +135,7 @@ const Shop = () => {
                           <Star className="h-4 w-4 text-gray-300" />
                           <span className="ml-1 text-sm text-gray-600">4.0</span>
                         </div>
-                        <div className="text-lg font-medium">${getProductPrice(product).toFixed(2)}</div>
+                        <div className="text-lg font-medium">${product.price.toFixed(2)}</div>
                       </div>
                     </CardContent>
                     <CardFooter>

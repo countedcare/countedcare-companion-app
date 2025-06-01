@@ -24,24 +24,67 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!name.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your full name to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!email.trim()) {
+      toast({
+        title: "Email required", 
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            name: name
-          }
+            name: name.trim()
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`
         }
       });
 
       if (error) {
+        console.error('Signup error:', error);
+        
         if (error.message.includes('User already registered')) {
           toast({
             title: "Account exists",
-            description: "An account with this email already exists. Please try logging in instead.",
+            description: "An account with this email already exists. Please try signing in instead.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Invalid email')) {
+          toast({
+            title: "Invalid email",
+            description: "Please enter a valid email address.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Password')) {
+          toast({
+            title: "Password error",
+            description: error.message,
             variant: "destructive",
           });
         } else {
@@ -55,13 +98,19 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
       }
 
       if (data.user) {
+        console.log('User signed up successfully:', data.user.email);
         toast({
-          title: "Account created!",
+          title: "Account created successfully!",
           description: "Welcome to CountedCare. You can now start tracking your caregiving expenses.",
         });
-        // Navigation will be handled by the auth state change listener
+        
+        // Clear the form
+        setEmail('');
+        setPassword('');
+        setName('');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Unexpected signup error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -91,6 +140,7 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
           <div className="space-y-2">
@@ -102,6 +152,7 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
           <div className="space-y-2">
@@ -109,11 +160,12 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
             <Input
               id="signup-password"
               type="password"
-              placeholder="Create a password"
+              placeholder="Create a password (min 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
+              disabled={loading}
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>

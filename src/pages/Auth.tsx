@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import AuthHeader from '@/components/auth/AuthHeader';
 import SignInForm from '@/components/auth/SignInForm';
@@ -10,6 +11,8 @@ import SignUpForm from '@/components/auth/SignUpForm';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,12 +20,46 @@ const Auth = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.onAuthStateChange((event, session) => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         navigate('/dashboard');
       }
+    };
+    
+    checkUser();
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' && session) {
+        navigate('/dashboard');
+      }
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        toast({
+          title: "Password reset link clicked",
+          description: "You can now enter a new password.",
+        });
+      }
     });
-  }, [navigate]);
+
+    // Check for password reset or other auth parameters
+    const error = searchParams.get('error');
+    const error_description = searchParams.get('error_description');
+    
+    if (error) {
+      console.error('Auth error from URL:', error, error_description);
+      toast({
+        title: "Authentication Error",
+        description: error_description || error,
+        variant: "destructive",
+      });
+    }
+
+    return () => subscription.unsubscribe();
+  }, [navigate, searchParams, toast]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">

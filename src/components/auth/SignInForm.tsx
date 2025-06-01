@@ -26,24 +26,53 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!password.trim()) {
+      toast({
+        title: "Password required",
+        description: "Please enter your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
+      console.log('Attempting to sign in with:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
+        console.error('Sign in error:', error);
+        
+        if (error.message.includes('Invalid login credentials') || error.message.includes('Email not confirmed')) {
           toast({
-            title: "Login failed",
+            title: "Sign in failed",
             description: "Invalid email or password. Please check your credentials and try again.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Email not confirmed')) {
+          toast({
+            title: "Email not confirmed",
+            description: "Please check your email and click the confirmation link before signing in.",
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Login failed",
+            title: "Sign in failed",
             description: error.message,
             variant: "destructive",
           });
@@ -52,13 +81,15 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
       }
 
       if (data.user) {
+        console.log('User signed in successfully:', data.user.email);
         toast({
           title: "Welcome back!",
-          description: "You've successfully logged in to CountedCare.",
+          description: "You've successfully signed in to CountedCare.",
         });
         // Navigation will be handled by the auth state change listener
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Unexpected sign in error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -71,14 +102,27 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!resetEmail.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setResetLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+      console.log('Sending password reset email to:', resetEmail);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: `${window.location.origin}/auth`,
       });
 
       if (error) {
+        console.error('Password reset error:', error);
         toast({
           title: "Reset failed",
           description: error.message,
@@ -89,12 +133,13 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
 
       toast({
         title: "Reset email sent!",
-        description: "Check your email for a link to reset your password.",
+        description: "Check your email for a link to reset your password. The link will redirect you back to this page.",
       });
       
       setResetDialogOpen(false);
       setResetEmail('');
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Unexpected reset error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -124,6 +169,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
           <div className="space-y-2">
@@ -135,6 +181,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
@@ -145,7 +192,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
           <div className="text-center">
             <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="link" className="text-sm text-primary">
+                <Button variant="link" className="text-sm text-primary" disabled={loading}>
                   Forgot your password?
                 </Button>
               </DialogTrigger>
@@ -166,6 +213,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       required
+                      disabled={resetLoading}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={resetLoading}>

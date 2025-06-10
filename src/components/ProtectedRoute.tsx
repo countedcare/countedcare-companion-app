@@ -19,10 +19,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
+  // Skip authentication for now - always allow access
   return <>{children}</>;
 };
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -65,14 +64,14 @@ const Index = () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Complete onboarding and redirect to auth
+      // Complete onboarding and skip auth - go directly to dashboard
       setLocalUser({ ...localUser, onboardingComplete: true });
-      navigate('/auth');
+      navigate('/dashboard');
     }
   };
 
   const skipOnboarding = () => {
-    // Set minimum required fields and redirect to auth
+    // Set minimum required fields and go directly to dashboard
     setLocalUser({
       name: localUser.name || 'Anonymous User',
       email: localUser.email || '',
@@ -83,10 +82,10 @@ const Index = () => {
     
     toast({
       title: "Onboarding Skipped",
-      description: "You can always update your information in your profile."
+      description: "Welcome to CountedCare! You can update your information in your profile later."
     });
     
-    navigate('/auth');
+    navigate('/dashboard');
   };
 
   const resetOnboarding = () => {
@@ -149,9 +148,9 @@ const Index = () => {
         <Button 
           variant="outline" 
           className="w-full"
-          onClick={() => navigate('/auth')}
+          onClick={() => navigate('/dashboard')}
         >
-          Already have an account? Sign In
+          Skip to Dashboard
         </Button>
       </div>
       

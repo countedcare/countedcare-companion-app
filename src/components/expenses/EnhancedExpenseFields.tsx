@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { EXPENSE_TAGS, REIMBURSEMENT_SOURCES } from '@/types/FinancialAccount';
 import { LinkedAccount } from '@/types/FinancialAccount';
+import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 
 interface EnhancedExpenseFieldsProps {
   expenseTags: string[];
@@ -17,7 +18,6 @@ interface EnhancedExpenseFieldsProps {
   setReimbursementSource: (value: string) => void;
   linkedAccountId: string;
   setLinkedAccountId: (value: string) => void;
-  linkedAccounts: LinkedAccount[];
 }
 
 const EnhancedExpenseFields = ({
@@ -28,9 +28,10 @@ const EnhancedExpenseFields = ({
   reimbursementSource,
   setReimbursementSource,
   linkedAccountId,
-  setLinkedAccountId,
-  linkedAccounts
+  setLinkedAccountId
 }: EnhancedExpenseFieldsProps) => {
+  const { accounts: linkedAccounts } = useLinkedAccounts();
+
   const addTag = (tag: string) => {
     if (!expenseTags.includes(tag)) {
       setExpenseTags([...expenseTags, tag]);

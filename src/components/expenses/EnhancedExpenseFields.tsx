@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,7 +44,6 @@ const EnhancedExpenseFields = ({
     <div className="space-y-4 border-t pt-4">
       <h3 className="font-medium text-sm text-gray-700">Enhanced Tracking</h3>
       
-      {/* Linked Account */}
       <div className="space-y-2">
         <Label htmlFor="linked-account">Account Used</Label>
         <Select value={linkedAccountId} onValueChange={setLinkedAccountId}>
@@ -64,7 +62,6 @@ const EnhancedExpenseFields = ({
         </Select>
       </div>
       
-      {/* Tax Deductible Toggle */}
       <div className="flex items-center justify-between">
         <div>
           <Label htmlFor="tax-deductible" className="text-sm font-medium">
@@ -81,7 +78,6 @@ const EnhancedExpenseFields = ({
         />
       </div>
 
-      {/* Expense Tags */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Expense Tags</Label>
         <Select onValueChange={addTag}>
@@ -112,7 +108,6 @@ const EnhancedExpenseFields = ({
         )}
       </div>
 
-      {/* Reimbursement Source */}
       <div className="space-y-2">
         <Label htmlFor="reimbursement">Reimbursement Source</Label>
         <Select value={reimbursementSource} onValueChange={setReimbursementSource}>

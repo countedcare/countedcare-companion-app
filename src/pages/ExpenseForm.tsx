@@ -16,7 +16,6 @@ import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
-import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -24,7 +23,6 @@ const ExpenseForm = () => {
   const { toast } = useToast();
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  const { accounts: linkedAccounts } = useLinkedAccounts();
   
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -385,7 +383,6 @@ const ExpenseForm = () => {
                   setReimbursementSource={setReimbursementSource}
                   linkedAccountId={linkedAccountId}
                   setLinkedAccountId={setLinkedAccountId}
-                  linkedAccounts={linkedAccounts}
                 />
               </div>
               

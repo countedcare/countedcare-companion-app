@@ -14,7 +14,6 @@ import ExpenseForm from "./pages/ExpenseForm";
 import CareRecipients from "./pages/CareRecipients";
 import CareRecipientForm from "./pages/CareRecipientForm";
 import Resources from "./pages/Resources";
-import Shop from "./pages/Shop";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -68,11 +67,6 @@ const App = () => (
             <Route path="/resources" element={
               <ProtectedRoute>
                 <Resources />
-              </ProtectedRoute>
-            } />
-            <Route path="/shop" element={
-              <ProtectedRoute>
-                <Shop />
               </ProtectedRoute>
             } />
             <Route path="/profile" element={

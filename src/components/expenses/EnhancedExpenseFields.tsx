@@ -6,7 +6,6 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { EXPENSE_TAGS, REIMBURSEMENT_SOURCES } from '@/types/FinancialAccount';
-import { LinkedAccount } from '@/types/FinancialAccount';
 import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 
 interface EnhancedExpenseFieldsProps {

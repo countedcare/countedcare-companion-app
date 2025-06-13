@@ -10,6 +10,7 @@ import ExpenseAccountsList from '@/components/dashboard/ExpenseAccountsList';
 import QuickActions from '@/components/dashboard/QuickActions';
 import ExpenseChart from '@/components/dashboard/ExpenseChart';
 import LatestExpenses from '@/components/dashboard/LatestExpenses';
+import GamificationSection from '@/components/dashboard/GamificationSection';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -162,6 +163,8 @@ const Dashboard = () => {
         <ExpenseAccountsList categoryTotals={categoryTotals} />
 
         <QuickActions />
+
+        <GamificationSection expenses={expenses} />
 
         <ExpenseChart
           timeFrame={timeFrame}

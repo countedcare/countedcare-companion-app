@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Search, BarChart3 } from 'lucide-react';
+import { PlusCircle, Search, BarChart3, CreditCard } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -12,20 +12,26 @@ import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient } from '@/types/User';
+import { SyncedTransaction } from '@/types/FinancialAccount';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import ExpenseInsights from '@/components/expenses/ExpenseInsights';
-import SmartFilters from '@/components/expenses/SmartFilters';
 import ExpenseRecommendations from '@/components/expenses/ExpenseRecommendations';
 import ExpenseTable from '@/components/expenses/ExpenseTable';
+import AutoImportedTransactions from '@/components/expenses/AutoImportedTransactions';
+import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
+import EnhancedSmartFilters from '@/components/expenses/EnhancedSmartFilters';
 
 const Expenses = () => {
   const navigate = useNavigate();
-  const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
+  const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
+  const [syncedTransactions, setSyncedTransactions] = useLocalStorage<SyncedTransaction[]>('countedcare-synced-transactions', []);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterRecipient, setFilterRecipient] = useState('');
   const [filterDeductible, setFilterDeductible] = useState('');
+  const [filterSource, setFilterSource] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
   // Filter expenses
@@ -41,6 +47,10 @@ const Expenses = () => {
       (filterDeductible === 'deductible' && expense.is_tax_deductible) ||
       (filterDeductible === 'non-deductible' && !expense.is_tax_deductible);
     
+    const matchesSource = !filterSource || filterSource === 'all-sources' ||
+      (filterSource === 'manual' && !expense.synced_transaction_id) ||
+      (filterSource === 'auto-imported' && expense.synced_transaction_id);
+    
     // Date range filter
     let matchesDateRange = true;
     if (dateRange && dateRange.from) {
@@ -53,7 +63,7 @@ const Expenses = () => {
       }
     }
     
-    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesDateRange;
+    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesDateRange;
   });
   
   // Sort expenses by date (newest first)
@@ -65,8 +75,43 @@ const Expenses = () => {
     setFilterCategory('');
     setFilterRecipient('');
     setFilterDeductible('');
+    setFilterSource('');
     setDateRange(undefined);
     setSearchTerm('');
+  };
+
+  const handleConfirmTransaction = (transactionId: string, expenseData: any) => {
+    const newExpense: Expense = {
+      id: `exp-${Date.now()}`,
+      ...expenseData
+    };
+    
+    setExpenses(prev => [...prev, newExpense]);
+    
+    // Mark transaction as confirmed
+    setSyncedTransactions(prev => 
+      prev.map(t => 
+        t.id === transactionId 
+          ? { ...t, is_confirmed_medical: true, expense_id: newExpense.id }
+          : t
+      )
+    );
+  };
+
+  const handleExcludeTransaction = (transactionId: string) => {
+    setSyncedTransactions(prev => 
+      prev.filter(t => t.id !== transactionId)
+    );
+  };
+
+  const handleEditTransaction = (transactionId: string, updates: Partial<SyncedTransaction>) => {
+    setSyncedTransactions(prev => 
+      prev.map(t => 
+        t.id === transactionId 
+          ? { ...t, ...updates }
+          : t
+      )
+    );
   };
   
   return (
@@ -76,14 +121,31 @@ const Expenses = () => {
           <div>
             <h1 className="text-2xl font-heading">Track & Understand</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Get insights into your caregiving expenses and discover opportunities to save
+              Monitor your caregiving expenses and discover opportunities to save
             </p>
           </div>
-          <Button onClick={() => navigate('/expenses/new')} className="bg-primary">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Expense
-          </Button>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => navigate('/linked-accounts')}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Link Bank Account
+            </Button>
+            <Button onClick={() => navigate('/expenses/new')} className="bg-primary">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Expense
+            </Button>
+          </div>
         </div>
+        
+        {/* Auto-imported transactions review */}
+        <AutoImportedTransactions
+          transactions={syncedTransactions}
+          onConfirmTransaction={handleConfirmTransaction}
+          onExcludeTransaction={handleExcludeTransaction}
+          onEditTransaction={handleEditTransaction}
+        />
+        
+        {/* Tax deduction progress */}
+        <TaxDeductionProgress expenses={expenses} />
         
         {/* Insights Overview */}
         <ExpenseInsights expenses={expenses} />
@@ -101,7 +163,7 @@ const Expenses = () => {
           </TabsList>
           
           <TabsContent value="list" className="space-y-6">
-            {/* Search and Smart Filters */}
+            {/* Search and Enhanced Smart Filters */}
             <div className="space-y-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -113,13 +175,15 @@ const Expenses = () => {
                 />
               </div>
               
-              <SmartFilters
+              <EnhancedSmartFilters
                 filterCategory={filterCategory}
                 setFilterCategory={setFilterCategory}
                 filterRecipient={filterRecipient}
                 setFilterRecipient={setFilterRecipient}
                 filterDeductible={filterDeductible}
                 setFilterDeductible={setFilterDeductible}
+                filterSource={filterSource}
+                setFilterSource={setFilterSource}
                 recipients={recipients}
                 onClearFilters={handleClearFilters}
               />
@@ -207,10 +271,16 @@ const Expenses = () => {
                 <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
                   Every expense you track helps you understand your caregiving costs and maximize potential tax benefits.
                 </p>
-                <Button onClick={() => navigate('/expenses/new')} className="bg-primary">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Your First Expense
-                </Button>
+                <div className="flex justify-center space-x-3">
+                  <Button onClick={() => navigate('/expenses/new')} className="bg-primary">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Your First Expense
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/linked-accounts')}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Connect Bank Account
+                  </Button>
+                </div>
               </div>
             )}
           </TabsContent>

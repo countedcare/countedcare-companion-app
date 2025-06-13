@@ -47,7 +47,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'create_session':
-        return await createFinancialConnectionsSession(body)
+        return await createFinancialConnectionsSession(body, user)
       case 'link_account':
         return await linkBankAccount(body, user.id, supabaseClient)
       case 'sync_transactions':
@@ -69,7 +69,7 @@ serve(async (req) => {
   }
 })
 
-async function createFinancialConnectionsSession(body: any) {
+async function createFinancialConnectionsSession(body: any, user: any) {
   logStep('Creating Financial Connections session');
   
   const stripeSecretKey = Deno.env.get('Stripe_Key')
@@ -80,6 +80,35 @@ async function createFinancialConnectionsSession(body: any) {
 
   logStep('Stripe key found, making API request');
 
+  // First, create a customer if we don't have one
+  let customerId = user.user_metadata?.stripe_customer_id;
+  
+  if (!customerId) {
+    logStep('Creating Stripe customer');
+    const customerResponse = await fetch('https://api.stripe.com/v1/customers', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${stripeSecretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'email': user.email,
+        'name': user.user_metadata?.name || user.email,
+      }),
+    });
+
+    const customer = await customerResponse.json();
+    logStep('Customer creation response', { status: customerResponse.status, customer });
+    
+    if (!customerResponse.ok) {
+      logStep('ERROR: Failed to create customer', { error: customer.error });
+      throw new Error(`Failed to create customer: ${customer.error?.message || 'Unknown error'}`)
+    }
+    
+    customerId = customer.id;
+    logStep('Customer created', { customerId });
+  }
+
   const response = await fetch('https://api.stripe.com/v1/financial_connections/sessions', {
     method: 'POST',
     headers: {
@@ -88,6 +117,7 @@ async function createFinancialConnectionsSession(body: any) {
     },
     body: new URLSearchParams({
       'account_holder[type]': 'customer',
+      'account_holder[customer]': customerId,
       'permissions[]': 'balances',
       'permissions[]': 'transactions',
       'filters[countries][]': 'US',

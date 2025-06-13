@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -7,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[STRIPE-FINANCIAL-CONNECTIONS] ${step}${detailsStr}`);
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -14,6 +18,8 @@ serve(async (req) => {
   }
 
   try {
+    logStep('Function started');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -27,13 +33,17 @@ serve(async (req) => {
     // Get the user from the request
     const { data: { user } } = await supabaseClient.auth.getUser()
     if (!user) {
+      logStep('User not authenticated');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
+    logStep('User authenticated', { userId: user.id, email: user.email });
+
     const { action, ...body } = await req.json()
+    logStep('Action received', { action, body });
 
     switch (action) {
       case 'create_session':
@@ -43,12 +53,14 @@ serve(async (req) => {
       case 'sync_transactions':
         return await syncTransactions(body, user.id, supabaseClient)
       default:
+        logStep('Invalid action', { action });
         return new Response(JSON.stringify({ error: 'Invalid action' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
     }
   } catch (error) {
+    logStep('ERROR in main function', { error: error.message });
     console.error('Stripe Financial Connections error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
@@ -58,10 +70,15 @@ serve(async (req) => {
 })
 
 async function createFinancialConnectionsSession(body: any) {
+  logStep('Creating Financial Connections session');
+  
   const stripeSecretKey = Deno.env.get('Stripe_Key')
   if (!stripeSecretKey) {
+    logStep('ERROR: Stripe secret key not configured');
     throw new Error('Stripe secret key not configured')
   }
+
+  logStep('Stripe key found, making API request');
 
   const response = await fetch('https://api.stripe.com/v1/financial_connections/sessions', {
     method: 'POST',
@@ -81,10 +98,14 @@ async function createFinancialConnectionsSession(body: any) {
   })
 
   const session = await response.json()
+  logStep('Stripe API response', { status: response.status, session });
   
   if (!response.ok) {
+    logStep('ERROR: Stripe API error', { error: session.error });
     throw new Error(`Stripe API error: ${session.error?.message || 'Unknown error'}`)
   }
+
+  logStep('Session created successfully', { sessionId: session.id });
 
   return new Response(JSON.stringify(session), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,34 +71,62 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
     }
 
     setConnectingStripe(true);
+    console.log('Starting Stripe connection...');
+    
     try {
       // Create a Financial Connections session
+      console.log('Calling stripe-financial-connections function...');
       const { data: sessionData, error: sessionError } = await supabase.functions.invoke('stripe-financial-connections', {
         body: { action: 'create_session' }
       });
 
-      if (sessionError) throw sessionError;
+      console.log('Session response:', { sessionData, sessionError });
+
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error(sessionError.message || 'Failed to create session');
+      }
+
+      if (!sessionData?.hosted_auth_url) {
+        console.error('No hosted auth URL in response:', sessionData);
+        throw new Error('No authorization URL received from Stripe');
+      }
+
+      console.log('Opening Stripe window with URL:', sessionData.hosted_auth_url);
 
       // Open Stripe's hosted authorization flow
       const stripeWindow = window.open(
         sessionData.hosted_auth_url,
         'stripe-connect',
-        'width=500,height=600'
+        'width=500,height=600,scrollbars=yes,resizable=yes'
       );
+
+      if (!stripeWindow) {
+        throw new Error('Popup was blocked. Please allow popups for this site.');
+      }
 
       // Listen for the completion
       const checkClosed = setInterval(() => {
-        if (stripeWindow?.closed) {
+        if (stripeWindow.closed) {
           clearInterval(checkClosed);
+          console.log('Stripe window closed, completing connection...');
           handleStripeConnectionComplete(sessionData.id);
         }
       }, 1000);
+
+      // Set a timeout to clean up the interval
+      setTimeout(() => {
+        clearInterval(checkClosed);
+        if (!stripeWindow.closed) {
+          console.log('Timeout reached, stopping check');
+        }
+      }, 300000); // 5 minutes timeout
 
     } catch (error) {
       console.error('Error connecting with Stripe:', error);
       toast({
         title: "Error",
-        description: "Failed to connect bank account",
+        description: error instanceof Error ? error.message : "Failed to connect bank account",
         variant: "destructive"
       });
     } finally {
@@ -107,6 +135,8 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   };
 
   const handleStripeConnectionComplete = async (sessionId: string) => {
+    console.log('Completing Stripe connection for session:', sessionId);
+    
     try {
       const { data, error } = await supabase.functions.invoke('stripe-financial-connections', {
         body: {
@@ -116,7 +146,12 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         }
       });
 
-      if (error) throw error;
+      console.log('Link account response:', { data, error });
+
+      if (error) {
+        console.error('Link account error:', error);
+        throw new Error(error.message || 'Failed to link account');
+      }
 
       toast({
         title: "Success",
@@ -131,7 +166,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       console.error('Error completing connection:', error);
       toast({
         title: "Error",
-        description: "Failed to complete bank connection",
+        description: error instanceof Error ? error.message : "Failed to complete bank connection",
         variant: "destructive"
       });
     }
@@ -142,6 +177,9 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Link Financial Account</DialogTitle>
+          <DialogDescription>
+            Connect your financial accounts to automatically track expenses
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">

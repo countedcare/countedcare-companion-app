@@ -58,7 +58,7 @@ serve(async (req) => {
 })
 
 async function createFinancialConnectionsSession(body: any) {
-  const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
+  const stripeSecretKey = Deno.env.get('Stripe_Key')
   if (!stripeSecretKey) {
     throw new Error('Stripe secret key not configured')
   }
@@ -94,7 +94,7 @@ async function createFinancialConnectionsSession(body: any) {
 async function linkBankAccount(body: any, userId: string, supabaseClient: any) {
   const { sessionId, accountName } = body
   
-  const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
+  const stripeSecretKey = Deno.env.get('Stripe_Key')
   if (!stripeSecretKey) {
     throw new Error('Stripe secret key not configured')
   }
@@ -145,7 +145,7 @@ async function linkBankAccount(body: any, userId: string, supabaseClient: any) {
 async function syncTransactions(body: any, userId: string, supabaseClient: any) {
   const { accountId } = body
   
-  const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
+  const stripeSecretKey = Deno.env.get('Stripe_Key')
   if (!stripeSecretKey) {
     throw new Error('Stripe secret key not configured')
   }

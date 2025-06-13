@@ -7,6 +7,9 @@ export interface LinkedAccount {
   institution_name?: string;
   plaid_access_token?: string;
   plaid_account_id?: string;
+  stripe_account_id?: string;
+  access_token?: string;
+  refresh_token?: string;
   is_active: boolean;
   last_sync_at?: string;
   created_at: string;

@@ -3,17 +3,16 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { LogOut, User, Download, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { User as UserType, CareRecipient, Expense, RELATIONSHIP_TYPES } from '@/types/User';
+import { User as UserType, CareRecipient, Expense } from '@/types/User';
 import LinkedAccountsSection from '@/components/profile/LinkedAccountsSection';
+import ComprehensiveProfileForm from '@/components/profile/ComprehensiveProfileForm';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -29,26 +28,17 @@ const Profile = () => {
   const [careRecipients, setCareRecipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
   const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   
-  // Form state
-  const [name, setName] = useState(user?.user_metadata?.name || localUser.name || '');
-  const [email, setEmail] = useState(user?.email || localUser.email || '');
-  const [isCaregiver, setIsCaregiver] = useState(localUser.isCaregiver);
-  const [caregivingFor, setCaregivingFor] = useState(localUser.caregivingFor?.join(', ') || '');
+  // UI state
+  const [showComprehensiveForm, setShowComprehensiveForm] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
-  const handleSaveProfile = () => {
-    // Update user info in localStorage
-    setLocalUser({
-      ...localUser,
-      name,
-      email,
-      isCaregiver,
-      caregivingFor: caregivingFor.split(',').map(item => item.trim()).filter(Boolean)
-    });
+  const handleSaveProfile = (updatedUser: UserType) => {
+    setLocalUser(updatedUser);
+    setShowComprehensiveForm(false);
     
     toast({
       title: "Profile Updated",
-      description: "Your profile information has been saved."
+      description: "Your profile information has been saved successfully."
     });
   };
   
@@ -119,6 +109,50 @@ const Profile = () => {
       description: "Your data has been exported successfully."
     });
   };
+
+  // Calculate profile completion percentage
+  const calculateProfileCompletion = () => {
+    const fields = [
+      localUser.name,
+      localUser.email,
+      localUser.state,
+      localUser.zipCode,
+      localUser.householdAGI,
+      localUser.employmentStatus,
+      localUser.taxFilingStatus,
+      localUser.caregiverRole?.length,
+      localUser.primaryCaregivingExpenses?.length,
+      localUser.healthCoverageType?.length
+    ];
+    
+    const filledFields = fields.filter(field => 
+      field !== undefined && field !== null && field !== '' && 
+      (Array.isArray(field) ? field.length > 0 : true)
+    ).length;
+    
+    return Math.round((filledFields / fields.length) * 100);
+  };
+
+  const profileCompletion = calculateProfileCompletion();
+  
+  if (showComprehensiveForm) {
+    return (
+      <Layout>
+        <div className="container-padding py-6 pb-20">
+          <div className="mb-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowComprehensiveForm(false)}
+              className="mb-4"
+            >
+              ← Back to Profile Overview
+            </Button>
+          </div>
+          <ComprehensiveProfileForm user={localUser} onSave={handleSaveProfile} />
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
@@ -126,69 +160,49 @@ const Profile = () => {
         <h1 className="text-2xl font-heading mb-6">Profile</h1>
         
         <div className="space-y-6">
-          {/* Profile Section */}
+          {/* Profile Completion Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>Update your account details</CardDescription>
+              <CardTitle className="flex items-center justify-between">
+                <span>Profile Overview</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {profileCompletion}% Complete
+                </span>
+              </CardTitle>
+              <CardDescription>
+                Complete your profile to unlock personalized tax insights and caregiver resources
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Your email"
-                  disabled
-                />
-                <p className="text-sm text-gray-500">Email cannot be changed here. Contact support if needed.</p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Caregiver Status</Label>
-                <RadioGroup
-                  value={isCaregiver ? "yes" : "no"}
-                  onValueChange={(value) => setIsCaregiver(value === "yes")}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="yes" id="caregiver-yes" />
-                    <Label htmlFor="caregiver-yes">I am a caregiver</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no" id="caregiver-no" />
-                    <Label htmlFor="caregiver-no">I am not a caregiver</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              {isCaregiver && (
-                <div className="space-y-2">
-                  <Label htmlFor="caregivingFor">Who are you caring for?</Label>
-                  <Input
-                    id="caregivingFor"
-                    value={caregivingFor}
-                    onChange={(e) => setCaregivingFor(e.target.value)}
-                    placeholder="e.g., Parent, Child, Spouse"
+            <CardContent>
+              <div className="space-y-4">
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${profileCompletion}%` }}
                   />
-                  <p className="text-sm text-gray-500">Separate multiple relationships with commas</p>
                 </div>
-              )}
-              
-              <Button onClick={handleSaveProfile} className="w-full">
-                Save Changes
-              </Button>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><strong>Name:</strong> {localUser.name || 'Not provided'}</p>
+                    <p><strong>Email:</strong> {localUser.email || 'Not provided'}</p>
+                    <p><strong>Location:</strong> {localUser.state && localUser.zipCode ? `${localUser.state}, ${localUser.zipCode}` : 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p><strong>Caregiver Role:</strong> {localUser.caregiverRole?.length ? `${localUser.caregiverRole.length} role(s)` : 'Not specified'}</p>
+                    <p><strong>Employment:</strong> {localUser.employmentStatus || 'Not specified'}</p>
+                    <p><strong>Tax Status:</strong> {localUser.taxFilingStatus || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => setShowComprehensiveForm(true)}
+                  className="w-full"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  {profileCompletion < 100 ? 'Complete Your Profile' : 'Update Profile Information'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

@@ -87,13 +87,10 @@ async function createFinancialConnectionsSession(body: any) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      account_holder: JSON.stringify({
-        type: 'consumer',
-      }),
-      permissions: 'balances,transactions',
-      filters: JSON.stringify({
-        countries: ['US'],
-      }),
+      'account_holder[type]': 'consumer',
+      'permissions[]': 'balances',
+      'permissions[]': 'transactions',
+      'filters[countries][]': 'US',
     }),
   })
 

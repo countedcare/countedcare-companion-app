@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { BADGE_DEFINITIONS, CHALLENGE_TEMPLATES, Badge, Challenge, UserProgress } from '@/types/Gamification';
 import { Expense } from '@/types/User';
@@ -151,6 +150,7 @@ export const useGamification = (expenses: Expense[]) => {
     showConfetti,
     acceptChallenge,
     completeChallenge,
-    setShowConfetti
+    setShowConfetti,
+    setNewBadges
   };
 };

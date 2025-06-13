@@ -24,7 +24,8 @@ const GamificationSection = ({ expenses }: GamificationSectionProps) => {
     showConfetti,
     acceptChallenge,
     completeChallenge,
-    setShowConfetti
+    setShowConfetti,
+    setNewBadges
   } = useGamification(expenses);
 
   const recentBadges = badges.filter(b => b.unlocked).slice(-3);

@@ -128,6 +128,7 @@ export type Database = {
           last_sync_at: string | null
           plaid_access_token: string | null
           plaid_account_id: string | null
+          stripe_account_id: string | null
           updated_at: string
           user_id: string
         }
@@ -141,6 +142,7 @@ export type Database = {
           last_sync_at?: string | null
           plaid_access_token?: string | null
           plaid_account_id?: string | null
+          stripe_account_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -154,6 +156,7 @@ export type Database = {
           last_sync_at?: string | null
           plaid_access_token?: string | null
           plaid_account_id?: string | null
+          stripe_account_id?: string | null
           updated_at?: string
           user_id?: string
         }

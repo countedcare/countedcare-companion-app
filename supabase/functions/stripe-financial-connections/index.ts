@@ -87,7 +87,7 @@ async function createFinancialConnectionsSession(body: any) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      'account_holder[type]': 'consumer',
+      'account_holder[type]': 'customer',
       'permissions[]': 'balances',
       'permissions[]': 'transactions',
       'filters[countries][]': 'US',

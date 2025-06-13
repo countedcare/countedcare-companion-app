@@ -3,14 +3,17 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, CreditCard, Building2, Trash2, RefreshCw } from 'lucide-react';
+import { PlusCircle, CreditCard, Building2, Trash2, RefreshCw, Download } from 'lucide-react';
 import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
+import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
 import { LinkedAccount } from '@/types/FinancialAccount';
 import AddAccountDialog from './AddAccountDialog';
 
 const LinkedAccountsSection = () => {
   const { accounts, loading, removeAccount } = useLinkedAccounts();
+  const { syncAccountTransactions } = useSyncedTransactions();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [syncingAccounts, setSyncingAccounts] = useState<Set<string>>(new Set());
 
   const getAccountIcon = (type: string) => {
     switch (type) {
@@ -39,6 +42,23 @@ const LinkedAccountsSection = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleSyncTransactions = async (accountId: string) => {
+    setSyncingAccounts(prev => new Set(prev).add(accountId));
+    try {
+      await syncAccountTransactions(accountId);
+    } finally {
+      setSyncingAccounts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(accountId);
+        return newSet;
+      });
+    }
+  };
+
+  const canSync = (account: LinkedAccount) => {
+    return account.stripe_account_id && account.account_type === 'bank';
   };
 
   if (loading) {
@@ -88,6 +108,12 @@ const LinkedAccountsSection = () => {
                         {account.institution_name && (
                           <span className="text-sm text-gray-500">{account.institution_name}</span>
                         )}
+                        {account.stripe_account_id && (
+                          <Badge variant="secondary" className="text-xs">
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Auto-sync enabled
+                          </Badge>
+                        )}
                       </div>
                       {account.last_sync_at && (
                         <p className="text-xs text-gray-400">
@@ -96,13 +122,33 @@ const LinkedAccountsSection = () => {
                       )}
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => removeAccount(account.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  
+                  <div className="flex items-center space-x-2">
+                    {canSync(account) && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSyncTransactions(account.id)}
+                        disabled={syncingAccounts.has(account.id)}
+                      >
+                        {syncingAccounts.has(account.id) ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4 mr-2" />
+                            Sync
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => removeAccount(account.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

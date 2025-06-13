@@ -132,6 +132,7 @@ export interface Expense {
   receiptUrl?: string;
   expense_tags?: string[];
   is_tax_deductible?: boolean;
+  is_reimbursed?: boolean;
   reimbursement_source?: string;
   synced_transaction_id?: string;
 }

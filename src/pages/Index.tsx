@@ -1,9 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User } from '@/types/User';
@@ -15,7 +15,6 @@ import OnboardingControls from '@/components/onboarding/OnboardingControls';
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading } = useAuth();
   const [step, setStep] = useState(1);
   const [localUser, setLocalUser] = useLocalStorage<User>('countedcare-user', {
     name: '',
@@ -28,17 +27,6 @@ const Index = () => {
   });
   
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
-
-  // If loading, show nothing (auth context will handle loading state)
-  if (loading) {
-    return null;
-  }
-
-  // If user is authenticated, redirect to dashboard
-  if (user) {
-    navigate('/dashboard');
-    return null;
-  }
 
   const handleNext = () => {
     if (step === 1 && (!localUser.name || !localUser.email)) {
@@ -64,7 +52,7 @@ const Index = () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Complete onboarding and skip auth - go directly to dashboard
+      // Complete onboarding and go to dashboard
       setLocalUser({ ...localUser, onboardingComplete: true });
       navigate('/dashboard');
     }

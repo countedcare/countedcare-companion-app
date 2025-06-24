@@ -6,11 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { ACCOUNT_TYPES } from '@/types/FinancialAccount';
-import { CreditCard, Building2, Plus } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
 
 interface AddAccountDialogProps {
   open: boolean;
@@ -22,10 +20,8 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   const [accountType, setAccountType] = useState('');
   const [institutionName, setInstitutionName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [connectingStripe, setConnectingStripe] = useState(false);
   
   const { addAccount } = useLinkedAccounts();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,115 +57,11 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   };
 
   const handleStripeConnect = async () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "Please sign in to connect your bank account",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setConnectingStripe(true);
-    console.log('Starting Stripe connection...');
-    
-    try {
-      // Create a Financial Connections session
-      console.log('Calling stripe-financial-connections function...');
-      const { data: sessionData, error: sessionError } = await supabase.functions.invoke('stripe-financial-connections', {
-        body: { action: 'create_session' }
-      });
-
-      console.log('Session response:', { sessionData, sessionError });
-
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error(sessionError.message || 'Failed to create session');
-      }
-
-      if (!sessionData?.hosted_auth_url) {
-        console.error('No hosted auth URL in response:', sessionData);
-        throw new Error('No authorization URL received from Stripe');
-      }
-
-      console.log('Opening Stripe window with URL:', sessionData.hosted_auth_url);
-
-      // Open Stripe's hosted authorization flow
-      const stripeWindow = window.open(
-        sessionData.hosted_auth_url,
-        'stripe-connect',
-        'width=500,height=600,scrollbars=yes,resizable=yes'
-      );
-
-      if (!stripeWindow) {
-        throw new Error('Popup was blocked. Please allow popups for this site.');
-      }
-
-      // Listen for the completion
-      const checkClosed = setInterval(() => {
-        if (stripeWindow.closed) {
-          clearInterval(checkClosed);
-          console.log('Stripe window closed, completing connection...');
-          handleStripeConnectionComplete(sessionData.id);
-        }
-      }, 1000);
-
-      // Set a timeout to clean up the interval
-      setTimeout(() => {
-        clearInterval(checkClosed);
-        if (!stripeWindow.closed) {
-          console.log('Timeout reached, stopping check');
-        }
-      }, 300000); // 5 minutes timeout
-
-    } catch (error) {
-      console.error('Error connecting with Stripe:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to connect bank account",
-        variant: "destructive"
-      });
-    } finally {
-      setConnectingStripe(false);
-    }
-  };
-
-  const handleStripeConnectionComplete = async (sessionId: string) => {
-    console.log('Completing Stripe connection for session:', sessionId);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('stripe-financial-connections', {
-        body: {
-          action: 'link_account',
-          sessionId,
-          accountName: accountName || 'Connected Bank Account'
-        }
-      });
-
-      console.log('Link account response:', { data, error });
-
-      if (error) {
-        console.error('Link account error:', error);
-        throw new Error(error.message || 'Failed to link account');
-      }
-
-      toast({
-        title: "Success",
-        description: "Bank account connected successfully!"
-      });
-
-      setAccountName('');
-      setAccountType('');
-      setInstitutionName('');
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error completing connection:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to complete bank connection",
-        variant: "destructive"
-      });
-    }
+    toast({
+      title: "Feature Unavailable",
+      description: "Bank account syncing requires authentication which has been disabled. Please add accounts manually.",
+      variant: "destructive"
+    });
   };
 
   return (
@@ -178,43 +70,11 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         <DialogHeader>
           <DialogTitle>Link Financial Account</DialogTitle>
           <DialogDescription>
-            Connect your financial accounts to automatically track expenses
+            Add your financial accounts to track expenses manually
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Stripe Connect Option */}
-          <div className="border rounded-lg p-4 space-y-3">
-            <div className="flex items-center space-x-2">
-              <CreditCard className="h-5 w-5 text-primary" />
-              <h3 className="font-medium">Connect Bank Account</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Securely connect your bank account to automatically import transactions
-            </p>
-            <Input
-              placeholder="Account nickname (optional)"
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-            />
-            <Button 
-              onClick={handleStripeConnect}
-              disabled={connectingStripe}
-              className="w-full"
-            >
-              {connectingStripe ? 'Connecting...' : 'Connect with Stripe'}
-            </Button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or add manually</span>
-            </div>
-          </div>
-
           {/* Manual Entry Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -252,6 +112,16 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
                 value={institutionName}
                 onChange={(e) => setInstitutionName(e.target.value)}
               />
+            </div>
+
+            <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
+              <div className="flex items-center space-x-2">
+                <Building2 className="h-5 w-5 text-muted-foreground" />
+                <h3 className="font-medium text-muted-foreground">Auto-sync Disabled</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Automatic transaction syncing is currently disabled. You can add accounts manually to organize your expense tracking.
+              </p>
             </div>
 
             <div className="flex space-x-2 pt-4">

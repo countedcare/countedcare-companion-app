@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,7 +17,7 @@ import OnboardingControls from '@/components/onboarding/OnboardingControls';
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [step, setStep] = useState(0); // Start at welcome step (0)
+  const [step, setStep] = useState(0);
   const [localUser, setLocalUser] = useLocalStorage<User>('countedcare-user', {
     name: '',
     email: '',
@@ -30,7 +29,7 @@ const Index = () => {
   });
   
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
-  const totalSteps = 5; // Welcome + 3 info steps + completion
+  const totalSteps = 5;
 
   // Check if user has already completed onboarding
   useEffect(() => {
@@ -50,25 +49,62 @@ const Index = () => {
       return;
     }
     
-    // Handle step 2 caregiver role selection
-    if (step === 2 && localUser.isCaregiver && selectedRelationship) {
-      if (!localUser.caregivingFor?.includes(selectedRelationship)) {
-        setLocalUser({
-          ...localUser,
-          caregivingFor: [...(localUser.caregivingFor || []), selectedRelationship]
-        });
+    // Handle step 2 caregiver role selection and save all the data
+    if (step === 2) {
+      // Ensure we have the proper mapping for all caregiving data
+      const updatedUser = {
+        ...localUser,
+        // Map caregiver roles properly
+        caregiverRole: localUser.caregiverRole || [],
+        // Map financial info
+        householdAGI: localUser.householdAGI,
+        // Map location info for resources
+        state: localUser.state,
+        zipCode: localUser.zipCode,
+        county: localUser.county,
+        // Map employment and tax info
+        employmentStatus: localUser.employmentStatus,
+        taxFilingStatus: localUser.taxFilingStatus,
+        // Map number of people cared for
+        numberOfDependents: localUser.numberOfDependents,
+        // Ensure caregiving relationships are tracked
+        caregivingFor: localUser.caregivingFor || []
+      };
+      
+      if (selectedRelationship && !updatedUser.caregivingFor.includes(selectedRelationship)) {
+        updatedUser.caregivingFor = [...updatedUser.caregivingFor, selectedRelationship];
       }
+      
+      setLocalUser(updatedUser);
       setSelectedRelationship("");
     }
     
     if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
-      // Complete onboarding and go to dashboard
-      setLocalUser({ ...localUser, onboardingComplete: true });
+      // Complete onboarding with full data mapping
+      const finalUser = {
+        ...localUser,
+        onboardingComplete: true,
+        // Ensure all collected data is preserved
+        state: localUser.state,
+        county: localUser.county,
+        zipCode: localUser.zipCode,
+        householdAGI: localUser.householdAGI,
+        caregiverRole: localUser.caregiverRole,
+        numberOfDependents: localUser.numberOfDependents,
+        employmentStatus: localUser.employmentStatus,
+        taxFilingStatus: localUser.taxFilingStatus,
+        healthCoverageType: localUser.healthCoverageType,
+        primaryCaregivingExpenses: localUser.primaryCaregivingExpenses,
+        preferredNotificationMethod: localUser.preferredNotificationMethod
+      };
+      
+      setLocalUser(finalUser);
+      
       toast({
         title: "Welcome to CountedCare! 🎉",
-        description: "You're ready to start tracking your caregiving expenses.",
+        description: "Your profile is set up and ready to help you track expenses and find resources.",
       });
       navigate('/dashboard');
     }
@@ -76,13 +112,14 @@ const Index = () => {
 
   const skipOnboarding = () => {
     if (step === 0) {
-      // If on welcome step, show a confirmation
       if (!confirm("Are you sure you want to skip the setup? You can always complete it later in your profile.")) {
         return;
       }
     }
     
+    // Even when skipping, preserve any data that was collected
     setLocalUser({
+      ...localUser,
       name: localUser.name || 'Anonymous User',
       email: localUser.email || '',
       isCaregiver: localUser.isCaregiver,
@@ -103,7 +140,10 @@ const Index = () => {
       name: '',
       email: '',
       isCaregiver: true,
-      onboardingComplete: false
+      caregivingFor: [],
+      onboardingComplete: false,
+      zipCode: '',
+      householdAGI: undefined
     });
     setStep(0);
     toast({
@@ -128,7 +168,7 @@ const Index = () => {
           />
         );
       case 3:
-        return <TrackingGoalsStep />;
+        return <TrackingGoalsStep user={localUser} setUser={setLocalUser} />;
       case 4:
         return <CompletionStep userName={localUser.name} />;
       default:
@@ -176,7 +216,6 @@ const Index = () => {
         </CardContent>
       </Card>
 
-      {/* Quick dashboard access for returning users */}
       {step > 0 && (
         <div className="mt-4 w-full max-w-md">
           <Button 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Heart, LightbulbIcon, Sparkles } from 'lucide-react';
+import { Heart, LightbulbIcon, Sparkles, MapPin, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { User } from '@/types/User';
 
@@ -34,6 +34,16 @@ const WelcomeBanner = ({ user }: WelcomeBannerProps) => {
   else if (hour < 17) greeting = "Good afternoon";
   else greeting = "Good evening";
 
+  // Calculate tax deduction threshold based on income (7.5% of AGI for medical expenses)
+  const getTaxThreshold = () => {
+    if (user.householdAGI) {
+      return Math.round(user.householdAGI * 0.075);
+    }
+    return null;
+  };
+
+  const taxThreshold = getTaxThreshold();
+
   return (
     <div className="w-full mb-6 bg-gradient-to-r from-blue-50 to-accent-light rounded-lg p-6 animate-fade-in">
       <div className="flex items-start">
@@ -47,6 +57,30 @@ const WelcomeBanner = ({ user }: WelcomeBannerProps) => {
           <p className="text-gray-600 mb-3">
             Today is {formattedDate} • You're doing something beautiful
           </p>
+          
+          {/* Show personalized info based on onboarding data */}
+          <div className="flex flex-wrap gap-4 mb-3 text-sm">
+            {user.state && user.zipCode && (
+              <div className="flex items-center space-x-1 text-gray-600">
+                <MapPin className="h-4 w-4" />
+                <span>{user.state}, {user.zipCode}</span>
+              </div>
+            )}
+            
+            {user.numberOfDependents && (
+              <div className="flex items-center space-x-1 text-gray-600">
+                <Heart className="h-4 w-4" />
+                <span>Caring for {user.numberOfDependents} {user.numberOfDependents === 1 ? 'person' : 'people'}</span>
+              </div>
+            )}
+            
+            {taxThreshold && (
+              <div className="flex items-center space-x-1 text-gray-600">
+                <DollarSign className="h-4 w-4" />
+                <span>Tax threshold: ${taxThreshold.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
@@ -62,6 +96,15 @@ const WelcomeBanner = ({ user }: WelcomeBannerProps) => {
           <p className="text-gray-700 leading-relaxed">{todaysQuote}</p>
         </div>
       </div>
+      
+      {/* Personalized insights based on profile completion */}
+      {user.primaryCaregivingExpenses && user.primaryCaregivingExpenses.length > 0 && (
+        <div className="bg-green-50 rounded-lg p-3 mt-3 border border-green-200">
+          <p className="text-sm text-green-800">
+            <span className="font-medium">Tracking focus:</span> We'll help you track {user.primaryCaregivingExpenses.length} types of expenses you selected during setup.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

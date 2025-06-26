@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, Skip } from 'lucide-react';
+import { ArrowLeft, ArrowRight, SkipForward } from 'lucide-react';
 
 interface OnboardingControlsProps {
   step: number;
@@ -51,7 +50,7 @@ const OnboardingControls: React.FC<OnboardingControlsProps> = ({
             onClick={skipOnboarding} 
             className="flex-1 text-gray-600"
           >
-            <Skip className="mr-2 h-4 w-4" />
+            <SkipForward className="mr-2 h-4 w-4" />
             Skip Setup
           </Button>
         )}

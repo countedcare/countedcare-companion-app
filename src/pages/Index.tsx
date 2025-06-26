@@ -7,15 +7,18 @@ import { useToast } from '@/components/ui/use-toast';
 import Logo from '@/components/Logo';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User } from '@/types/User';
+import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
+import WelcomeStep from '@/components/onboarding/WelcomeStep';
 import UserInfoStep from '@/components/onboarding/UserInfoStep';
 import CaregiverRoleStep from '@/components/onboarding/CaregiverRoleStep';
 import TrackingGoalsStep from '@/components/onboarding/TrackingGoalsStep';
+import CompletionStep from '@/components/onboarding/CompletionStep';
 import OnboardingControls from '@/components/onboarding/OnboardingControls';
 
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Start at welcome step (0)
   const [localUser, setLocalUser] = useLocalStorage<User>('countedcare-user', {
     name: '',
     email: '',
@@ -27,19 +30,28 @@ const Index = () => {
   });
   
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
+  const totalSteps = 5; // Welcome + 3 info steps + completion
+
+  // Check if user has already completed onboarding
+  useEffect(() => {
+    if (localUser.onboardingComplete) {
+      navigate('/dashboard');
+    }
+  }, [localUser.onboardingComplete, navigate]);
 
   const handleNext = () => {
+    // Validate step 1 (User Info)
     if (step === 1 && (!localUser.name || !localUser.email)) {
       toast({
-        title: "Missing Information",
-        description: "Please enter your name and email to continue.",
+        title: "Please complete your information",
+        description: "Your name and email are required to continue.",
         variant: "destructive",
       });
       return;
     }
     
+    // Handle step 2 caregiver role selection
     if (step === 2 && localUser.isCaregiver && selectedRelationship) {
-      // Add the selected relationship to caregivingFor if it's not already there
       if (!localUser.caregivingFor?.includes(selectedRelationship)) {
         setLocalUser({
           ...localUser,
@@ -49,17 +61,27 @@ const Index = () => {
       setSelectedRelationship("");
     }
     
-    if (step < 3) {
+    if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
       // Complete onboarding and go to dashboard
       setLocalUser({ ...localUser, onboardingComplete: true });
+      toast({
+        title: "Welcome to CountedCare! 🎉",
+        description: "You're ready to start tracking your caregiving expenses.",
+      });
       navigate('/dashboard');
     }
   };
 
   const skipOnboarding = () => {
-    // Set minimum required fields and go directly to dashboard
+    if (step === 0) {
+      // If on welcome step, show a confirmation
+      if (!confirm("Are you sure you want to skip the setup? You can always complete it later in your profile.")) {
+        return;
+      }
+    }
+    
     setLocalUser({
       name: localUser.name || 'Anonymous User',
       email: localUser.email || '',
@@ -69,8 +91,8 @@ const Index = () => {
     });
     
     toast({
-      title: "Onboarding Skipped",
-      description: "Welcome to CountedCare! You can update your information in your profile later."
+      title: "Setup skipped",
+      description: "You can complete your profile information anytime in settings.",
     });
     
     navigate('/dashboard');
@@ -83,43 +105,65 @@ const Index = () => {
       isCaregiver: true,
       onboardingComplete: false
     });
-    setStep(1);
+    setStep(0);
     toast({
-      title: "Onboarding Reset",
-      description: "Your onboarding information has been reset."
+      title: "Setup reset",
+      description: "Starting fresh with the setup process.",
     });
+  };
+
+  const renderStepContent = () => {
+    switch (step) {
+      case 0:
+        return <WelcomeStep />;
+      case 1:
+        return <UserInfoStep user={localUser} setUser={setLocalUser} />;
+      case 2:
+        return (
+          <CaregiverRoleStep 
+            user={localUser} 
+            setUser={setLocalUser}
+            selectedRelationship={selectedRelationship}
+            setSelectedRelationship={setSelectedRelationship}
+          />
+        );
+      case 3:
+        return <TrackingGoalsStep />;
+      case 4:
+        return <CompletionStep userName={localUser.name} />;
+      default:
+        return <WelcomeStep />;
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (step) {
+      case 0: return "Welcome";
+      case 1: return "Your Information";
+      case 2: return "Caregiver Details";
+      case 3: return "Tracking Goals";
+      case 4: return "All Set!";
+      default: return "Setup";
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">
       <div className="w-full max-w-md mb-8 text-center">
         <Logo size="lg" className="justify-center mb-4" />
-        <h1 className="text-2xl font-heading font-semibold text-gray-800 mb-2">
-          Track Your Caregiving Expenses
-        </h1>
-        <p className="text-gray-600">
-          Maximize tax benefits while caring for your loved ones
-        </p>
+        {step > 0 && (
+          <div className="mb-4">
+            <h1 className="text-xl font-heading font-semibold text-gray-800 mb-2">
+              {getStepTitle()}
+            </h1>
+            <OnboardingProgress currentStep={step} totalSteps={totalSteps - 1} />
+          </div>
+        )}
       </div>
       
       <Card className="w-full max-w-md animate-fade-in">
         <CardContent className="pt-6">
-          {step === 1 && (
-            <UserInfoStep user={localUser} setUser={setLocalUser} />
-          )}
-          
-          {step === 2 && (
-            <CaregiverRoleStep 
-              user={localUser} 
-              setUser={setLocalUser}
-              selectedRelationship={selectedRelationship}
-              setSelectedRelationship={setSelectedRelationship}
-            />
-          )}
-          
-          {step === 3 && (
-            <TrackingGoalsStep />
-          )}
+          {renderStepContent()}
           
           <OnboardingControls
             step={step}
@@ -127,23 +171,26 @@ const Index = () => {
             setStep={setStep}
             skipOnboarding={skipOnboarding}
             resetOnboarding={resetOnboarding}
-            isFinalStep={step === 3}
+            isFinalStep={step === totalSteps - 1}
           />
         </CardContent>
       </Card>
 
-      <div className="mt-4 w-full max-w-md">
-        <Button 
-          variant="outline" 
-          className="w-full"
-          onClick={() => navigate('/dashboard')}
-        >
-          Skip to Dashboard
-        </Button>
-      </div>
+      {/* Quick dashboard access for returning users */}
+      {step > 0 && (
+        <div className="mt-4 w-full max-w-md">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate('/dashboard')}
+          >
+            Skip to Dashboard
+          </Button>
+        </div>
+      )}
       
       <div className="mt-4 text-sm text-gray-500">
-        <p>© 2025 CountedCare. All rights reserved.</p>
+        <p>© 2025 CountedCare. Your caregiving companion.</p>
       </div>
     </div>
   );

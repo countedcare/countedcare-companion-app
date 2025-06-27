@@ -118,7 +118,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
       console.log('Sending password reset email to:', resetEmail);
       
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: `${window.location.origin}/auth?type=recovery`,
       });
 
       if (error) {
@@ -132,8 +132,8 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
       }
 
       toast({
-        title: "Reset email sent!",
-        description: "Check your email for a link to reset your password. The link will redirect you back to this page.",
+        title: "Password reset email sent!",
+        description: "Check your email for a link to reset your password. Click the link and you'll be redirected back here to set a new password.",
       });
       
       setResetDialogOpen(false);
@@ -198,14 +198,14 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Reset Password</DialogTitle>
+                  <DialogTitle>Reset Your Password</DialogTitle>
                   <DialogDescription>
-                    Enter your email address and we'll send you a link to reset your password.
+                    Enter your email address and we'll send you a secure link to reset your password.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email">Email</Label>
+                    <Label htmlFor="reset-email">Email Address</Label>
                     <Input
                       id="reset-email"
                       type="email"
@@ -216,10 +216,21 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
                       disabled={resetLoading}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={resetLoading}>
-                    {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Reset Link
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => setResetDialogOpen(false)}
+                      disabled={resetLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="flex-1" disabled={resetLoading}>
+                      {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send Reset Link
+                    </Button>
+                  </div>
                 </form>
               </DialogContent>
             </Dialog>

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import AuthHeader from '@/components/auth/AuthHeader';
 import SignInForm from '@/components/auth/SignInForm';
 import SignUpForm from '@/components/auth/SignUpForm';
+import PasswordResetForm from '@/components/auth/PasswordResetForm';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -29,6 +31,16 @@ const Auth = () => {
     
     checkUser();
 
+    // Check for password recovery type
+    const type = searchParams.get('type');
+    if (type === 'recovery') {
+      setIsPasswordRecovery(true);
+      toast({
+        title: "Password Reset",
+        description: "Please enter your new password below.",
+      });
+    }
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
@@ -38,14 +50,15 @@ const Auth = () => {
       }
       
       if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
         toast({
           title: "Password reset link clicked",
-          description: "You can now enter a new password.",
+          description: "You can now enter a new password below.",
         });
       }
     });
 
-    // Check for password reset or other auth parameters
+    // Check for auth errors
     const error = searchParams.get('error');
     const error_description = searchParams.get('error_description');
     
@@ -60,6 +73,28 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate, searchParams, toast]);
+
+  if (isPasswordRecovery) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">
+        <AuthHeader />
+        <Card className="w-full max-w-md">
+          <PasswordResetForm 
+            onSuccess={() => {
+              setIsPasswordRecovery(false);
+              toast({
+                title: "Password Updated",
+                description: "Your password has been successfully updated. You can now sign in with your new password.",
+              });
+            }}
+          />
+        </Card>
+        <div className="mt-4 text-sm text-gray-500">
+          <p>© 2025 CountedCare. All rights reserved.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">

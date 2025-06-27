@@ -16,13 +16,19 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
   onApiKeySaved,
   currentApiKey = ''
 }) => {
-  const [apiKey, setApiKey] = useState(currentApiKey);
+  const [apiKey, setApiKey] = useState(currentApiKey || 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak');
   const [showApiKey, setShowApiKey] = useState(false);
 
   const handleSave = () => {
     if (apiKey.trim()) {
       onApiKeySaved(apiKey.trim());
     }
+  };
+
+  const handleQuickSetup = () => {
+    const defaultApiKey = 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak';
+    setApiKey(defaultApiKey);
+    onApiKeySaved(defaultApiKey);
   };
 
   return (
@@ -50,6 +56,12 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
           </AlertDescription>
         </Alert>
 
+        <div className="flex gap-2">
+          <Button onClick={handleQuickSetup} className="flex-1">
+            Use Default API Key
+          </Button>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="api-key">Google Maps API Key</Label>
           <div className="relative">
@@ -73,7 +85,7 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={!apiKey.trim()}>
+        <Button onClick={handleSave} disabled={!apiKey.trim()} className="w-full">
           Save API Key
         </Button>
       </CardContent>

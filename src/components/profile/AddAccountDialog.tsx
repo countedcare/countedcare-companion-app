@@ -94,6 +94,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         const script = document.createElement('script');
         script.src = 'https://js.stripe.com/v3/';
         script.onload = () => {
+          // Use your actual Stripe publishable key here
           const stripe = (window as any).Stripe('pk_test_51QalLZ8VcuR0IJ7tqvT8YABwFtNL9hYX0qJkRGI4MvSQx5oKiSW3HDxW4YUJIkzh8pNvvKxFDrPKuCsz3TmJ60cS00z08Dc39g');
           
           stripe.collectFinancialConnectionsAccounts({

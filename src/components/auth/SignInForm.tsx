@@ -118,7 +118,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
       console.log('Sending password reset email to:', resetEmail);
       
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/auth?type=recovery`,
+        redirectTo: `${window.location.origin}/auth`,
       });
 
       if (error) {
@@ -133,7 +133,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
 
       toast({
         title: "Password reset email sent!",
-        description: "Check your email for a link to reset your password. Click the link and you'll be redirected back here to set a new password.",
+        description: "Check your email for a link to reset your password. The link will redirect you back to this page where you can set a new password.",
       });
       
       setResetDialogOpen(false);

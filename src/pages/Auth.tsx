@@ -24,20 +24,47 @@ const Auth = () => {
     // Check if user is already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session && !searchParams.get('access_token')) {
         navigate('/dashboard');
       }
     };
     
     checkUser();
 
-    // Check for password recovery type
+    // Check URL parameters for password recovery
+    const accessToken = searchParams.get('access_token');
+    const refreshToken = searchParams.get('refresh_token');
     const type = searchParams.get('type');
-    if (type === 'recovery') {
-      setIsPasswordRecovery(true);
+    
+    console.log('URL params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
+
+    if (type === 'recovery' && accessToken && refreshToken) {
+      // Set the session with the tokens from the URL
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Error setting session:', error);
+          toast({
+            title: "Session Error",
+            description: "There was an error with your password reset link. Please try requesting a new one.",
+            variant: "destructive",
+          });
+        } else {
+          console.log('Session set successfully for password recovery');
+          setIsPasswordRecovery(true);
+          toast({
+            title: "Password Reset",
+            description: "Please enter your new password below.",
+          });
+        }
+      });
+    } else if (type === 'recovery') {
       toast({
-        title: "Password Reset",
-        description: "Please enter your new password below.",
+        title: "Invalid Reset Link",
+        description: "This password reset link is invalid or has expired. Please request a new one.",
+        variant: "destructive",
       });
     }
 
@@ -45,14 +72,14 @@ const Auth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       
-      if (event === 'SIGNED_IN' && session) {
+      if (event === 'SIGNED_IN' && session && !isPasswordRecovery) {
         navigate('/dashboard');
       }
       
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
         toast({
-          title: "Password reset link clicked",
+          title: "Password Reset Ready",
           description: "You can now enter a new password below.",
         });
       }
@@ -72,7 +99,7 @@ const Auth = () => {
     }
 
     return () => subscription.unsubscribe();
-  }, [navigate, searchParams, toast]);
+  }, [navigate, searchParams, toast, isPasswordRecovery]);
 
   if (isPasswordRecovery) {
     return (
@@ -83,9 +110,10 @@ const Auth = () => {
             onSuccess={() => {
               setIsPasswordRecovery(false);
               toast({
-                title: "Password Updated",
-                description: "Your password has been successfully updated. You can now sign in with your new password.",
+                title: "Password Updated Successfully!",
+                description: "Your password has been updated. You will now be signed in automatically.",
               });
+              // The auth state change will handle navigation to dashboard
             }}
           />
         </Card>

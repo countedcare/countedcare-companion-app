@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
-import { CalendarIcon, Upload, Receipt, Scan, FileImage } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
+import CameraCapture from '@/components/mobile/CameraCapture';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -58,6 +59,48 @@ const ExpenseForm = () => {
       }
     }
   }, [id, expenses]);
+
+  const handleReceiptProcessed = (extractedData: any) => {
+    console.log('Receipt data extracted:', extractedData);
+    
+    // Auto-populate form fields with extracted data
+    if (extractedData.amount && extractedData.amount > 0) {
+      setAmount(extractedData.amount.toString());
+    }
+    
+    if (extractedData.date) {
+      try {
+        const parsedDate = new Date(extractedData.date);
+        if (!isNaN(parsedDate.getTime())) {
+          setDate(parsedDate);
+        }
+      } catch (error) {
+        console.error('Error parsing date:', error);
+      }
+    }
+    
+    if (extractedData.merchant) {
+      setTitle(extractedData.merchant);
+    }
+    
+    if (extractedData.category && EXPENSE_CATEGORIES.includes(extractedData.category)) {
+      setCategory(extractedData.category);
+    }
+    
+    if (extractedData.description) {
+      setDescription(extractedData.description);
+    }
+    
+    // Set as potentially tax deductible if it's medical
+    if (extractedData.category === 'Medical' || extractedData.category === 'Pharmacy') {
+      setIsTaxDeductible(true);
+    }
+    
+    toast({
+      title: "Form Auto-Populated!",
+      description: "Please review and adjust the extracted information as needed.",
+    });
+  };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,6 +224,18 @@ const ExpenseForm = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                {/* Smart Receipt Capture */}
+                <div className="space-y-2">
+                  <Label>Smart Receipt Capture</Label>
+                  <CameraCapture
+                    onImageCaptured={(imageUri, photo) => {
+                      setReceiptUrl(imageUri);
+                    }}
+                    onReceiptProcessed={handleReceiptProcessed}
+                    disabled={isUploading}
+                  />
+                </div>
+
                 {/* Expense Title */}
                 <div className="space-y-2">
                   <Label htmlFor="title">Expense Title*</Label>

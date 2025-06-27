@@ -36,7 +36,13 @@ export const useLinkedAccounts = () => {
         return;
       }
 
-      setAccounts(data || []);
+      // Cast the account_type to the correct union type
+      const typedAccounts = (data || []).map(account => ({
+        ...account,
+        account_type: account.account_type as LinkedAccount['account_type']
+      }));
+
+      setAccounts(typedAccounts);
     } catch (error) {
       console.error('Error fetching linked accounts:', error);
       toast({

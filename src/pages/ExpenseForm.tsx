@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
-import { CalendarIcon, Upload, Scan, FileText, Loader2 } from 'lucide-react';
+import { CalendarIcon, Upload, Scan, FileText, Loader2, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
@@ -51,6 +51,14 @@ const ExpenseForm = () => {
   const { apiKey, isConfigured, saveApiKey } = useGoogleMapsAPI();
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
   const [showApiConfig, setShowApiConfig] = useState(false);
+  
+  // Auto-configure API key if not set
+  useEffect(() => {
+    if (!isConfigured) {
+      const defaultApiKey = 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak';
+      saveApiKey(defaultApiKey);
+    }
+  }, [isConfigured, saveApiKey]);
   
   // For editing mode
   useEffect(() => {
@@ -333,46 +341,38 @@ const ExpenseForm = () => {
   return (
     <Layout>
       <div className="container-padding py-6">
-        <h1 className="text-2xl font-heading mb-6">
-          {id ? 'Edit' : 'Add New'} Expense
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-heading">
+            {id ? 'Edit' : 'Add New'} Expense
+          </h1>
+          
+          {/* Small settings button for API configuration */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowApiConfig(!showApiConfig)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            API Settings
+          </Button>
+        </div>
+
+        {/* API Configuration Panel - Hidden by default */}
+        {showApiConfig && (
+          <div className="mb-6">
+            <GoogleMapsAPIConfig
+              onApiKeySaved={handleApiKeySaved}
+              currentApiKey={apiKey}
+            />
+          </div>
+        )}
         
         <form onSubmit={handleSubmit}>
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                {/* Google Maps API Configuration */}
-                {!isConfigured && (
-                  <div className="space-y-2">
-                    <GoogleMapsAPIConfig
-                      onApiKeySaved={handleApiKeySaved}
-                      currentApiKey={apiKey}
-                    />
-                  </div>
-                )}
-
-                {/* Show API config button if configured */}
-                {isConfigured && (
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowApiConfig(!showApiConfig)}
-                    >
-                      {showApiConfig ? 'Hide' : 'Configure'} Google Maps API
-                    </Button>
-                  </div>
-                )}
-
-                {/* API Configuration Panel */}
-                {showApiConfig && isConfigured && (
-                  <GoogleMapsAPIConfig
-                    onApiKeySaved={handleApiKeySaved}
-                    currentApiKey={apiKey}
-                  />
-                )}
-
                 {/* Smart Receipt Capture */}
                 <div className="space-y-2">
                   <Label>Smart Receipt Capture</Label>
@@ -449,39 +449,37 @@ const ExpenseForm = () => {
                   />
                 </div>
 
-                {/* Location Search - New Feature */}
-                {isConfigured && (
-                  <div className="space-y-2">
-                    <MedicalPlacesAutocomplete
-                      onPlaceSelect={handleLocationSelect}
-                      apiKey={apiKey}
-                    />
-                    
-                    {selectedLocation && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-blue-900">
-                              {selectedLocation.name}
-                            </h4>
-                            <p className="text-sm text-blue-700 mt-1">
-                              {selectedLocation.formatted_address}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedLocation(null)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Remove
-                          </Button>
+                {/* Location Search - Now integrated seamlessly */}
+                <div className="space-y-2">
+                  <MedicalPlacesAutocomplete
+                    onPlaceSelect={handleLocationSelect}
+                    apiKey={apiKey}
+                  />
+                  
+                  {selectedLocation && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium text-blue-900">
+                            {selectedLocation.name}
+                          </h4>
+                          <p className="text-sm text-blue-700 mt-1">
+                            {selectedLocation.formatted_address}
+                          </p>
                         </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedLocation(null)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          Remove
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Amount */}
                 <div className="space-y-2">

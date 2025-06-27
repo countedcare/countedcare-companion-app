@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -190,7 +189,11 @@ const ExpenseForm = () => {
       navigate('/expenses');
     }
   };
-  
+
+  const handleMileageAmountCalculated = (calculatedAmount: number) => {
+    setAmount(calculatedAmount.toString());
+  };
+
   return (
     <Layout>
       <div className="container-padding py-6">
@@ -232,6 +235,7 @@ const ExpenseForm = () => {
                   careRecipientId={careRecipientId}
                   setCareRecipientId={setCareRecipientId}
                   recipients={recipients}
+                  onMileageAmountCalculated={handleMileageAmountCalculated}
                 />
 
                 {/* Receipt Upload */}

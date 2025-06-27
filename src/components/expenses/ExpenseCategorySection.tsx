@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import CategorySelector from '@/components/expenses/CategorySelector';
+import MileageCalculator from '@/components/expenses/MileageCalculator';
 import { CareRecipient } from '@/types/User';
 
 interface ExpenseCategorySectionProps {
@@ -15,6 +16,7 @@ interface ExpenseCategorySectionProps {
   careRecipientId: string;
   setCareRecipientId: (id: string) => void;
   recipients: CareRecipient[];
+  onMileageAmountCalculated?: (amount: number) => void;
 }
 
 const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
@@ -24,9 +26,13 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
   setSubcategory,
   careRecipientId,
   setCareRecipientId,
-  recipients
+  recipients,
+  onMileageAmountCalculated
 }) => {
   const navigate = useNavigate();
+  
+  const isTransportationMileage = category === "🚘 Transportation & Travel for Medical Care" && 
+    subcategory === "Mileage for car travel (21 cents/mile in 2024)";
 
   return (
     <div className="space-y-4">
@@ -37,6 +43,13 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
         onSubcategoryChange={setSubcategory}
         required
       />
+      
+      {/* Mileage Calculator */}
+      {isTransportationMileage && onMileageAmountCalculated && (
+        <MileageCalculator
+          onAmountCalculated={onMileageAmountCalculated}
+        />
+      )}
       
       <div className="space-y-2">
         <Label htmlFor="recipient">Who this is for</Label>

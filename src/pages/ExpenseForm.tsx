@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
-import { CalendarIcon, Upload, Scan, FileText, Loader2, Settings } from 'lucide-react';
+import { CalendarIcon, Upload, Scan, FileText, Loader2, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
@@ -20,7 +21,6 @@ import CameraCapture from '@/components/mobile/CameraCapture';
 import CategorySelector from '@/components/expenses/CategorySelector';
 import { supabase } from '@/integrations/supabase/client';
 import MedicalPlacesAutocomplete from '@/components/places/MedicalPlacesAutocomplete';
-import GoogleMapsAPIConfig from '@/components/places/GoogleMapsAPIConfig';
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 const ExpenseForm = () => {
@@ -50,7 +50,6 @@ const ExpenseForm = () => {
   // Google Maps integration
   const { apiKey, isConfigured, saveApiKey } = useGoogleMapsAPI();
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
-  const [showApiConfig, setShowApiConfig] = useState(false);
   
   // Auto-configure API key if not set
   useEffect(() => {
@@ -251,36 +250,27 @@ const ExpenseForm = () => {
     }
   };
   
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setIsUploading(true);
     
-    // Simulate file upload with a delay
-    setTimeout(() => {
-      // Create object URL for preview
-      const fileUrl = URL.createObjectURL(file);
-      setReceiptUrl(fileUrl);
-      setIsUploading(false);
-      
-      toast({
-        title: "Receipt Uploaded",
-        description: "Your receipt has been attached to this expense."
-      });
-    }, 1000);
-  };
-  
-  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
     // Create object URL for preview
     const fileUrl = URL.createObjectURL(file);
     setReceiptUrl(fileUrl);
 
-    // Process with Gemini AI for expense data extraction
-    await processDocumentWithGemini(file);
+    // Process with Gemini AI for expense data extraction if it's an image or document
+    if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+      await processDocumentWithGemini(file);
+    }
+    
+    setIsUploading(false);
+    
+    toast({
+      title: "Receipt Uploaded",
+      description: "Your receipt has been attached to this expense."
+    });
   };
   
   const handleScan = () => {
@@ -328,15 +318,6 @@ const ExpenseForm = () => {
       description: `Added ${place.name || place.formatted_address} to your expense`
     });
   };
-
-  const handleApiKeySaved = (newApiKey: string) => {
-    saveApiKey(newApiKey);
-    setShowApiConfig(false);
-    toast({
-      title: "API Key Saved",
-      description: "Google Maps Places API is now configured"
-    });
-  };
   
   return (
     <Layout>
@@ -345,99 +326,13 @@ const ExpenseForm = () => {
           <h1 className="text-2xl font-heading">
             {id ? 'Edit' : 'Add New'} Expense
           </h1>
-          
-          {/* Small settings button for API configuration */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowApiConfig(!showApiConfig)}
-            className="flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            API Settings
-          </Button>
         </div>
-
-        {/* API Configuration Panel - Hidden by default */}
-        {showApiConfig && (
-          <div className="mb-6">
-            <GoogleMapsAPIConfig
-              onApiKeySaved={handleApiKeySaved}
-              currentApiKey={apiKey}
-            />
-          </div>
-        )}
         
         <form onSubmit={handleSubmit}>
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                {/* Smart Receipt Capture */}
-                <div className="space-y-2">
-                  <Label>Smart Receipt Capture</Label>
-                  <CameraCapture
-                    onImageCaptured={(imageUri, photo) => {
-                      setReceiptUrl(imageUri);
-                    }}
-                    onReceiptProcessed={handleReceiptProcessed}
-                    disabled={isUploading || isProcessingDocument}
-                  />
-                </div>
-
-                {/* Document Upload Section */}
-                <div className="space-y-2">
-                  <Label>Upload Document</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                    <div className="text-center">
-                      <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">
-                        Upload receipts, invoices, or expense documents
-                      </p>
-                      <p className="text-xs text-gray-500 mb-3">
-                        AI will extract expense details automatically
-                      </p>
-                      
-                      <input
-                        type="file"
-                        id="document-upload"
-                        accept="image/*,.pdf,.doc,.docx"
-                        onChange={handleDocumentUpload}
-                        className="hidden"
-                        disabled={isUploading || isProcessingDocument}
-                      />
-                      <label htmlFor="document-upload">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="cursor-pointer"
-                          asChild
-                          disabled={isUploading || isProcessingDocument}
-                        >
-                          <div>
-                            {isProcessingDocument ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="mr-2 h-4 w-4" />
-                            )}
-                            {isProcessingDocument ? 'Processing...' : 'Choose Document'}
-                          </div>
-                        </Button>
-                      </label>
-                    </div>
-                    
-                    {isProcessingDocument && (
-                      <div className="mt-4 text-center p-4 bg-blue-50 rounded-lg">
-                        <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-blue-600" />
-                        <p className="text-sm text-blue-700">
-                          AI is reading your document and extracting expense details...
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Expense Title */}
+                {/* Basic Information */}
                 <div className="space-y-2">
                   <Label htmlFor="title">Expense Title*</Label>
                   <Input
@@ -449,7 +344,48 @@ const ExpenseForm = () => {
                   />
                 </div>
 
-                {/* Location Search - Now integrated seamlessly */}
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount ($)*</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Date*</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(date) => date && setDate(date)}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Location Search */}
                 <div className="space-y-2">
                   <MedicalPlacesAutocomplete
                     onPlaceSelect={handleLocationSelect}
@@ -479,49 +415,6 @@ const ExpenseForm = () => {
                       </div>
                     </div>
                   )}
-                </div>
-                
-                {/* Amount */}
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount ($)*</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                {/* Date */}
-                <div className="space-y-2">
-                  <Label>Date*</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(date) => date && setDate(date)}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
                 </div>
                 
                 {/* Enhanced Category Selector */}
@@ -568,11 +461,93 @@ const ExpenseForm = () => {
                     </div>
                   )}
                 </div>
-                
-                {/* Receipt Display Section */}
-                {receiptUrl && (
-                  <div className="space-y-2">
-                    <Label>Attached Receipt/Document</Label>
+
+                {/* Consolidated Receipt Upload Section */}
+                <div className="space-y-2">
+                  <Label>Receipt & Document Upload</Label>
+                  
+                  {!receiptUrl ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                      <div className="text-center space-y-4">
+                        <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                        <div>
+                          <h3 className="text-lg font-medium mb-2">Add Receipt or Document</h3>
+                          <p className="text-sm text-gray-600 mb-1">
+                            Upload receipts, invoices, or expense documents
+                          </p>
+                          <p className="text-xs text-gray-500 mb-4">
+                            AI will automatically extract expense details
+                          </p>
+                        </div>
+                        
+                        {/* Smart Camera Capture */}
+                        <div className="mb-4">
+                          <CameraCapture
+                            onImageCaptured={(imageUri, photo) => {
+                              setReceiptUrl(imageUri);
+                            }}
+                            onReceiptProcessed={handleReceiptProcessed}
+                            disabled={isUploading || isProcessingDocument}
+                          />
+                        </div>
+
+                        {/* Upload Options */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <input
+                              type="file"
+                              id="receipt-upload"
+                              accept="image/*,.pdf,.doc,.docx"
+                              onChange={handleFileUpload}
+                              className="hidden"
+                              disabled={isUploading || isProcessingDocument}
+                            />
+                            <label htmlFor="receipt-upload">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full cursor-pointer"
+                                asChild
+                                disabled={isUploading || isProcessingDocument}
+                              >
+                                <div>
+                                  {isProcessingDocument ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Upload className="mr-2 h-4 w-4" />
+                                  )}
+                                  {isProcessingDocument ? 'Processing...' : 'Upload File'}
+                                </div>
+                              </Button>
+                            </label>
+                          </div>
+                          
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleScan}
+                            disabled={isUploading || isProcessingDocument}
+                            className="w-full"
+                          >
+                            <Scan className="mr-2 h-4 w-4" />
+                            Scan Receipt
+                          </Button>
+                        </div>
+                        
+                        {(isUploading || isProcessingDocument) && (
+                          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                            <div className="flex items-center justify-center gap-2">
+                              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                              <span className="text-sm text-blue-700">
+                                {isProcessingDocument ? 'AI is reading your document...' : 'Uploading...'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Receipt Display */
                     <div className="border rounded-md p-3">
                       <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
                         <img 
@@ -590,59 +565,8 @@ const ExpenseForm = () => {
                         Remove Receipt
                       </Button>
                     </div>
-                  </div>
-                )}
-                
-                {/* Legacy Receipt Upload (keeping for backward compatibility) */}
-                {!receiptUrl && (
-                  <div className="space-y-2">
-                    <Label>Legacy Receipt Upload</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <input
-                          type="file"
-                          id="receipt-upload"
-                          accept="image/*"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          disabled={isUploading}
-                        />
-                        <label htmlFor="receipt-upload">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full cursor-pointer"
-                            asChild
-                            disabled={isUploading}
-                          >
-                            <div>
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload Receipt
-                            </div>
-                          </Button>
-                        </label>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleScan}
-                        disabled={isUploading}
-                        className="w-full"
-                      >
-                        <Scan className="mr-2 h-4 w-4" />
-                        Scan Receipt
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                
-                {isUploading && (
-                  <div className="text-center py-3">
-                    <div className="animate-pulse text-sm text-gray-500">
-                      Processing receipt...
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
                 
                 {/* Notes */}
                 <div className="space-y-2">

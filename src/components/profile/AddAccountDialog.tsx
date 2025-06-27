@@ -89,14 +89,35 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         return;
       }
 
-      if (data?.session_url) {
-        // Open Stripe Financial Connections in a new window
-        window.open(data.session_url, '_blank', 'width=500,height=600');
-        
-        toast({
-          title: "Connect Your Bank",
-          description: "A new window has opened to securely connect your bank account"
-        });
+      if (data?.client_secret) {
+        // Load Stripe.js dynamically
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/';
+        script.onload = () => {
+          const stripe = (window as any).Stripe('pk_test_51QalLZ8VcuR0IJ7tqvT8YABwFtNL9hYX0qJkRGI4MvSQx5oKiSW3HDxW4YUJIkzh8pNvvKxFDrPKuCsz3TmJ60cS00z08Dc39g');
+          
+          stripe.collectFinancialConnectionsAccounts({
+            clientSecret: data.client_secret,
+          }).then((result: any) => {
+            if (result.error) {
+              console.error('Stripe error:', result.error);
+              toast({
+                title: "Connection Error",
+                description: result.error.message,
+                variant: "destructive"
+              });
+            } else {
+              toast({
+                title: "Bank Connected",
+                description: "Your bank account has been connected successfully"
+              });
+              onOpenChange(false);
+              // Refresh the accounts list
+              window.location.reload();
+            }
+          });
+        };
+        document.head.appendChild(script);
       }
     } catch (error) {
       console.error('Error connecting to Stripe:', error);

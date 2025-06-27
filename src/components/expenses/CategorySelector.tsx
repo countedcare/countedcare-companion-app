@@ -28,7 +28,12 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
   };
 
   const handleSubcategorySelect = (selectedSubcategory: string) => {
-    onSubcategoryChange(selectedSubcategory);
+    // If "general" is selected, clear the subcategory
+    if (selectedSubcategory === 'general') {
+      onSubcategoryChange('');
+    } else {
+      onSubcategoryChange(selectedSubcategory);
+    }
   };
 
   return (
@@ -63,12 +68,12 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
         {category && (
           <div className="space-y-2">
             <Label>Specific Type (Optional)</Label>
-            <Select value={subcategory} onValueChange={handleSubcategorySelect}>
+            <Select value={subcategory || 'general'} onValueChange={handleSubcategorySelect}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a specific type (optional)" />
               </SelectTrigger>
               <SelectContent className="bg-white z-50 max-h-60 overflow-y-auto">
-                <SelectItem value="" className="cursor-pointer">
+                <SelectItem value="general" className="cursor-pointer">
                   General - {category}
                 </SelectItem>
                 {(EXPENSE_SUBCATEGORIES[category as keyof typeof EXPENSE_SUBCATEGORIES] || []).map((subcat) => (

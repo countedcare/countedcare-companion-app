@@ -138,12 +138,12 @@ const Profile = () => {
   if (showComprehensiveForm) {
     return (
       <Layout>
-        <div className="container-padding py-6 pb-20">
-          <div className="mb-4">
+        <div className="container-padding py-3 sm:py-6 pb-20">
+          <div className="mb-3 sm:mb-4">
             <Button 
               variant="outline" 
               onClick={() => setShowComprehensiveForm(false)}
-              className="mb-4"
+              className="mb-3 sm:mb-4 mobile-button"
             >
               ← Back to Profile Overview
             </Button>
@@ -156,25 +156,25 @@ const Profile = () => {
   
   return (
     <Layout>
-      <div className="container-padding py-6 pb-20">
-        <h1 className="text-2xl font-heading mb-6">Profile</h1>
+      <div className="container-padding py-3 sm:py-6 pb-20">
+        <h1 className="mobile-heading font-heading mb-4 sm:mb-6">Profile</h1>
         
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Profile Completion Card */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Profile Overview</span>
-                <span className="text-sm font-normal text-muted-foreground">
+            <CardHeader className="mobile-card-padding">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between space-y-1 sm:space-y-0">
+                <span className="mobile-text font-medium">Profile Overview</span>
+                <span className="text-xs sm:text-sm font-normal text-muted-foreground">
                   {profileCompletion}% Complete
                 </span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Complete your profile to unlock personalized tax insights and caregiver resources
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="mobile-card-padding pt-0">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="w-full bg-muted rounded-full h-2">
                   <div 
                     className="bg-primary h-2 rounded-full transition-all duration-300"
@@ -182,13 +182,13 @@ const Profile = () => {
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 text-xs sm:text-sm">
+                  <div className="space-y-1 sm:space-y-2">
                     <p><strong>Name:</strong> {localUser.name || 'Not provided'}</p>
                     <p><strong>Email:</strong> {localUser.email || 'Not provided'}</p>
                     <p><strong>Location:</strong> {localUser.state && localUser.zipCode ? `${localUser.state}, ${localUser.zipCode}` : 'Not provided'}</p>
                   </div>
-                  <div>
+                  <div className="space-y-1 sm:space-y-2">
                     <p><strong>Caregiver Role:</strong> {localUser.caregiverRole?.length ? `${localUser.caregiverRole.length} role(s)` : 'Not specified'}</p>
                     <p><strong>Employment:</strong> {localUser.employmentStatus || 'Not specified'}</p>
                     <p><strong>Tax Status:</strong> {localUser.taxFilingStatus || 'Not specified'}</p>
@@ -197,7 +197,7 @@ const Profile = () => {
                 
                 <Button 
                   onClick={() => setShowComprehensiveForm(true)}
-                  className="w-full"
+                  className="w-full mobile-button"
                 >
                   <User className="mr-2 h-4 w-4" />
                   {profileCompletion < 100 ? 'Complete Your Profile' : 'Update Profile Information'}
@@ -211,51 +211,53 @@ const Profile = () => {
 
           {/* Care Recipients Management Section */}
           <Card>
-            <CardHeader>
-              <CardTitle>People I Care For</CardTitle>
-              <CardDescription>Manage profiles of people you are caring for</CardDescription>
+            <CardHeader className="mobile-card-padding">
+              <CardTitle className="mobile-text">People I Care For</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Manage profiles of people you are caring for</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="mobile-card-padding pt-0">
               {careRecipients.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {careRecipients.map((recipient) => (
                     <div 
                       key={recipient.id} 
                       className="flex items-center justify-between border rounded-md p-3"
                     >
-                      <div>
-                        <h3 className="font-medium">{recipient.name}</h3>
-                        <p className="text-sm text-gray-500">{recipient.relationship}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm sm:text-base truncate">{recipient.name}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500">{recipient.relationship}</p>
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-1 sm:space-x-2 ml-2">
                         <Button 
                           variant="outline" 
                           size="icon" 
                           onClick={() => navigate(`/care-recipients/${recipient.id}`)}
+                          className="h-8 w-8 sm:h-10 sm:w-10"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                         <Button 
                           variant="outline" 
                           size="icon"
                           onClick={() => handleDeleteCareRecipient(recipient.id)}
+                          className="h-8 w-8 sm:h-10 sm:w-10"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-gray-500">
-                  You haven't added any care recipients yet.
+                <div className="text-center py-6 sm:py-8 text-gray-500">
+                  <p className="text-xs sm:text-sm">You haven't added any care recipients yet.</p>
                 </div>
               )}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="mobile-card-padding pt-0">
               <Button 
                 onClick={() => navigate('/care-recipients/new')} 
-                className="w-full"
+                className="w-full mobile-button"
                 variant="outline"
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -266,15 +268,15 @@ const Profile = () => {
           
           {/* Preferences Section */}
           <Card>
-            <CardHeader>
-              <CardTitle>Preferences</CardTitle>
-              <CardDescription>Manage your app settings</CardDescription>
+            <CardHeader className="mobile-card-padding">
+              <CardTitle className="mobile-text">Preferences</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Manage your app settings</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="mobile-card-padding pt-0 space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="notifications" className="block">Notifications</Label>
-                  <p className="text-sm text-gray-500">Receive reminders for tax deadlines</p>
+                <div className="flex-1">
+                  <Label htmlFor="notifications" className="block text-sm sm:text-base">Notifications</Label>
+                  <p className="text-xs sm:text-sm text-gray-500">Receive reminders for tax deadlines</p>
                 </div>
                 <Switch
                   id="notifications"
@@ -287,19 +289,19 @@ const Profile = () => {
           
           {/* Data & Privacy Section */}
           <Card>
-            <CardHeader>
-              <CardTitle>Data & Privacy</CardTitle>
-              <CardDescription>Manage your data</CardDescription>
+            <CardHeader className="mobile-card-padding">
+              <CardTitle className="mobile-text">Data & Privacy</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Manage your data</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="mobile-card-padding pt-0 space-y-3 sm:space-y-4">
               <div className="flex flex-col space-y-2">
-                <p className="text-sm text-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600">
                   Export your data for tax filing or backup purposes
                 </p>
                 <Button 
                   variant="outline" 
                   onClick={exportData} 
-                  className="flex items-center"
+                  className="flex items-center mobile-button"
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export Data
@@ -312,7 +314,7 @@ const Profile = () => {
           <Button 
             variant="outline" 
             onClick={handleSignOut} 
-            className="w-full flex items-center justify-center border-gray-300"
+            className="w-full flex items-center justify-center border-gray-300 mobile-button"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out

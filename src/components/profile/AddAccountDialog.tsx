@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { ACCOUNT_TYPES } from '@/types/FinancialAccount';
-import { Building2, Plus } from 'lucide-react';
+import { Building2, Plus, CreditCard } from 'lucide-react';
 
 interface AddAccountDialogProps {
   open: boolean;
@@ -20,9 +22,11 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   const [accountType, setAccountType] = useState('');
   const [institutionName, setInstitutionName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
   
   const { addAccount } = useLinkedAccounts();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,11 +61,53 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   };
 
   const handleStripeConnect = async () => {
-    toast({
-      title: "Feature Unavailable",
-      description: "Bank account syncing requires authentication which has been disabled. Please add accounts manually.",
-      variant: "destructive"
-    });
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to connect bank accounts",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setStripeLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-financial-connections', {
+        body: {
+          action: 'create_session',
+          user_id: user.id
+        }
+      });
+
+      if (error) {
+        console.error('Error creating Stripe session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize bank connection",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data?.session_url) {
+        // Open Stripe Financial Connections in a new window
+        window.open(data.session_url, '_blank', 'width=500,height=600');
+        
+        toast({
+          title: "Connect Your Bank",
+          description: "A new window has opened to securely connect your bank account"
+        });
+      }
+    } catch (error) {
+      console.error('Error connecting to Stripe:', error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to bank account service",
+        variant: "destructive"
+      });
+    } finally {
+      setStripeLoading(false);
+    }
   };
 
   return (
@@ -70,11 +116,40 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         <DialogHeader>
           <DialogTitle>Link Financial Account</DialogTitle>
           <DialogDescription>
-            Add your financial accounts to track expenses manually
+            Connect your bank accounts to automatically track expenses
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* Stripe Connect Option */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center space-x-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <h3 className="font-medium">Connect Bank Account</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Securely connect your bank account to automatically import and categorize transactions.
+            </p>
+            <Button 
+              onClick={handleStripeConnect} 
+              disabled={stripeLoading}
+              className="w-full"
+            >
+              {stripeLoading ? 'Connecting...' : 'Connect with Stripe'}
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or add manually
+              </span>
+            </div>
+          </div>
+
           {/* Manual Entry Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -112,16 +187,6 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
                 value={institutionName}
                 onChange={(e) => setInstitutionName(e.target.value)}
               />
-            </div>
-
-            <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
-              <div className="flex items-center space-x-2">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <h3 className="font-medium text-muted-foreground">Auto-sync Disabled</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Automatic transaction syncing is currently disabled. You can add accounts manually to organize your expense tracking.
-              </p>
             </div>
 
             <div className="flex space-x-2 pt-4">

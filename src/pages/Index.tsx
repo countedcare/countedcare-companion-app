@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User } from '@/types/User';
@@ -17,6 +19,7 @@ import OnboardingControls from '@/components/onboarding/OnboardingControls';
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
   const [localUser, setLocalUser] = useLocalStorage<User>('countedcare-user', {
     name: '',
@@ -31,12 +34,26 @@ const Index = () => {
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
   const totalSteps = 5;
 
-  // Check if user has already completed onboarding
+  // Check authentication and onboarding status
   useEffect(() => {
-    if (localUser.onboardingComplete) {
-      navigate('/dashboard');
+    if (authLoading) return;
+    
+    if (user) {
+      // User is authenticated, check if they completed onboarding
+      if (localUser.onboardingComplete) {
+        navigate('/dashboard');
+      }
+    } else {
+      // User is not authenticated, show sign in option
+      if (step === 0 && localUser.onboardingComplete) {
+        // Reset onboarding if user signed out
+        setLocalUser({
+          ...localUser,
+          onboardingComplete: false
+        });
+      }
     }
-  }, [localUser.onboardingComplete, navigate]);
+  }, [user, authLoading, localUser.onboardingComplete, navigate, step]);
 
   const handleNext = () => {
     // Validate step 1 (User Info)
@@ -49,25 +66,17 @@ const Index = () => {
       return;
     }
     
-    // Handle step 2 caregiver role selection and save all the data
     if (step === 2) {
-      // Ensure we have the proper mapping for all caregiving data
       const updatedUser = {
         ...localUser,
-        // Map caregiver roles properly
         caregiverRole: localUser.caregiverRole || [],
-        // Map financial info
         householdAGI: localUser.householdAGI,
-        // Map location info for resources
         state: localUser.state,
         zipCode: localUser.zipCode,
         county: localUser.county,
-        // Map employment and tax info
         employmentStatus: localUser.employmentStatus,
         taxFilingStatus: localUser.taxFilingStatus,
-        // Map number of people cared for
         numberOfDependents: localUser.numberOfDependents,
-        // Ensure caregiving relationships are tracked
         caregivingFor: localUser.caregivingFor || []
       };
       
@@ -82,11 +91,9 @@ const Index = () => {
     if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
-      // Complete onboarding with full data mapping
       const finalUser = {
         ...localUser,
         onboardingComplete: true,
-        // Ensure all collected data is preserved
         state: localUser.state,
         county: localUser.county,
         zipCode: localUser.zipCode,
@@ -117,7 +124,6 @@ const Index = () => {
       }
     }
     
-    // Even when skipping, preserve any data that was collected
     setLocalUser({
       ...localUser,
       name: localUser.name || 'Anonymous User',
@@ -187,6 +193,14 @@ const Index = () => {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">
       <div className="w-full max-w-md mb-8 text-center">
@@ -224,6 +238,19 @@ const Index = () => {
             onClick={() => navigate('/dashboard')}
           >
             Skip to Dashboard
+          </Button>
+        </div>
+      )}
+
+      {/* Show sign in option for unauthenticated users */}
+      {!user && step === 0 && (
+        <div className="mt-4 w-full max-w-md">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate('/auth')}
+          >
+            Already have an account? Sign In
           </Button>
         </div>
       )}

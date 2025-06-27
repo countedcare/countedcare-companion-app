@@ -2,37 +2,93 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { SyncedTransaction } from '@/types/FinancialAccount';
-import useLocalStorage from '@/hooks/useLocalStorage';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useSyncedTransactions = () => {
   const [transactions, setTransactions] = useState<SyncedTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  
-  // Use local storage for data persistence
-  const [localTransactions, setLocalTransactions] = useLocalStorage<SyncedTransaction[]>('countedcare-synced-transactions', []);
+  const { user } = useAuth();
 
   const fetchTransactions = async () => {
+    if (!user) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      // Always use local storage since authentication is removed
-      setTransactions(localTransactions);
+      const { data, error } = await supabase
+        .from('synced_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching synced transactions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch transactions",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setTransactions(data || []);
     } catch (error) {
       console.error('Error fetching synced transactions:', error);
-      // Fallback to local storage on error
-      setTransactions(localTransactions);
+      toast({
+        title: "Error",
+        description: "Failed to fetch transactions",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const syncAccountTransactions = async (accountId: string) => {
-    try {
+    if (!user) {
       toast({
         title: "Error",
-        description: "Transaction syncing requires authentication. This feature is currently disabled.",
+        description: "You must be logged in to sync transactions",
         variant: "destructive"
       });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Syncing Transactions",
+        description: "Fetching your latest transactions..."
+      });
+
+      const { data, error } = await supabase.functions.invoke('stripe-financial-connections', {
+        body: {
+          action: 'sync_transactions',
+          account_id: accountId,
+          user_id: user.id
+        }
+      });
+
+      if (error) {
+        console.error('Error syncing transactions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to sync transactions",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: `Synced ${data?.transactions_count || 0} transactions`
+      });
+
+      await fetchTransactions();
     } catch (error) {
       console.error('Error syncing transactions:', error);
       toast({
@@ -45,12 +101,22 @@ export const useSyncedTransactions = () => {
 
   const updateTransaction = async (transactionId: string, updates: Partial<SyncedTransaction>) => {
     try {
-      // Always use local storage since authentication is removed
-      const updatedTransactions = localTransactions.map(t => 
-        t.id === transactionId ? { ...t, ...updates } : t
-      );
-      setLocalTransactions(updatedTransactions);
-      setTransactions(updatedTransactions);
+      const { error } = await supabase
+        .from('synced_transactions')
+        .update(updates)
+        .eq('id', transactionId);
+
+      if (error) {
+        console.error('Error updating transaction:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update transaction",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await fetchTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
       toast({
@@ -63,10 +129,22 @@ export const useSyncedTransactions = () => {
 
   const deleteTransaction = async (transactionId: string) => {
     try {
-      // Always use local storage since authentication is removed
-      const updatedTransactions = localTransactions.filter(t => t.id !== transactionId);
-      setLocalTransactions(updatedTransactions);
-      setTransactions(updatedTransactions);
+      const { error } = await supabase
+        .from('synced_transactions')
+        .delete()
+        .eq('id', transactionId);
+
+      if (error) {
+        console.error('Error deleting transaction:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete transaction",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await fetchTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
       toast({
@@ -79,7 +157,7 @@ export const useSyncedTransactions = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [localTransactions]);
+  }, [user]);
 
   return {
     transactions,

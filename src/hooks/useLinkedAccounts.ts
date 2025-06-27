@@ -2,73 +2,119 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { LinkedAccount } from '@/types/FinancialAccount';
-import useLocalStorage from '@/hooks/useLocalStorage';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useLinkedAccounts = () => {
   const [accounts, setAccounts] = useState<LinkedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  
-  // Use local storage for data persistence
-  const [localAccounts, setLocalAccounts] = useLocalStorage<LinkedAccount[]>('countedcare-linked-accounts', []);
+  const { user } = useAuth();
 
   const fetchAccounts = async () => {
+    if (!user) {
+      setAccounts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      // Always use local storage since authentication is removed
-      setAccounts(localAccounts);
+      const { data, error } = await supabase
+        .from('linked_accounts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching linked accounts:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch linked accounts",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setAccounts(data || []);
     } catch (error) {
       console.error('Error fetching linked accounts:', error);
-      // Fallback to local storage on error
-      setAccounts(localAccounts);
+      toast({
+        title: "Error",
+        description: "Failed to fetch linked accounts",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const addAccount = async (accountData: Omit<LinkedAccount, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    try {
-      // Always use local storage since authentication is removed
-      const newAccount: LinkedAccount = {
-        id: crypto.randomUUID(),
-        user_id: 'local-user',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...accountData
-      };
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add accounts",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      const updatedAccounts = [newAccount, ...localAccounts];
-      setLocalAccounts(updatedAccounts);
-      setAccounts(updatedAccounts);
-      
+    try {
+      const { data, error } = await supabase
+        .from('linked_accounts')
+        .insert([{
+          ...accountData,
+          user_id: user.id
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding account:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add account",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
       toast({
         title: "Account Added",
         description: `${accountData.account_name} has been linked successfully`
       });
 
-      return newAccount;
+      await fetchAccounts();
+      return data;
     } catch (error) {
       console.error('Error adding account:', error);
-      toast({
-        title: "Error",
-        description: "Failed to link account",
-        variant: "destructive"
-      });
       throw error;
     }
   };
 
   const removeAccount = async (accountId: string) => {
     try {
-      // Always use local storage since authentication is removed
-      const updatedAccounts = localAccounts.filter(account => account.id !== accountId);
-      setLocalAccounts(updatedAccounts);
-      setAccounts(updatedAccounts);
+      const { error } = await supabase
+        .from('linked_accounts')
+        .delete()
+        .eq('id', accountId);
+
+      if (error) {
+        console.error('Error removing account:', error);
+        toast({
+          title: "Error",
+          description: "Failed to remove account",
+          variant: "destructive"
+        });
+        return;
+      }
 
       toast({
         title: "Account Removed",
         description: "Account has been unlinked successfully"
       });
+
+      await fetchAccounts();
     } catch (error) {
       console.error('Error removing account:', error);
       toast({
@@ -81,7 +127,7 @@ export const useLinkedAccounts = () => {
 
   useEffect(() => {
     fetchAccounts();
-  }, [localAccounts]);
+  }, [user]);
 
   return {
     accounts,

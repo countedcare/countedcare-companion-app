@@ -1,27 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
-import { CalendarIcon, Upload, Scan, FileText, Loader2, Camera } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
-import CameraCapture from '@/components/mobile/CameraCapture';
-import CategorySelector from '@/components/expenses/CategorySelector';
-import { supabase } from '@/integrations/supabase/client';
-import MedicalPlacesAutocomplete from '@/components/places/MedicalPlacesAutocomplete';
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
+
+// Import the new components
+import ExpenseBasicFields from '@/components/expenses/ExpenseBasicFields';
+import ExpenseLocationSection from '@/components/expenses/ExpenseLocationSection';
+import ExpenseReceiptUpload from '@/components/expenses/ExpenseReceiptUpload';
+import ExpenseCategorySection from '@/components/expenses/ExpenseCategorySection';
+import ExpenseFormActions from '@/components/expenses/ExpenseFormActions';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -79,60 +74,6 @@ const ExpenseForm = () => {
       }
     }
   }, [id, expenses]);
-
-  const convertFileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64String = reader.result as string;
-        const base64Data = base64String.split(',')[1];
-        resolve(base64Data);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const processDocumentWithGemini = async (file: File) => {
-    try {
-      setIsProcessingDocument(true);
-      
-      toast({
-        title: "Processing Document",
-        description: "Extracting expense data from your document..."
-      });
-
-      const base64Data = await convertFileToBase64(file);
-      
-      const { data, error } = await supabase.functions.invoke('gemini-receipt-ocr', {
-        body: { imageBase64: base64Data }
-      });
-
-      if (error) {
-        console.error('OCR processing error:', error);
-        throw new Error(error.message || 'Failed to process document');
-      }
-
-      if (data?.success && data?.data) {
-        handleReceiptProcessed(data.data);
-        toast({
-          title: "Document Processed!",
-          description: "Expense data extracted successfully from your document"
-        });
-      } else {
-        throw new Error('Failed to extract data from document');
-      }
-    } catch (error) {
-      console.error('Error processing document:', error);
-      toast({
-        title: "Processing Error", 
-        description: "Could not extract data from document. You can still add the expense manually.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessingDocument(false);
-    }
-  };
 
   const handleReceiptProcessed = (extractedData: any) => {
     console.log('Receipt data extracted:', extractedData);
@@ -250,75 +191,6 @@ const ExpenseForm = () => {
     }
   };
   
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setIsUploading(true);
-    
-    // Create object URL for preview
-    const fileUrl = URL.createObjectURL(file);
-    setReceiptUrl(fileUrl);
-
-    // Process with Gemini AI for expense data extraction if it's an image or document
-    if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-      await processDocumentWithGemini(file);
-    }
-    
-    setIsUploading(false);
-    
-    toast({
-      title: "Receipt Uploaded",
-      description: "Your receipt has been attached to this expense."
-    });
-  };
-  
-  const handleScan = () => {
-    // Simulate scanning with camera
-    setIsUploading(true);
-    
-    toast({
-      title: "Accessing Camera",
-      description: "Please allow camera access to scan your receipt."
-    });
-    
-    // Simulate delay for scanning
-    setTimeout(() => {
-      // In a real app, this would use the device camera API
-      // For now, we'll just set a placeholder image
-      setReceiptUrl("/placeholder.svg");
-      setIsUploading(false);
-      
-      toast({
-        title: "Receipt Scanned",
-        description: "Your receipt has been scanned and attached to this expense."
-      });
-    }, 1500);
-  };
-  
-  const removeReceipt = () => {
-    setReceiptUrl(undefined);
-    toast({
-      title: "Receipt Removed",
-      description: "The receipt has been removed from this expense."
-    });
-  };
-
-  const handleLocationSelect = (place: google.maps.places.PlaceResult) => {
-    setSelectedLocation(place);
-    console.log('Selected location:', place);
-    
-    // Auto-populate title if it's empty
-    if (!title && place.name) {
-      setTitle(place.name);
-    }
-    
-    toast({
-      title: "Location Selected",
-      description: `Added ${place.name || place.formatted_address} to your expense`
-    });
-  };
-  
   return (
     <Layout>
       <div className="container-padding py-6">
@@ -333,240 +205,45 @@ const ExpenseForm = () => {
             <CardContent className="pt-6">
               <div className="space-y-4">
                 {/* Basic Information */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">Expense Title*</Label>
-                  <Input
-                    id="title"
-                    placeholder="Enter expense title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount ($)*</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Date*</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(date) => date && setDate(date)}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <ExpenseBasicFields
+                  title={title}
+                  setTitle={setTitle}
+                  amount={amount}
+                  setAmount={setAmount}
+                  date={date}
+                  setDate={setDate}
+                />
 
                 {/* Location Search */}
-                <div className="space-y-2">
-                  <MedicalPlacesAutocomplete
-                    onPlaceSelect={handleLocationSelect}
-                    apiKey={apiKey}
-                  />
-                  
-                  {selectedLocation && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium text-blue-900">
-                            {selectedLocation.name}
-                          </h4>
-                          <p className="text-sm text-blue-700 mt-1">
-                            {selectedLocation.formatted_address}
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedLocation(null)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Enhanced Category Selector */}
-                <CategorySelector
-                  category={category}
-                  subcategory={subcategory}
-                  onCategoryChange={setCategory}
-                  onSubcategoryChange={setSubcategory}
-                  required
+                <ExpenseLocationSection
+                  selectedLocation={selectedLocation}
+                  setSelectedLocation={setSelectedLocation}
+                  title={title}
+                  setTitle={setTitle}
+                  apiKey={apiKey}
                 />
                 
-                {/* Care Recipient */}
-                <div className="space-y-2">
-                  <Label htmlFor="recipient">Who this is for</Label>
-                  {recipients.length > 0 ? (
-                    <Select 
-                      value={careRecipientId} 
-                      onValueChange={setCareRecipientId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select care recipient" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="self">Self</SelectItem>
-                        {recipients.map(recipient => (
-                          <SelectItem key={recipient.id} value={recipient.id}>
-                            {recipient.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="mt-2 mb-4">
-                      <p className="text-sm text-gray-500 mb-2">
-                        No care recipients added yet. Add one first:
-                      </p>
-                      <Button 
-                        type="button"
-                        onClick={() => navigate('/care-recipients/new')}
-                        className="w-full"
-                      >
-                        Add Care Recipient
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                {/* Category Selection */}
+                <ExpenseCategorySection
+                  category={category}
+                  setCategory={setCategory}
+                  subcategory={subcategory}
+                  setSubcategory={setSubcategory}
+                  careRecipientId={careRecipientId}
+                  setCareRecipientId={setCareRecipientId}
+                  recipients={recipients}
+                />
 
-                {/* Consolidated Receipt Upload Section */}
-                <div className="space-y-2">
-                  <Label>Receipt & Document Upload</Label>
-                  
-                  {!receiptUrl ? (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                      <div className="text-center space-y-4">
-                        <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                        <div>
-                          <h3 className="text-lg font-medium mb-2">Add Receipt or Document</h3>
-                          <p className="text-sm text-gray-600 mb-1">
-                            Upload receipts, invoices, or expense documents
-                          </p>
-                          <p className="text-xs text-gray-500 mb-4">
-                            AI will automatically extract expense details
-                          </p>
-                        </div>
-                        
-                        {/* Smart Camera Capture */}
-                        <div className="mb-4">
-                          <CameraCapture
-                            onImageCaptured={(imageUri, photo) => {
-                              setReceiptUrl(imageUri);
-                            }}
-                            onReceiptProcessed={handleReceiptProcessed}
-                            disabled={isUploading || isProcessingDocument}
-                          />
-                        </div>
-
-                        {/* Upload Options */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <input
-                              type="file"
-                              id="receipt-upload"
-                              accept="image/*,.pdf,.doc,.docx"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                              disabled={isUploading || isProcessingDocument}
-                            />
-                            <label htmlFor="receipt-upload">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full cursor-pointer"
-                                asChild
-                                disabled={isUploading || isProcessingDocument}
-                              >
-                                <div>
-                                  {isProcessingDocument ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Upload className="mr-2 h-4 w-4" />
-                                  )}
-                                  {isProcessingDocument ? 'Processing...' : 'Upload File'}
-                                </div>
-                              </Button>
-                            </label>
-                          </div>
-                          
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleScan}
-                            disabled={isUploading || isProcessingDocument}
-                            className="w-full"
-                          >
-                            <Scan className="mr-2 h-4 w-4" />
-                            Scan Receipt
-                          </Button>
-                        </div>
-                        
-                        {(isUploading || isProcessingDocument) && (
-                          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                            <div className="flex items-center justify-center gap-2">
-                              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                              <span className="text-sm text-blue-700">
-                                {isProcessingDocument ? 'AI is reading your document...' : 'Uploading...'}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    /* Receipt Display */
-                    <div className="border rounded-md p-3">
-                      <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
-                        <img 
-                          src={receiptUrl} 
-                          alt="Receipt" 
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={removeReceipt}
-                        className="w-full"
-                      >
-                        Remove Receipt
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                {/* Receipt Upload */}
+                <ExpenseReceiptUpload
+                  receiptUrl={receiptUrl}
+                  setReceiptUrl={setReceiptUrl}
+                  isUploading={isUploading}
+                  setIsUploading={setIsUploading}
+                  isProcessingDocument={isProcessingDocument}
+                  setIsProcessingDocument={setIsProcessingDocument}
+                  onReceiptProcessed={handleReceiptProcessed}
+                />
                 
                 {/* Notes */}
                 <div className="space-y-2">
@@ -593,32 +270,11 @@ const ExpenseForm = () => {
                 />
               </div>
               
-              {/* Form Buttons */}
-              <div className="mt-6 space-y-3">
-                <Button type="submit" className="w-full bg-primary">
-                  {id ? 'Update' : 'Save'} Expense
-                </Button>
-                
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => navigate('/expenses')} 
-                  className="w-full"
-                >
-                  Cancel
-                </Button>
-                
-                {id && (
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
-                    onClick={handleDelete} 
-                    className="w-full"
-                  >
-                    Delete Expense
-                  </Button>
-                )}
-              </div>
+              {/* Form Actions */}
+              <ExpenseFormActions
+                isEditing={!!id}
+                onDelete={handleDelete}
+              />
             </CardContent>
           </Card>
         </form>

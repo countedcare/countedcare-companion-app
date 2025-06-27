@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ExternalLink, Eye, EyeOff } from 'lucide-react';
+import { ExternalLink, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 interface GoogleMapsAPIConfigProps {
   onApiKeySaved: (apiKey: string) => void;
@@ -16,18 +16,21 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
   onApiKeySaved,
   currentApiKey = ''
 }) => {
-  const [apiKey, setApiKey] = useState(currentApiKey || 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak');
+  const defaultApiKey = 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak';
+  const [apiKey, setApiKey] = useState(currentApiKey || defaultApiKey);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isUsingDefault, setIsUsingDefault] = useState(currentApiKey === defaultApiKey || !currentApiKey);
 
   const handleSave = () => {
     if (apiKey.trim()) {
       onApiKeySaved(apiKey.trim());
+      setIsUsingDefault(apiKey.trim() === defaultApiKey);
     }
   };
 
   const handleQuickSetup = () => {
-    const defaultApiKey = 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak';
     setApiKey(defaultApiKey);
+    setIsUsingDefault(true);
     onApiKeySaved(defaultApiKey);
   };
 
@@ -36,6 +39,7 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Google Maps API Configuration
+          {isUsingDefault && <CheckCircle className="h-4 w-4 text-green-600" />}
         </CardTitle>
         <CardDescription>
           Configure your Google Maps API key to enable location autocomplete for expenses
@@ -56,9 +60,21 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
           </AlertDescription>
         </Alert>
 
+        {isUsingDefault && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-800">Using Default API Key</span>
+            </div>
+            <p className="text-xs text-green-700 mt-1">
+              Ready to use! Location autocomplete is now enabled for your expenses.
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-2">
-          <Button onClick={handleQuickSetup} className="flex-1">
-            Use Default API Key
+          <Button onClick={handleQuickSetup} className="flex-1" variant={isUsingDefault ? "outline" : "default"}>
+            {isUsingDefault ? "Using Default Key" : "Use Default API Key"}
           </Button>
         </div>
 
@@ -70,7 +86,10 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
               type={showApiKey ? "text" : "password"}
               placeholder="Enter your Google Maps API key"
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                setIsUsingDefault(e.target.value === defaultApiKey);
+              }}
               className="pr-10"
             />
             <Button
@@ -83,6 +102,11 @@ const GoogleMapsAPIConfig: React.FC<GoogleMapsAPIConfigProps> = ({
               {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
+          {showApiKey && apiKey && (
+            <p className="text-xs text-muted-foreground">
+              Current key: {apiKey.substring(0, 10)}...{apiKey.substring(apiKey.length - 4)}
+            </p>
+          )}
         </div>
 
         <Button onClick={handleSave} disabled={!apiKey.trim()} className="w-full">

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EXPENSE_CATEGORIES, EXPENSE_SUBCATEGORIES } from '@/types/User';
 import { Check } from 'lucide-react';
 
@@ -36,11 +36,63 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
       <div className="space-y-2">
         <Label htmlFor="category">Category{required && '*'}</Label>
         
-        {/* Display selected category */}
+        {/* Category Selection Dropdown */}
+        <Select value={category} onValueChange={handleCategorySelect}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent className="bg-white z-50">
+            {EXPENSE_CATEGORIES.map((cat) => {
+              const availableSubcategories = EXPENSE_SUBCATEGORIES[cat as keyof typeof EXPENSE_SUBCATEGORIES] || [];
+              
+              return (
+                <SelectItem key={cat} value={cat} className="cursor-pointer">
+                  <div className="flex items-center justify-between w-full">
+                    <span>{cat}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {availableSubcategories.length} options
+                    </span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+
+        {/* Subcategory selection for selected category */}
         {category && (
-          <div className="p-3 bg-primary/10 border border-primary/20 rounded-md mb-3">
+          <div className="space-y-2">
+            <Label>Specific Type (Optional)</Label>
+            <Select value={subcategory} onValueChange={handleSubcategorySelect}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a specific type (optional)" />
+              </SelectTrigger>
+              <SelectContent className="bg-white z-50 max-h-60 overflow-y-auto">
+                <SelectItem value="" className="cursor-pointer">
+                  General - {category}
+                </SelectItem>
+                {(EXPENSE_SUBCATEGORIES[category as keyof typeof EXPENSE_SUBCATEGORIES] || []).map((subcat) => (
+                  <SelectItem key={subcat} value={subcat} className="cursor-pointer">
+                    {subcat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Display selected category and subcategory */}
+        {category && (
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-md">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-primary">{category}</span>
+              <div>
+                <span className="font-medium text-primary">{category}</span>
+                {subcategory && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Specific Type: {subcategory}
+                  </div>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -50,93 +102,8 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
                   onSubcategoryChange('');
                 }}
               >
-                Change
+                Clear
               </Button>
-            </div>
-            {subcategory && (
-              <div className="mt-2 text-sm text-muted-foreground">
-                Specific Type: {subcategory}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Category selection accordion - only show when no category is selected */}
-        {!category && (
-          <div className="border rounded-md">
-            <Accordion type="single" collapsible className="w-full">
-              {EXPENSE_CATEGORIES.map((cat, index) => {
-                const availableSubcategories = EXPENSE_SUBCATEGORIES[cat as keyof typeof EXPENSE_SUBCATEGORIES] || [];
-                
-                return (
-                  <AccordionItem key={cat} value={`category-${index}`} className="border-b-0 last:border-b-0">
-                    <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
-                      <div className="flex items-center justify-between w-full mr-2">
-                        <span className="text-left font-medium">{cat}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {availableSubcategories.length} options
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-3">
-                      <div className="space-y-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full justify-start mb-3"
-                          onClick={() => handleCategorySelect(cat)}
-                        >
-                          Select "{cat}" (General)
-                        </Button>
-                        
-                        {availableSubcategories.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground mb-2">
-                              Or select a specific type:
-                            </p>
-                            {availableSubcategories.map((subcat) => (
-                              <Button
-                                key={subcat}
-                                type="button"
-                                variant="ghost"
-                                className="w-full justify-start text-left h-auto py-2 px-3 whitespace-normal"
-                                onClick={() => {
-                                  handleCategorySelect(cat);
-                                  handleSubcategorySelect(subcat);
-                                }}
-                              >
-                                <div className="text-sm">{subcat}</div>
-                              </Button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
-          </div>
-        )}
-
-        {/* Subcategory selection for already selected category */}
-        {category && !subcategory && (
-          <div className="space-y-2">
-            <Label>Want to be more specific? (Optional)</Label>
-            <div className="border rounded-md p-3">
-              <div className="space-y-1">
-                {(EXPENSE_SUBCATEGORIES[category as keyof typeof EXPENSE_SUBCATEGORIES] || []).map((subcat) => (
-                  <Button
-                    key={subcat}
-                    type="button"
-                    variant="ghost"
-                    className="w-full justify-start text-left h-auto py-2 px-3 whitespace-normal"
-                    onClick={() => handleSubcategorySelect(subcat)}
-                  >
-                    <div className="text-sm">{subcat}</div>
-                  </Button>
-                ))}
-              </div>
             </div>
           </div>
         )}

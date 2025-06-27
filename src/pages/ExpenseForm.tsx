@@ -17,6 +17,7 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
 import CameraCapture from '@/components/mobile/CameraCapture';
+import CategorySelector from '@/components/expenses/CategorySelector';
 import { supabase } from '@/integrations/supabase/client';
 
 const ExpenseForm = () => {
@@ -30,6 +31,7 @@ const ExpenseForm = () => {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [category, setCategory] = useState('');
+  const [subcategory, setSubcategory] = useState('');
   const [description, setDescription] = useState('');
   const [careRecipientId, setCareRecipientId] = useState('');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
@@ -51,6 +53,7 @@ const ExpenseForm = () => {
         setAmount(expenseToEdit.amount.toString());
         setDate(new Date(expenseToEdit.date));
         setCategory(expenseToEdit.category);
+        setSubcategory(expenseToEdit.subcategory || '');
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
         setReceiptUrl(expenseToEdit.receiptUrl);
@@ -139,16 +142,29 @@ const ExpenseForm = () => {
       setTitle(extractedData.merchant);
     }
     
-    if (extractedData.category && EXPENSE_CATEGORIES.includes(extractedData.category)) {
-      setCategory(extractedData.category);
+    // Try to match category with new comprehensive categories
+    if (extractedData.category) {
+      const matchedCategory = EXPENSE_CATEGORIES.find(cat => 
+        cat.toLowerCase().includes(extractedData.category.toLowerCase()) ||
+        extractedData.category.toLowerCase().includes('medical') && cat.includes('Medical') ||
+        extractedData.category.toLowerCase().includes('dental') && cat.includes('Dental') ||
+        extractedData.category.toLowerCase().includes('pharmacy') && cat.includes('Prescriptions')
+      );
+      if (matchedCategory) {
+        setCategory(matchedCategory);
+      }
     }
     
     if (extractedData.description) {
       setDescription(extractedData.description);
     }
     
-    // Set as potentially tax deductible if it's medical
-    if (extractedData.category === 'Medical' || extractedData.category === 'Pharmacy') {
+    // Set as potentially tax deductible for medical expenses
+    if (extractedData.category && (
+      extractedData.category.toLowerCase().includes('medical') ||
+      extractedData.category.toLowerCase().includes('pharmacy') ||
+      extractedData.category.toLowerCase().includes('dental')
+    )) {
       setIsTaxDeductible(true);
     }
     
@@ -176,6 +192,7 @@ const ExpenseForm = () => {
       amount: parseFloat(amount),
       date: date.toISOString(),
       category,
+      subcategory: subcategory || undefined,
       description: title || description,
       careRecipientId,
       careRecipientName: recipients.find(r => r.id === careRecipientId)?.name,
@@ -411,24 +428,14 @@ const ExpenseForm = () => {
                   </Popover>
                 </div>
                 
-                {/* Category */}
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category*</Label>
-                  <Select 
-                    value={category} 
-                    onValueChange={setCategory}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EXPENSE_CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Enhanced Category Selector */}
+                <CategorySelector
+                  category={category}
+                  subcategory={subcategory}
+                  onCategoryChange={setCategory}
+                  onSubcategoryChange={setSubcategory}
+                  required
+                />
                 
                 {/* Care Recipient */}
                 <div className="space-y-2">

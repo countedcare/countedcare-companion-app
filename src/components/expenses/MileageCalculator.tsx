@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { MapPin, Calculator, Route } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import PlacesAutocomplete from '@/components/places/PlacesAutocomplete';
 
 interface MileageCalculatorProps {
   onAmountCalculated: (amount: number) => void;
@@ -24,6 +25,8 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
   const [rate, setRate] = useState(initialRate.toString());
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
+  const [startPlace, setStartPlace] = useState<google.maps.places.PlaceResult | null>(null);
+  const [endPlace, setEndPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [calculatedAmount, setCalculatedAmount] = useState(0);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
 
@@ -34,6 +37,16 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
     setCalculatedAmount(amount);
     onAmountCalculated(amount);
   }, [miles, rate, onAmountCalculated]);
+
+  const handleStartLocationSelect = (place: google.maps.places.PlaceResult) => {
+    setStartPlace(place);
+    setStartLocation(place.formatted_address || place.name || '');
+  };
+
+  const handleEndLocationSelect = (place: google.maps.places.PlaceResult) => {
+    setEndPlace(place);
+    setEndLocation(place.formatted_address || place.name || '');
+  };
 
   const calculateDistance = async () => {
     if (!startLocation.trim() || !endLocation.trim()) {
@@ -102,25 +115,23 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="start-location">From</Label>
-          <Input
-            id="start-location"
-            placeholder="Starting location"
-            value={startLocation}
-            onChange={(e) => setStartLocation(e.target.value)}
-          />
-        </div>
+        <PlacesAutocomplete
+          onPlaceSelect={handleStartLocationSelect}
+          placeholder="Enter starting address..."
+          label="From"
+          value={startLocation}
+          apiKey={apiKey}
+          types={['geocode', 'establishment']}
+        />
         
-        <div className="space-y-2">
-          <Label htmlFor="end-location">To</Label>
-          <Input
-            id="end-location"
-            placeholder="Destination"
-            value={endLocation}
-            onChange={(e) => setEndLocation(e.target.value)}
-          />
-        </div>
+        <PlacesAutocomplete
+          onPlaceSelect={handleEndLocationSelect}
+          placeholder="Enter destination address..."
+          label="To"
+          value={endLocation}
+          apiKey={apiKey}
+          types={['geocode', 'establishment']}
+        />
       </div>
 
       <div className="flex justify-center">

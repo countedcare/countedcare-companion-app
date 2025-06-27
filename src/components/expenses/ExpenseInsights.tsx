@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,32 +42,32 @@ const ExpenseInsights: React.FC<ExpenseInsightsProps> = ({ expenses }) => {
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">This Month</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs sm:text-sm font-medium">This Month</CardTitle>
+          <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${thisMonthTotal.toLocaleString()}</div>
+          <div className="text-lg sm:text-2xl font-bold">${thisMonthTotal.toLocaleString()}</div>
           <div className="flex items-center text-xs text-muted-foreground">
             {monthlyChange >= 0 ? (
               <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
             ) : (
               <TrendingDown className="h-3 w-3 mr-1 text-red-500" />
             )}
-            {Math.abs(monthlyChange).toFixed(1)}% from last month
+            <span className="truncate">{Math.abs(monthlyChange).toFixed(1)}% from last month</span>
           </div>
         </CardContent>
       </Card>
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tax Deductible</CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs sm:text-sm font-medium">Tax Deductible</CardTitle>
+          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${deductibleTotal.toLocaleString()}</div>
+          <div className="text-lg sm:text-2xl font-bold">${deductibleTotal.toLocaleString()}</div>
           <div className="text-xs text-muted-foreground">
             {deductiblePercentage.toFixed(0)}% of your expenses
           </div>
@@ -77,11 +76,11 @@ const ExpenseInsights: React.FC<ExpenseInsightsProps> = ({ expenses }) => {
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs sm:text-sm font-medium">Top Category</CardTitle>
+          <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-lg font-bold">{topCategoryName}</div>
+          <div className="text-sm sm:text-lg font-bold truncate">{topCategoryName}</div>
           <div className="text-xs text-muted-foreground">
             ${topCategory[topCategoryName]?.toLocaleString() || 0}
           </div>
@@ -90,11 +89,11 @@ const ExpenseInsights: React.FC<ExpenseInsightsProps> = ({ expenses }) => {
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Tracked</CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs sm:text-sm font-medium">Total Tracked</CardTitle>
+          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{expenses.length}</div>
+          <div className="text-lg sm:text-2xl font-bold">{expenses.length}</div>
           <div className="text-xs text-muted-foreground">
             expenses this year
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -146,7 +145,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="container-padding py-6">
+      <div className="container-padding py-3 sm:py-6 space-y-4 sm:space-y-6">
         <WelcomeBanner user={user} />
 
         <ExpenseSummaryCard

@@ -32,7 +32,7 @@ const SmartFilters: React.FC<SmartFiltersProps> = ({
   ).length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Smart Filters</h3>
         {activeFiltersCount > 0 && (
@@ -48,11 +48,11 @@ const SmartFilters: React.FC<SmartFiltersProps> = ({
         )}
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Category</label>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full h-9">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
@@ -67,7 +67,7 @@ const SmartFilters: React.FC<SmartFiltersProps> = ({
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Care Recipient</label>
           <Select value={filterRecipient} onValueChange={setFilterRecipient}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full h-9">
               <SelectValue placeholder="All recipients" />
             </SelectTrigger>
             <SelectContent>
@@ -80,10 +80,10 @@ const SmartFilters: React.FC<SmartFiltersProps> = ({
           </Select>
         </div>
         
-        <div className="space-y-1">
+        <div className="space-y-1 sm:col-span-2 lg:col-span-1">
           <label className="text-xs text-muted-foreground">Tax Status</label>
           <Select value={filterDeductible} onValueChange={setFilterDeductible}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full h-9">
               <SelectValue placeholder="All expenses" />
             </SelectTrigger>
             <SelectContent>

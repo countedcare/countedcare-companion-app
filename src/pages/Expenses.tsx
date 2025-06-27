@@ -20,12 +20,13 @@ import ExpenseTable from '@/components/expenses/ExpenseTable';
 import AutoImportedTransactions from '@/components/expenses/AutoImportedTransactions';
 import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
 import EnhancedSmartFilters from '@/components/expenses/EnhancedSmartFilters';
+import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
 
 const Expenses = () => {
   const navigate = useNavigate();
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  const [syncedTransactions, setSyncedTransactions] = useLocalStorage<SyncedTransaction[]>('countedcare-synced-transactions', []);
+  const { transactions: syncedTransactions, updateTransaction, deleteTransaction } = useSyncedTransactions();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -33,6 +34,11 @@ const Expenses = () => {
   const [filterDeductible, setFilterDeductible] = useState('');
   const [filterSource, setFilterSource] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  // Filter only unconfirmed potential medical transactions for the review section
+  const unconfirmedTransactions = syncedTransactions.filter(
+    transaction => transaction.is_potential_medical && !transaction.is_confirmed_medical
+  );
   
   // Filter expenses
   const filteredExpenses = expenses.filter(expense => {
@@ -83,35 +89,25 @@ const Expenses = () => {
   const handleConfirmTransaction = (transactionId: string, expenseData: any) => {
     const newExpense: Expense = {
       id: `exp-${Date.now()}`,
-      ...expenseData
+      ...expenseData,
+      synced_transaction_id: transactionId
     };
     
     setExpenses(prev => [...prev, newExpense]);
     
-    // Mark transaction as confirmed
-    setSyncedTransactions(prev => 
-      prev.map(t => 
-        t.id === transactionId 
-          ? { ...t, is_confirmed_medical: true, expense_id: newExpense.id }
-          : t
-      )
-    );
+    // Mark transaction as confirmed medical
+    updateTransaction(transactionId, { 
+      is_confirmed_medical: true, 
+      expense_id: newExpense.id 
+    });
   };
 
   const handleExcludeTransaction = (transactionId: string) => {
-    setSyncedTransactions(prev => 
-      prev.filter(t => t.id !== transactionId)
-    );
+    deleteTransaction(transactionId);
   };
 
   const handleEditTransaction = (transactionId: string, updates: Partial<SyncedTransaction>) => {
-    setSyncedTransactions(prev => 
-      prev.map(t => 
-        t.id === transactionId 
-          ? { ...t, ...updates }
-          : t
-      )
-    );
+    updateTransaction(transactionId, updates);
   };
   
   return (
@@ -140,7 +136,7 @@ const Expenses = () => {
         
         {/* Auto-imported transactions review */}
         <AutoImportedTransactions
-          transactions={syncedTransactions}
+          transactions={unconfirmedTransactions}
           onConfirmTransaction={handleConfirmTransaction}
           onExcludeTransaction={handleExcludeTransaction}
           onEditTransaction={handleEditTransaction}

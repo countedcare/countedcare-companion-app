@@ -29,6 +29,10 @@ export async function handleSyncTransactions(body: SyncTransactionsBody, userId:
     throw new Error('Account not found')
   }
 
+  if (!account.stripe_account_id) {
+    throw new Error('Account not connected to Stripe')
+  }
+
   // Fetch transactions from Stripe
   const transactions = await fetchStripeTransactions(stripeSecretKey, account.stripe_account_id);
   const syncedTransactions = []

@@ -85,7 +85,7 @@ export const useSyncedTransactions = () => {
 
       toast({
         title: "Success",
-        description: `Synced ${data?.transactions_count || 0} transactions`
+        description: `Synced ${data?.synced_count || 0} new transactions`
       });
 
       await fetchTransactions();

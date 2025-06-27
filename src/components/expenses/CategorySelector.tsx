@@ -61,7 +61,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
           </div>
         )}
 
-        {/* Category selection accordion */}
+        {/* Category selection accordion - only show when no category is selected */}
         {!category && (
           <div className="border rounded-md">
             <Accordion type="single" collapsible className="w-full">

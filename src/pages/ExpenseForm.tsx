@@ -19,6 +19,9 @@ import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
 import CameraCapture from '@/components/mobile/CameraCapture';
 import CategorySelector from '@/components/expenses/CategorySelector';
 import { supabase } from '@/integrations/supabase/client';
+import MedicalPlacesAutocomplete from '@/components/places/MedicalPlacesAutocomplete';
+import GoogleMapsAPIConfig from '@/components/places/GoogleMapsAPIConfig';
+import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -43,6 +46,11 @@ const ExpenseForm = () => {
   const [isTaxDeductible, setIsTaxDeductible] = useState(false);
   const [reimbursementSource, setReimbursementSource] = useState('');
   const [linkedAccountId, setLinkedAccountId] = useState('');
+  
+  // Google Maps integration
+  const { apiKey, isConfigured, saveApiKey } = useGoogleMapsAPI();
+  const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
+  const [showApiConfig, setShowApiConfig] = useState(false);
   
   // For editing mode
   useEffect(() => {
@@ -297,6 +305,30 @@ const ExpenseForm = () => {
       description: "The receipt has been removed from this expense."
     });
   };
+
+  const handleLocationSelect = (place: google.maps.places.PlaceResult) => {
+    setSelectedLocation(place);
+    console.log('Selected location:', place);
+    
+    // Auto-populate title if it's empty
+    if (!title && place.name) {
+      setTitle(place.name);
+    }
+    
+    toast({
+      title: "Location Selected",
+      description: `Added ${place.name || place.formatted_address} to your expense`
+    });
+  };
+
+  const handleApiKeySaved = (newApiKey: string) => {
+    saveApiKey(newApiKey);
+    setShowApiConfig(false);
+    toast({
+      title: "API Key Saved",
+      description: "Google Maps Places API is now configured"
+    });
+  };
   
   return (
     <Layout>
@@ -309,6 +341,38 @@ const ExpenseForm = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                {/* Google Maps API Configuration */}
+                {!isConfigured && (
+                  <div className="space-y-2">
+                    <GoogleMapsAPIConfig
+                      onApiKeySaved={handleApiKeySaved}
+                      currentApiKey={apiKey}
+                    />
+                  </div>
+                )}
+
+                {/* Show API config button if configured */}
+                {isConfigured && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowApiConfig(!showApiConfig)}
+                    >
+                      {showApiConfig ? 'Hide' : 'Configure'} Google Maps API
+                    </Button>
+                  </div>
+                )}
+
+                {/* API Configuration Panel */}
+                {showApiConfig && isConfigured && (
+                  <GoogleMapsAPIConfig
+                    onApiKeySaved={handleApiKeySaved}
+                    currentApiKey={apiKey}
+                  />
+                )}
+
                 {/* Smart Receipt Capture */}
                 <div className="space-y-2">
                   <Label>Smart Receipt Capture</Label>
@@ -384,6 +448,40 @@ const ExpenseForm = () => {
                     required
                   />
                 </div>
+
+                {/* Location Search - New Feature */}
+                {isConfigured && (
+                  <div className="space-y-2">
+                    <MedicalPlacesAutocomplete
+                      onPlaceSelect={handleLocationSelect}
+                      apiKey={apiKey}
+                    />
+                    
+                    {selectedLocation && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-medium text-blue-900">
+                              {selectedLocation.name}
+                            </h4>
+                            <p className="text-sm text-blue-700 mt-1">
+                              {selectedLocation.formatted_address}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedLocation(null)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {/* Amount */}
                 <div className="space-y-2">

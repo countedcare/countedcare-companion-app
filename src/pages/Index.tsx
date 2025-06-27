@@ -117,47 +117,6 @@ const Index = () => {
     }
   };
 
-  const skipOnboarding = () => {
-    if (step === 0) {
-      if (!confirm("Are you sure you want to skip the setup? You can always complete it later in your profile.")) {
-        return;
-      }
-    }
-    
-    setLocalUser({
-      ...localUser,
-      name: localUser.name || 'Anonymous User',
-      email: localUser.email || '',
-      isCaregiver: localUser.isCaregiver,
-      caregivingFor: localUser.caregivingFor || [],
-      onboardingComplete: true
-    });
-    
-    toast({
-      title: "Setup skipped",
-      description: "You can complete your profile information anytime in settings.",
-    });
-    
-    navigate('/dashboard');
-  };
-
-  const resetOnboarding = () => {
-    setLocalUser({
-      name: '',
-      email: '',
-      isCaregiver: true,
-      caregivingFor: [],
-      onboardingComplete: false,
-      zipCode: '',
-      householdAGI: undefined
-    });
-    setStep(0);
-    toast({
-      title: "Setup reset",
-      description: "Starting fresh with the setup process.",
-    });
-  };
-
   const renderStepContent = () => {
     switch (step) {
       case 0:
@@ -223,24 +182,10 @@ const Index = () => {
             step={step}
             handleNext={handleNext}
             setStep={setStep}
-            skipOnboarding={skipOnboarding}
-            resetOnboarding={resetOnboarding}
             isFinalStep={step === totalSteps - 1}
           />
         </CardContent>
       </Card>
-
-      {step > 0 && (
-        <div className="mt-4 w-full max-w-md">
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => navigate('/dashboard')}
-          >
-            Skip to Dashboard
-          </Button>
-        </div>
-      )}
 
       {/* Show sign in option for unauthenticated users */}
       {!user && step === 0 && (

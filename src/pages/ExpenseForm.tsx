@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +21,8 @@ const ExpenseForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
   
@@ -52,6 +54,17 @@ const ExpenseForm = () => {
       saveApiKey(defaultApiKey);
     }
   }, [isConfigured, saveApiKey]);
+  
+  // Handle pre-selected category from URL params
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    const subcategoryParam = searchParams.get('subcategory');
+    
+    if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
+      setCategory('🚘 Transportation & Travel for Medical Care');
+      setSubcategory('Mileage for car travel (21 cents/mile in 2024)');
+    }
+  }, [searchParams]);
   
   // For editing mode
   useEffect(() => {

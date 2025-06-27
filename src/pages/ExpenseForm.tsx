@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
-import { CalendarIcon, Upload, Scan } from 'lucide-react';
+import { CalendarIcon, Upload, Scan, FileText, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
@@ -18,6 +17,7 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
 import CameraCapture from '@/components/mobile/CameraCapture';
+import { supabase } from '@/integrations/supabase/client';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -34,6 +34,7 @@ const ExpenseForm = () => {
   const [careRecipientId, setCareRecipientId] = useState('');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessingDocument, setIsProcessingDocument] = useState(false);
   
   // Enhanced tracking fields
   const [expenseTags, setExpenseTags] = useState<string[]>([]);
@@ -60,6 +61,60 @@ const ExpenseForm = () => {
       }
     }
   }, [id, expenses]);
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        const base64Data = base64String.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const processDocumentWithGemini = async (file: File) => {
+    try {
+      setIsProcessingDocument(true);
+      
+      toast({
+        title: "Processing Document",
+        description: "Extracting expense data from your document..."
+      });
+
+      const base64Data = await convertFileToBase64(file);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-receipt-ocr', {
+        body: { imageBase64: base64Data }
+      });
+
+      if (error) {
+        console.error('OCR processing error:', error);
+        throw new Error(error.message || 'Failed to process document');
+      }
+
+      if (data?.success && data?.data) {
+        handleReceiptProcessed(data.data);
+        toast({
+          title: "Document Processed!",
+          description: "Expense data extracted successfully from your document"
+        });
+      } else {
+        throw new Error('Failed to extract data from document');
+      }
+    } catch (error) {
+      console.error('Error processing document:', error);
+      toast({
+        title: "Processing Error", 
+        description: "Could not extract data from document. You can still add the expense manually.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingDocument(false);
+    }
+  };
 
   const handleReceiptProcessed = (extractedData: any) => {
     console.log('Receipt data extracted:', extractedData);
@@ -183,6 +238,18 @@ const ExpenseForm = () => {
     }, 1000);
   };
   
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Create object URL for preview
+    const fileUrl = URL.createObjectURL(file);
+    setReceiptUrl(fileUrl);
+
+    // Process with Gemini AI for expense data extraction
+    await processDocumentWithGemini(file);
+  };
+  
   const handleScan = () => {
     // Simulate scanning with camera
     setIsUploading(true);
@@ -233,8 +300,60 @@ const ExpenseForm = () => {
                       setReceiptUrl(imageUri);
                     }}
                     onReceiptProcessed={handleReceiptProcessed}
-                    disabled={isUploading}
+                    disabled={isUploading || isProcessingDocument}
                   />
+                </div>
+
+                {/* Document Upload Section */}
+                <div className="space-y-2">
+                  <Label>Upload Document</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <div className="text-center">
+                      <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600 mb-2">
+                        Upload receipts, invoices, or expense documents
+                      </p>
+                      <p className="text-xs text-gray-500 mb-3">
+                        AI will extract expense details automatically
+                      </p>
+                      
+                      <input
+                        type="file"
+                        id="document-upload"
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={handleDocumentUpload}
+                        className="hidden"
+                        disabled={isUploading || isProcessingDocument}
+                      />
+                      <label htmlFor="document-upload">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="cursor-pointer"
+                          asChild
+                          disabled={isUploading || isProcessingDocument}
+                        >
+                          <div>
+                            {isProcessingDocument ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="mr-2 h-4 w-4" />
+                            )}
+                            {isProcessingDocument ? 'Processing...' : 'Choose Document'}
+                          </div>
+                        </Button>
+                      </label>
+                    </div>
+                    
+                    {isProcessingDocument && (
+                      <div className="mt-4 text-center p-4 bg-blue-50 rounded-lg">
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-blue-600" />
+                        <p className="text-sm text-blue-700">
+                          AI is reading your document and extracting expense details...
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Expense Title */}
@@ -347,11 +466,10 @@ const ExpenseForm = () => {
                   )}
                 </div>
                 
-                {/* Receipt Upload Section */}
-                <div className="space-y-2">
-                  <Label>Receipt</Label>
-                  
-                  {receiptUrl ? (
+                {/* Receipt Display Section */}
+                {receiptUrl && (
+                  <div className="space-y-2">
+                    <Label>Attached Receipt/Document</Label>
                     <div className="border rounded-md p-3">
                       <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
                         <img 
@@ -369,7 +487,13 @@ const ExpenseForm = () => {
                         Remove Receipt
                       </Button>
                     </div>
-                  ) : (
+                  </div>
+                )}
+                
+                {/* Legacy Receipt Upload (keeping for backward compatibility) */}
+                {!receiptUrl && (
+                  <div className="space-y-2">
+                    <Label>Legacy Receipt Upload</Label>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <input
@@ -406,16 +530,16 @@ const ExpenseForm = () => {
                         Scan Receipt
                       </Button>
                     </div>
-                  )}
-                  
-                  {isUploading && (
-                    <div className="text-center py-3">
-                      <div className="animate-pulse text-sm text-gray-500">
-                        Processing receipt...
-                      </div>
+                  </div>
+                )}
+                
+                {isUploading && (
+                  <div className="text-center py-3">
+                    <div className="animate-pulse text-sm text-gray-500">
+                      Processing receipt...
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 
                 {/* Notes */}
                 <div className="space-y-2">

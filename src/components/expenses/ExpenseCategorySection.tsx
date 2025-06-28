@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -79,9 +80,9 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
         </div>
       )}
       
-      {/* Mileage Calculator - Updated to include API key */}
+      {/* Mileage Calculator - Updated condition to match the correct rate */}
       {category === '🚘 Transportation & Travel for Medical Care' && 
-       subcategory === 'Mileage for car travel (21 cents/mile in 2024)' && (
+       subcategory === 'Mileage for car travel (67 cents/mile in 2024)' && (
         <MileageCalculator 
           onAmountCalculated={onMileageAmountCalculated}
           apiKey={apiKey}

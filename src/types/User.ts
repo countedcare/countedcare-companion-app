@@ -123,75 +123,70 @@ export const EXPENSE_CATEGORIES = [
   "🧳 Special Situations"
 ];
 
-export const EXPENSE_SUBCATEGORIES = {
-  "🧑‍⚕️ Medical Services & Treatment": [
-    "Doctor visits (including specialists)",
-    "Surgeon and anesthesiologist fees", 
-    "Mental health professionals (psychiatrists, psychologists, counselors)",
-    "Chiropractor treatments",
-    "Acupuncture",
-    "Christian Science practitioner fees",
-    "In-patient treatment for alcoholism or drug addiction (including meals/lodging)",
-    "Fertility treatments (e.g., IVF, egg/sperm storage)",
-    "Therapy (physical, occupational, or speech)"
+export const EXPENSE_SUBCATEGORIES: Record<string, string[]> = {
+  '🏥 Medical & Healthcare Services': [
+    'Doctor visits and consultations',
+    'Specialist appointments',
+    'Hospital stays and emergency care',
+    'Physical therapy and rehabilitation',
+    'Mental health counseling',
+    'Alternative medicine treatments'
   ],
-  "🦷 Dental & Vision Care": [
-    "Routine and preventive dental visits",
-    "Dental procedures (fillings, root canals, braces, dentures)",
-    "Eye exams",
-    "Eyeglasses and contact lenses (including saline/cleaning supplies)",
-    "Vision correction surgery (LASIK, etc.)"
+  '💊 Medications & Medical Supplies': [
+    'Prescription medications',
+    'Over-the-counter medications',
+    'Medical equipment and devices',
+    'Mobility aids (wheelchair, walker, etc.)',
+    'Wound care supplies',
+    'Diabetic supplies and monitoring equipment'
   ],
-  "💊 Prescriptions & Equipment": [
-    "Prescription medications and insulin",
-    "Breast pumps and lactation supplies",
-    "Diagnostic devices (blood pressure monitors, blood sugar test kits)",
-    "Durable medical equipment (wheelchairs, crutches, oxygen equipment)",
-    "Prosthetics (artificial limbs, teeth, etc.)",
-    "Hearing aids and batteries",
-    "Pregnancy test kits"
+  '🚘 Transportation & Travel for Medical Care': [
+    'Mileage for car travel (67 cents/mile in 2024)',
+    'Public transportation fares',
+    'Taxi or rideshare services',
+    'Parking fees at medical facilities',
+    'Lodging for out-of-town medical care',
+    'Meals during medical travel'
   ],
-  "🧍‍♀️ Supportive Services & Nursing Care": [
-    "In-home nursing care (including for bathing, medication, wound care)",
-    "Attendant care if part of medical treatment",
-    "Adult day care for Alzheimer's or dementia",
-    "Special schooling for children with learning disabilities (if recommended by a doctor)",
-    "Service animals (purchase, training, food, and vet care)"
+  '🏠 Home Modifications & Safety Equipment': [
+    'Wheelchair ramps and accessibility modifications',
+    'Bathroom safety equipment (grab bars, shower seats)',
+    'Stairlifts and mobility equipment',
+    'Medical alert systems',
+    'Home safety modifications',
+    'Adaptive furniture and equipment'
   ],
-  "🚘 Transportation & Travel for Medical Care": [
-    "Mileage for car travel (21 cents/mile in 2024)",
-    "Public transit, taxis, rideshares, plane fare to treatment",
-    "Parking and tolls",
-    "Lodging up to $50/night per person (e.g., for hospital visits, cancer treatment out-of-town)"
+  '👨‍⚕️ Professional Care Services': [
+    'Home health aide services',
+    'Nursing care',
+    'Respite care services',
+    'Adult day care programs',
+    'Companion care services',
+    'Specialized therapy services'
   ],
-  "🏠 Home & Living Modifications": [
-    "Wheelchair ramps",
-    "Widened doorways", 
-    "Grab bars and handrails",
-    "Bathroom modifications",
-    "Lowered cabinets for accessibility",
-    "Medically necessary air filters or humidifiers",
-    "Special plumbing for medical reasons in rented homes"
+  '🍽️ Nutrition & Special Diet Requirements': [
+    'Special dietary foods and supplements',
+    'Meal delivery services',
+    'Nutrition counseling',
+    'Feeding equipment and supplies',
+    'Weight management programs',
+    'Dietary consultation fees'
   ],
-  "🏥 Hospital & Long-Term Care": [
-    "Hospital stays (room, meals, and medical care)",
-    "Skilled nursing facilities (if primary reason is medical care)",
-    "Hospice care",
-    "Qualified long-term care services",
-    "Premiums for long-term care insurance (limits apply by age)"
+  '📋 Administrative & Legal Services': [
+    'Legal consultation and document preparation',
+    'Care coordination services',
+    'Medical record management',
+    'Insurance claim assistance',
+    'Financial planning for care',
+    'Estate planning related to care needs'
   ],
-  "📄 Health Insurance Premiums": [
-    "Medical, dental, and vision plan premiums (not employer-paid)",
-    "Medicare Part B and D premiums",
-    "COBRA premiums", 
-    "Prepaid future medical insurance (only in some cases)",
-    "Qualified long-term care insurance premiums (limits apply)"
-  ],
-  "🧳 Special Situations": [
-    "Medical conferences related to a dependent's chronic condition (transportation/admission only)",
-    "Guide dogs or service animals (purchase, training, and maintenance)",
-    "Legal fees to authorize mental health treatment",
-    "Lifetime care advance payments (for care of disabled dependents)"
+  '🛡️ Insurance & Benefits Management': [
+    'Long-term care insurance premiums',
+    'Medicare supplement insurance',
+    'Health insurance premiums',
+    'Disability insurance premiums',
+    'Insurance deductibles and co-payments',
+    'Benefits coordination services'
   ]
 };
 

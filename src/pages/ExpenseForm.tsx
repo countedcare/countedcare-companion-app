@@ -62,7 +62,7 @@ const ExpenseForm = () => {
     
     if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
       setCategory('🚘 Transportation & Travel for Medical Care');
-      setSubcategory('Mileage for car travel (21 cents/mile in 2024)');
+      setSubcategory('Mileage for car travel (67 cents/mile in 2024)');
     }
   }, [searchParams]);
   

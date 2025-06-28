@@ -17,7 +17,7 @@ interface MileageCalculatorProps {
 const MileageCalculator: React.FC<MileageCalculatorProps> = ({
   onAmountCalculated,
   initialMiles = 0,
-  initialRate = 0.21, // 2024 IRS standard mileage rate
+  initialRate = 0.67, // 2024 IRS standard mileage rate updated
   apiKey
 }) => {
   const { toast } = useToast();
@@ -48,20 +48,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
     setEndLocation(place.formatted_address || place.name || '');
   };
 
-  const calculateDistance = async () => {
-    if (!startLocation.trim() || !endLocation.trim()) {
+  const calculateDistanceUsingPlaces = () => {
+    if (!startPlace?.geometry?.location || !endPlace?.geometry?.location) {
       toast({
-        title: "Missing Locations",
-        description: "Please enter both starting and destination locations.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!apiKey) {
-      toast({
-        title: "API Key Missing",
-        description: "Google Maps API key is required for distance calculation.",
+        title: "Location Error",
+        description: "Please select valid locations from the dropdown suggestions.",
         variant: "destructive"
       });
       return;
@@ -70,42 +61,58 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
     setIsCalculatingDistance(true);
 
     try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(startLocation)}&destinations=${encodeURIComponent(endLocation)}&units=imperial&key=${apiKey}&mode=driving`
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch distance data');
-      }
-
-      const data = await response.json();
-
-      if (data.status === 'OK' && data.rows[0]?.elements[0]?.status === 'OK') {
-        const element = data.rows[0].elements[0];
-        const distanceText = element.distance.text;
-        const distanceValue = element.distance.value; // in meters
-        const distanceInMiles = (distanceValue * 0.000621371).toFixed(1); // Convert meters to miles
-
-        setMiles(distanceInMiles);
+      const service = new google.maps.DistanceMatrixService();
+      
+      service.getDistanceMatrix({
+        origins: [startPlace.geometry.location],
+        destinations: [endPlace.geometry.location],
+        travelMode: google.maps.TravelMode.DRIVING,
+        unitSystem: google.maps.UnitSystem.IMPERIAL,
+        avoidHighways: false,
+        avoidTolls: false
+      }, (response, status) => {
+        setIsCalculatingDistance(false);
         
-        toast({
-          title: "Distance Calculated!",
-          description: `${distanceText} (${distanceInMiles} miles) between your locations.`,
-        });
-      } else {
-        throw new Error(data.error_message || 'Could not calculate distance between locations');
-      }
+        if (status === google.maps.DistanceMatrixStatus.OK && response) {
+          const element = response.rows[0]?.elements[0];
+          if (element?.status === google.maps.DistanceMatrixElementStatus.OK) {
+            const distanceText = element.distance?.text || '';
+            const distanceValue = element.distance?.value || 0; // in meters
+            const distanceInMiles = (distanceValue * 0.000621371).toFixed(1);
+
+            setMiles(distanceInMiles);
+            
+            toast({
+              title: "Distance Calculated!",
+              description: `${distanceText} (${distanceInMiles} miles) between your locations.`,
+            });
+          } else {
+            toast({
+              title: "Route Not Found",
+              description: "Could not find a driving route between these locations.",
+              variant: "destructive"
+            });
+          }
+        } else {
+          toast({
+            title: "Distance Calculation Failed",
+            description: "Unable to calculate distance. Please enter miles manually.",
+            variant: "destructive"
+          });
+        }
+      });
     } catch (error) {
+      setIsCalculatingDistance(false);
       console.error('Distance calculation error:', error);
       toast({
-        title: "Distance Calculation Failed",
-        description: "Could not calculate distance. Please enter miles manually.",
+        title: "Service Unavailable",
+        description: "Distance calculation service is not available. Please enter miles manually.",
         variant: "destructive"
       });
-    } finally {
-      setIsCalculatingDistance(false);
     }
   };
+
+  const canCalculateDistance = startPlace && endPlace && window.google?.maps?.DistanceMatrixService;
 
   return (
     <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
@@ -137,8 +144,8 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
       <div className="flex justify-center">
         <Button
           type="button"
-          onClick={calculateDistance}
-          disabled={isCalculatingDistance || !startLocation.trim() || !endLocation.trim()}
+          onClick={calculateDistanceUsingPlaces}
+          disabled={isCalculatingDistance || !canCalculateDistance}
           className="flex items-center gap-2"
           variant="outline"
         >
@@ -167,13 +174,13 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
           <Input
             id="rate"
             type="number"
-            placeholder="0.21"
+            placeholder="0.67"
             step="0.01"
             min="0"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
           />
-          <p className="text-xs text-blue-600">2024 IRS standard rate: $0.21/mile</p>
+          <p className="text-xs text-blue-600">2024 IRS standard rate: $0.67/mile</p>
         </div>
       </div>
       

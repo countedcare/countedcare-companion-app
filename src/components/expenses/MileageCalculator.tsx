@@ -25,12 +25,18 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
   
   const IRS_RATE = 0.67; // 2024 IRS standard mileage rate
 
+  useEffect(() => {
+    console.log('MileageCalculator received API key:', apiKey ? 'Key provided' : 'No key');
+  }, [apiKey]);
+
   const handleStartLocationSelect = (place: google.maps.places.PlaceResult) => {
+    console.log('Start location selected:', place);
     setStartPlace(place);
     setStartLocation(place.formatted_address || place.name || '');
   };
 
   const handleEndLocationSelect = (place: google.maps.places.PlaceResult) => {
+    console.log('End location selected:', place);
     setEndPlace(place);
     setEndLocation(place.formatted_address || place.name || '');
   };

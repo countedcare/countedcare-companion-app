@@ -7,6 +7,10 @@ import { Expense } from '@/types/User';
 import BadgeDisplay from '@/components/gamification/BadgeDisplay';
 import ProgressTracker from '@/components/gamification/ProgressTracker';
 import ChallengeCard from '@/components/gamification/ChallengeCard';
+import WeeklyMissions from '@/components/gamification/WeeklyMissions';
+import DailyTip from '@/components/gamification/DailyTip';
+import StreakTracker from '@/components/gamification/StreakTracker';
+import InstantFeedback from '@/components/gamification/InstantFeedback';
 import { Confetti, SurpriseQuote, SURPRISE_QUOTES } from '@/components/gamification/DelightElements';
 import { Gift, Trophy, Target } from 'lucide-react';
 
@@ -22,26 +26,55 @@ const GamificationSection = ({ expenses }: GamificationSectionProps) => {
     availableChallenges,
     newBadges,
     showConfetti,
+    instantFeedback,
     acceptChallenge,
     completeChallenge,
+    markTipAsRead,
     setShowConfetti,
-    setNewBadges
+    setNewBadges,
+    setInstantFeedback
   } = useGamification(expenses);
 
   const recentBadges = badges.filter(b => b.unlocked).slice(-3);
-  const activeChallenge = activeChallenges[0]; // Show one active challenge
-  const nextChallenge = availableChallenges[0]; // Show one available challenge
+  const activeChallenge = activeChallenges[0];
+  const nextChallenge = availableChallenges[0];
 
   return (
     <div className="space-y-6">
       {/* Confetti and Surprise Elements */}
       <Confetti show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <SurpriseQuote quotes={SURPRISE_QUOTES} interval={45} />
+      
+      {/* Instant Feedback */}
+      <InstantFeedback
+        show={instantFeedback.show}
+        message={instantFeedback.message}
+        type={instantFeedback.type}
+        onClose={() => setInstantFeedback({ show: false, message: '', type: 'expense' })}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Streak Tracker */}
+        <StreakTracker
+          currentStreak={userProgress.currentStreak}
+          longestStreak={userProgress.longestStreak}
+          lastActivity={userProgress.lastActivity}
+        />
+
         {/* Progress Tracker */}
         <ProgressTracker userProgress={userProgress} />
+      </div>
 
+      {/* Weekly Missions */}
+      <WeeklyMissions missions={userProgress.weeklyMissions} />
+
+      {/* Daily Tip */}
+      <DailyTip
+        tipsRead={userProgress.tipsRead}
+        onTipRead={markTipAsRead}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Badges */}
         <Card>
           <CardHeader className="pb-3">
@@ -72,26 +105,26 @@ const GamificationSection = ({ expenses }: GamificationSectionProps) => {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Active Challenge */}
-      {(activeChallenge || nextChallenge) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="h-5 w-5 text-purple-500" />
-              {activeChallenge ? 'Active Challenge' : 'New Challenge Available'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChallengeCard
-              challenge={activeChallenge || nextChallenge}
-              onAccept={acceptChallenge}
-              onComplete={completeChallenge}
-            />
-          </CardContent>
-        </Card>
-      )}
+        {/* Active Challenge */}
+        {(activeChallenge || nextChallenge) && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Target className="h-5 w-5 text-purple-500" />
+                {activeChallenge ? 'Active Challenge' : 'New Challenge Available'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChallengeCard
+                challenge={activeChallenge || nextChallenge}
+                onAccept={acceptChallenge}
+                onComplete={completeChallenge}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* New Badge Celebration */}
       {newBadges.length > 0 && (

@@ -1,5 +1,15 @@
+
 import { useState, useEffect } from 'react';
-import { BADGE_DEFINITIONS, CHALLENGE_TEMPLATES, Badge, Challenge, UserProgress } from '@/types/Gamification';
+import { 
+  BADGE_DEFINITIONS, 
+  CHALLENGE_TEMPLATES, 
+  WEEKLY_MISSION_TEMPLATES, 
+  DAILY_TIPS,
+  Badge, 
+  Challenge, 
+  WeeklyMission, 
+  UserProgress 
+} from '@/types/Gamification';
 import { Expense } from '@/types/User';
 import useLocalStorage from '@/hooks/useLocalStorage';
 
@@ -14,12 +24,47 @@ export const useGamification = (expenses: Expense[]) => {
     challengesCompleted: [],
     level: 1,
     experiencePoints: 0,
-    lastActivity: new Date().toISOString()
+    lastActivity: new Date().toISOString(),
+    weeklyMissions: [],
+    lastMissionReset: new Date().toISOString(),
+    tipsRead: [],
+    lastTipDate: ''
   });
 
   const [activeChallenges, setActiveChallenges] = useLocalStorage<Challenge[]>('countedcare-challenges', []);
   const [showConfetti, setShowConfetti] = useState(false);
   const [newBadges, setNewBadges] = useState<Badge[]>([]);
+  const [instantFeedback, setInstantFeedback] = useState<{
+    show: boolean;
+    message: string;
+    type: 'expense' | 'receipt' | 'badge' | 'streak' | 'mission';
+  }>({
+    show: false,
+    message: '',
+    type: 'expense'
+  });
+
+  // Initialize weekly missions if needed
+  useEffect(() => {
+    const lastReset = new Date(userProgress.lastMissionReset);
+    const now = new Date();
+    const daysSinceReset = Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceReset >= 7 || userProgress.weeklyMissions.length === 0) {
+      const newMissions: WeeklyMission[] = WEEKLY_MISSION_TEMPLATES.map((template, index) => ({
+        ...template,
+        id: `mission-${now.getTime()}-${index}`,
+        current: 0,
+        completed: false
+      }));
+      
+      setUserProgress(prev => ({
+        ...prev,
+        weeklyMissions: newMissions,
+        lastMissionReset: now.toISOString()
+      }));
+    }
+  }, [userProgress.lastMissionReset, userProgress.weeklyMissions.length, setUserProgress]);
 
   // Calculate current progress based on expenses
   useEffect(() => {
@@ -27,18 +72,18 @@ export const useGamification = (expenses: Expense[]) => {
     const expenseCount = expenses.length;
     const uniqueCategories = [...new Set(expenses.map(exp => exp.category))];
     
-    // Calculate streak (simplified - would need more complex logic for real streaks)
+    // Calculate streak
     const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     let currentStreak = 0;
-    let checkDate = new Date();
+    const today = new Date();
     
-    for (const expense of sortedExpenses) {
-      const expenseDate = new Date(expense.date);
-      const daysDiff = Math.floor((checkDate.getTime() - expenseDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Check if user logged expense today or yesterday
+    for (let i = 0; i < sortedExpenses.length; i++) {
+      const expenseDate = new Date(sortedExpenses[i].date);
+      const daysDiff = Math.floor((today.getTime() - expenseDate.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (daysDiff <= 1) {
+      if (daysDiff <= currentStreak + 1) {
         currentStreak++;
-        checkDate = expenseDate;
       } else {
         break;
       }
@@ -51,12 +96,28 @@ export const useGamification = (expenses: Expense[]) => {
       categoriesUsed: uniqueCategories,
       currentStreak,
       longestStreak: Math.max(userProgress.longestStreak, currentStreak),
-      experiencePoints: expenseCount * 10 + Math.floor(totalAmount / 10), // 10 XP per expense + 1 XP per $10
+      experiencePoints: expenseCount * 10 + Math.floor(totalAmount / 10),
       level: Math.floor((expenseCount * 10 + Math.floor(totalAmount / 10)) / 100) + 1,
-      lastActivity: new Date().toISOString()
+      lastActivity: expenses.length > 0 ? sortedExpenses[0].date : userProgress.lastActivity
     };
 
-    setUserProgress(newProgress);
+    // Update weekly missions progress
+    const updatedMissions = userProgress.weeklyMissions.map(mission => {
+      if (mission.type === 'log_expenses') {
+        const current = Math.min(expenseCount, mission.target);
+        return {
+          ...mission,
+          current,
+          completed: current >= mission.target
+        };
+      }
+      return mission;
+    });
+
+    setUserProgress({
+      ...newProgress,
+      weeklyMissions: updatedMissions
+    });
   }, [expenses, setUserProgress]);
 
   // Check for new badges
@@ -95,6 +156,11 @@ export const useGamification = (expenses: Expense[]) => {
       }));
       setNewBadges(earnedBadges);
       setShowConfetti(true);
+      setInstantFeedback({
+        show: true,
+        message: `You earned the ${earnedBadges[0].name} badge!`,
+        type: 'badge'
+      });
     }
   }, [userProgress, setUserProgress]);
 
@@ -128,6 +194,11 @@ export const useGamification = (expenses: Expense[]) => {
       )
     );
     setShowConfetti(true);
+    setInstantFeedback({
+      show: true,
+      message: 'Challenge completed! You\'re building amazing habits!',
+      type: 'mission'
+    });
   };
 
   const getAvailableChallenges = (): Challenge[] => {
@@ -141,6 +212,54 @@ export const useGamification = (expenses: Expense[]) => {
       }));
   };
 
+  const markTipAsRead = (tipId: string) => {
+    setUserProgress(prev => ({
+      ...prev,
+      tipsRead: [...prev.tipsRead, tipId],
+      lastTipDate: new Date().toISOString()
+    }));
+
+    // Update read tip mission progress
+    const updatedMissions = userProgress.weeklyMissions.map(mission => {
+      if (mission.type === 'read_tip' && !mission.completed) {
+        const current = Math.min(mission.current + 1, mission.target);
+        return {
+          ...mission,
+          current,
+          completed: current >= mission.target
+        };
+      }
+      return mission;
+    });
+
+    setUserProgress(prev => ({
+      ...prev,
+      weeklyMissions: updatedMissions
+    }));
+
+    setInstantFeedback({
+      show: true,
+      message: 'Great job learning something new today!',
+      type: 'expense'
+    });
+  };
+
+  const showExpenseFeedback = () => {
+    setInstantFeedback({
+      show: true,
+      message: 'You just added a deductible expense! Keep it up!',
+      type: 'expense'
+    });
+  };
+
+  const showReceiptFeedback = () => {
+    setInstantFeedback({
+      show: true,
+      message: 'Receipt scanned successfully! Great record keeping!',
+      type: 'receipt'
+    });
+  };
+
   return {
     userProgress,
     badges: getAllBadges(),
@@ -148,9 +267,14 @@ export const useGamification = (expenses: Expense[]) => {
     availableChallenges: getAvailableChallenges(),
     newBadges,
     showConfetti,
+    instantFeedback,
     acceptChallenge,
     completeChallenge,
+    markTipAsRead,
+    showExpenseFeedback,
+    showReceiptFeedback,
     setShowConfetti,
-    setNewBadges
+    setNewBadges,
+    setInstantFeedback: (feedback) => setInstantFeedback(feedback)
   };
 };

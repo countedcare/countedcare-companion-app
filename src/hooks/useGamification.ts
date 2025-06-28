@@ -46,11 +46,13 @@ export const useGamification = (expenses: Expense[]) => {
 
   // Initialize weekly missions if needed
   useEffect(() => {
+    if (!userProgress || !userProgress.lastMissionReset) return;
+    
     const lastReset = new Date(userProgress.lastMissionReset);
     const now = new Date();
     const daysSinceReset = Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (daysSinceReset >= 7 || userProgress.weeklyMissions.length === 0) {
+    if (daysSinceReset >= 7 || !userProgress.weeklyMissions || userProgress.weeklyMissions.length === 0) {
       const newMissions: WeeklyMission[] = WEEKLY_MISSION_TEMPLATES.map((template, index) => ({
         ...template,
         id: `mission-${now.getTime()}-${index}`,
@@ -64,10 +66,12 @@ export const useGamification = (expenses: Expense[]) => {
         lastMissionReset: now.toISOString()
       }));
     }
-  }, [userProgress.lastMissionReset, userProgress.weeklyMissions.length, setUserProgress]);
+  }, [userProgress?.lastMissionReset, userProgress?.weeklyMissions?.length, setUserProgress]);
 
   // Calculate current progress based on expenses
   useEffect(() => {
+    if (!expenses || !Array.isArray(expenses)) return;
+    
     const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const expenseCount = expenses.length;
     const uniqueCategories = [...new Set(expenses.map(exp => exp.category))];
@@ -95,14 +99,14 @@ export const useGamification = (expenses: Expense[]) => {
       expenseCount,
       categoriesUsed: uniqueCategories,
       currentStreak,
-      longestStreak: Math.max(userProgress.longestStreak, currentStreak),
+      longestStreak: Math.max(userProgress?.longestStreak || 0, currentStreak),
       experiencePoints: expenseCount * 10 + Math.floor(totalAmount / 10),
       level: Math.floor((expenseCount * 10 + Math.floor(totalAmount / 10)) / 100) + 1,
-      lastActivity: expenses.length > 0 ? sortedExpenses[0].date : userProgress.lastActivity
+      lastActivity: expenses.length > 0 ? sortedExpenses[0].date : userProgress?.lastActivity || new Date().toISOString()
     };
 
     // Update weekly missions progress
-    const updatedMissions = userProgress.weeklyMissions.map(mission => {
+    const updatedMissions = (userProgress?.weeklyMissions || []).map(mission => {
       if (mission.type === 'log_expenses') {
         const current = Math.min(expenseCount, mission.target);
         return {
@@ -122,6 +126,8 @@ export const useGamification = (expenses: Expense[]) => {
 
   // Check for new badges
   useEffect(() => {
+    if (!userProgress || !userProgress.badgesEarned) return;
+    
     const earnedBadges: Badge[] = [];
     
     BADGE_DEFINITIONS.forEach(badge => {
@@ -130,16 +136,16 @@ export const useGamification = (expenses: Expense[]) => {
         
         switch (badge.criteria.type) {
           case 'expense_count':
-            shouldEarn = userProgress.expenseCount >= badge.criteria.value;
+            shouldEarn = (userProgress.expenseCount || 0) >= badge.criteria.value;
             break;
           case 'total_amount':
-            shouldEarn = userProgress.totalExpenses >= badge.criteria.value;
+            shouldEarn = (userProgress.totalExpenses || 0) >= badge.criteria.value;
             break;
           case 'streak_days':
-            shouldEarn = userProgress.currentStreak >= badge.criteria.value;
+            shouldEarn = (userProgress.currentStreak || 0) >= badge.criteria.value;
             break;
           case 'categories_used':
-            shouldEarn = userProgress.categoriesUsed.length >= badge.criteria.value;
+            shouldEarn = (userProgress.categoriesUsed || []).length >= badge.criteria.value;
             break;
         }
         
@@ -152,7 +158,7 @@ export const useGamification = (expenses: Expense[]) => {
     if (earnedBadges.length > 0) {
       setUserProgress(prev => ({
         ...prev,
-        badgesEarned: [...prev.badgesEarned, ...earnedBadges.map(b => b.id)]
+        badgesEarned: [...(prev?.badgesEarned || []), ...earnedBadges.map(b => b.id)]
       }));
       setNewBadges(earnedBadges);
       setShowConfetti(true);
@@ -165,6 +171,13 @@ export const useGamification = (expenses: Expense[]) => {
   }, [userProgress, setUserProgress]);
 
   const getAllBadges = (): Badge[] => {
+    if (!userProgress || !userProgress.badgesEarned) {
+      return BADGE_DEFINITIONS.map(badge => ({
+        ...badge,
+        unlocked: false
+      }));
+    }
+    
     return BADGE_DEFINITIONS.map(badge => ({
       ...badge,
       unlocked: userProgress.badgesEarned.includes(badge.id)
@@ -182,12 +195,12 @@ export const useGamification = (expenses: Expense[]) => {
       startDate: new Date().toISOString()
     };
 
-    setActiveChallenges(prev => [...prev, newChallenge]);
+    setActiveChallenges(prev => [...(prev || []), newChallenge]);
   };
 
   const completeChallenge = (challengeId: string) => {
     setActiveChallenges(prev => 
-      prev.map(challenge => 
+      (prev || []).map(challenge => 
         challenge.id === challengeId 
           ? { ...challenge, completedAt: new Date().toISOString() }
           : challenge
@@ -202,7 +215,7 @@ export const useGamification = (expenses: Expense[]) => {
   };
 
   const getAvailableChallenges = (): Challenge[] => {
-    const activeIds = activeChallenges.map(c => c.title);
+    const activeIds = (activeChallenges || []).map(c => c.title);
     return CHALLENGE_TEMPLATES
       .filter(template => !activeIds.includes(template.title))
       .map(template => ({
@@ -215,12 +228,12 @@ export const useGamification = (expenses: Expense[]) => {
   const markTipAsRead = (tipId: string) => {
     setUserProgress(prev => ({
       ...prev,
-      tipsRead: [...prev.tipsRead, tipId],
+      tipsRead: [...(prev?.tipsRead || []), tipId],
       lastTipDate: new Date().toISOString()
     }));
 
     // Update read tip mission progress
-    const updatedMissions = userProgress.weeklyMissions.map(mission => {
+    const updatedMissions = (userProgress?.weeklyMissions || []).map(mission => {
       if (mission.type === 'read_tip' && !mission.completed) {
         const current = Math.min(mission.current + 1, mission.target);
         return {
@@ -261,9 +274,24 @@ export const useGamification = (expenses: Expense[]) => {
   };
 
   return {
-    userProgress,
+    userProgress: userProgress || {
+      totalExpenses: 0,
+      expenseCount: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      categoriesUsed: [],
+      badgesEarned: [],
+      challengesCompleted: [],
+      level: 1,
+      experiencePoints: 0,
+      lastActivity: new Date().toISOString(),
+      weeklyMissions: [],
+      lastMissionReset: new Date().toISOString(),
+      tipsRead: [],
+      lastTipDate: ''
+    },
     badges: getAllBadges(),
-    activeChallenges,
+    activeChallenges: activeChallenges || [],
     availableChallenges: getAvailableChallenges(),
     newBadges,
     showConfetti,

@@ -24,9 +24,9 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   className = ""
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<HTMLElement | null>(null);
   const [inputValue, setInputValue] = useState(value);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       existingScripts.forEach(script => script.remove());
 
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps&loading=async`;
       script.async = true;
       script.defer = true;
       
@@ -77,36 +77,83 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   }, [apiKey]);
 
   useEffect(() => {
-    if (isLoaded && inputRef.current && !autocomplete && window.google?.maps?.places) {
+    if (isLoaded && inputRef.current && window.google?.maps?.places) {
       try {
-        console.log('Initializing autocomplete with types:', types);
-        const autocompleteInstance = new google.maps.places.Autocomplete(inputRef.current, {
-          types: types,
-          fields: ['place_id', 'name', 'formatted_address', 'geometry', 'types', 'photos']
-        });
-
-        autocompleteInstance.addListener('place_changed', () => {
-          const place = autocompleteInstance.getPlace();
-          console.log('Place selected:', place);
-          if (place.place_id) {
-            onPlaceSelect(place);
-            setInputValue(place.formatted_address || place.name || '');
+        console.log('Initializing new Places Autocomplete with types:', types);
+        
+        // Try to use the new PlaceAutocompleteElement if available
+        if ((window.google.maps.places as any).PlaceAutocompleteElement) {
+          console.log('Using new PlaceAutocompleteElement');
+          const autocompleteElement = new (window.google.maps.places as any).PlaceAutocompleteElement({
+            types: types
+          });
+          
+          autocompleteElement.addEventListener('gmp-placeselect', (event: any) => {
+            const place = event.place;
+            console.log('Place selected (new API):', place);
+            if (place.place_id) {
+              onPlaceSelect(place);
+              setInputValue(place.formatted_address || place.name || '');
+            }
+          });
+          
+          // Replace the input with the autocomplete element
+          if (inputRef.current && inputRef.current.parentNode) {
+            inputRef.current.parentNode.replaceChild(autocompleteElement, inputRef.current);
+            autocompleteRef.current = autocompleteElement;
           }
-        });
+        } else {
+          // Fallback to traditional Autocomplete
+          console.log('Using traditional Autocomplete (fallback)');
+          const autocompleteInstance = new google.maps.places.Autocomplete(inputRef.current, {
+            types: types,
+            fields: ['place_id', 'name', 'formatted_address', 'geometry', 'types', 'photos']
+          });
 
-        setAutocomplete(autocompleteInstance);
+          autocompleteInstance.addListener('place_changed', () => {
+            const place = autocompleteInstance.getPlace();
+            console.log('Place selected (traditional API):', place);
+            if (place.place_id) {
+              onPlaceSelect(place);
+              setInputValue(place.formatted_address || place.name || '');
+            }
+          });
+        }
+
         console.log('Autocomplete initialized successfully');
       } catch (error) {
         console.error('Error initializing autocomplete:', error);
-        setLoadingError('Error initializing autocomplete');
+        setLoadingError('Error initializing autocomplete: ' + error);
       }
     }
-  }, [isLoaded, onPlaceSelect, types, autocomplete]);
+  }, [isLoaded, onPlaceSelect, types]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('Input changed:', e.target.value);
     setInputValue(e.target.value);
   };
+
+  // If using the new element, don't render the traditional input
+  if (autocompleteRef.current) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        {label && <Label>{label}</Label>}
+        <div className="relative">
+          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+          {/* The autocomplete element will be inserted here */}
+        </div>
+        {!isLoaded && !loadingError && (
+          <p className="text-xs text-muted-foreground">Loading Google Maps...</p>
+        )}
+        {loadingError && (
+          <p className="text-xs text-red-500">Error: {loadingError}</p>
+        )}
+        {isLoaded && (
+          <p className="text-xs text-green-600">Google Maps loaded successfully</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -131,7 +178,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         <p className="text-xs text-red-500">Error: {loadingError}</p>
       )}
       {isLoaded && (
-        <p className="text-xs text-green-600">Google Maps loaded successfully</p>
+        <p className="text-xs text-green-600">Google Maps loaded - try typing an address...</p>
       )}
     </div>
   );

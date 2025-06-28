@@ -46,9 +46,9 @@ export const useGamification = (expenses: Expense[]) => {
 
   // Initialize weekly missions if needed
   useEffect(() => {
-    if (!userProgress || !userProgress.lastMissionReset) return;
+    if (!userProgress) return;
     
-    const lastReset = new Date(userProgress.lastMissionReset);
+    const lastReset = userProgress.lastMissionReset ? new Date(userProgress.lastMissionReset) : new Date(0);
     const now = new Date();
     const daysSinceReset = Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -66,11 +66,11 @@ export const useGamification = (expenses: Expense[]) => {
         lastMissionReset: now.toISOString()
       }));
     }
-  }, [userProgress?.lastMissionReset, userProgress?.weeklyMissions?.length, setUserProgress]);
+  }, [userProgress?.lastMissionReset, setUserProgress]);
 
   // Calculate current progress based on expenses
   useEffect(() => {
-    if (!expenses || !Array.isArray(expenses)) return;
+    if (!expenses || !Array.isArray(expenses) || !userProgress) return;
     
     const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const expenseCount = expenses.length;
@@ -102,11 +102,14 @@ export const useGamification = (expenses: Expense[]) => {
       longestStreak: Math.max(userProgress?.longestStreak || 0, currentStreak),
       experiencePoints: expenseCount * 10 + Math.floor(totalAmount / 10),
       level: Math.floor((expenseCount * 10 + Math.floor(totalAmount / 10)) / 100) + 1,
-      lastActivity: expenses.length > 0 ? sortedExpenses[0].date : userProgress?.lastActivity || new Date().toISOString()
+      lastActivity: expenses.length > 0 ? sortedExpenses[0].date : userProgress?.lastActivity || new Date().toISOString(),
+      // Ensure arrays are always defined
+      tipsRead: userProgress.tipsRead || [],
+      weeklyMissions: userProgress.weeklyMissions || []
     };
 
     // Update weekly missions progress
-    const updatedMissions = (userProgress?.weeklyMissions || []).map(mission => {
+    const updatedMissions = (newProgress.weeklyMissions || []).map(mission => {
       if (mission.type === 'log_expenses') {
         const current = Math.min(expenseCount, mission.target);
         return {
@@ -122,7 +125,7 @@ export const useGamification = (expenses: Expense[]) => {
       ...newProgress,
       weeklyMissions: updatedMissions
     });
-  }, [expenses, setUserProgress]);
+  }, [expenses, userProgress?.lastMissionReset, setUserProgress]);
 
   // Check for new badges
   useEffect(() => {
@@ -168,7 +171,7 @@ export const useGamification = (expenses: Expense[]) => {
         type: 'badge'
       });
     }
-  }, [userProgress, setUserProgress]);
+  }, [userProgress?.expenseCount, userProgress?.totalExpenses, userProgress?.currentStreak, userProgress?.categoriesUsed, setUserProgress]);
 
   const getAllBadges = (): Badge[] => {
     if (!userProgress || !userProgress.badgesEarned) {
@@ -273,22 +276,33 @@ export const useGamification = (expenses: Expense[]) => {
     });
   };
 
+  // Ensure we always return a complete userProgress object
+  const safeUserProgress = userProgress || {
+    totalExpenses: 0,
+    expenseCount: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    categoriesUsed: [],
+    badgesEarned: [],
+    challengesCompleted: [],
+    level: 1,
+    experiencePoints: 0,
+    lastActivity: new Date().toISOString(),
+    weeklyMissions: [],
+    lastMissionReset: new Date().toISOString(),
+    tipsRead: [],
+    lastTipDate: ''
+  };
+
   return {
-    userProgress: userProgress || {
-      totalExpenses: 0,
-      expenseCount: 0,
-      currentStreak: 0,
-      longestStreak: 0,
-      categoriesUsed: [],
-      badgesEarned: [],
-      challengesCompleted: [],
-      level: 1,
-      experiencePoints: 0,
-      lastActivity: new Date().toISOString(),
-      weeklyMissions: [],
-      lastMissionReset: new Date().toISOString(),
-      tipsRead: [],
-      lastTipDate: ''
+    userProgress: {
+      ...safeUserProgress,
+      // Double-check arrays are defined
+      weeklyMissions: safeUserProgress.weeklyMissions || [],
+      tipsRead: safeUserProgress.tipsRead || [],
+      categoriesUsed: safeUserProgress.categoriesUsed || [],
+      badgesEarned: safeUserProgress.badgesEarned || [],
+      challengesCompleted: safeUserProgress.challengesCompleted || []
     },
     badges: getAllBadges(),
     activeChallenges: activeChallenges || [],

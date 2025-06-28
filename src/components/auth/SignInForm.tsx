@@ -55,10 +55,12 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
         password,
       });
 
+      console.log('Sign in response:', { data, error });
+
       if (error) {
         console.error('Sign in error:', error);
         
-        if (error.message.includes('Invalid login credentials') || error.message.includes('Email not confirmed')) {
+        if (error.message.includes('Invalid login credentials')) {
           toast({
             title: "Sign in failed",
             description: "Invalid email or password. Please check your credentials and try again.",
@@ -80,8 +82,9 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
         return;
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         console.log('User signed in successfully:', data.user.email);
+        console.log('Session created:', data.session);
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in to CountedCare.",
@@ -118,7 +121,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
       console.log('Sending password reset email to:', resetEmail);
       
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: `${window.location.origin}/auth`,
       });
 
       if (error) {
@@ -133,7 +136,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
 
       toast({
         title: "Password reset email sent!",
-        description: "Check your email for a link to reset your password. The link will take you back to this page where you can set a new password.",
+        description: "Check your email for a link to reset your password.",
       });
       
       setResetDialogOpen(false);
@@ -170,6 +173,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
+              autoComplete="email"
             />
           </div>
           <div className="space-y-2">
@@ -182,6 +186,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>

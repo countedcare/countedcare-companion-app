@@ -1,7 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { MapPin, Calculator, Route } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -9,34 +7,23 @@ import PlacesAutocomplete from '@/components/places/PlacesAutocomplete';
 
 interface MileageCalculatorProps {
   onAmountCalculated: (amount: number) => void;
-  initialMiles?: number;
-  initialRate?: number;
   apiKey: string;
 }
 
 const MileageCalculator: React.FC<MileageCalculatorProps> = ({
   onAmountCalculated,
-  initialMiles = 0,
-  initialRate = 0.67, // 2024 IRS standard mileage rate updated
   apiKey
 }) => {
   const { toast } = useToast();
-  const [miles, setMiles] = useState(initialMiles.toString());
-  const [rate, setRate] = useState(initialRate.toString());
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
   const [startPlace, setStartPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [endPlace, setEndPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [calculatedAmount, setCalculatedAmount] = useState(0);
+  const [calculatedMiles, setCalculatedMiles] = useState(0);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
-
-  useEffect(() => {
-    const milesNum = parseFloat(miles) || 0;
-    const rateNum = parseFloat(rate) || 0;
-    const amount = milesNum * rateNum;
-    setCalculatedAmount(amount);
-    onAmountCalculated(amount);
-  }, [miles, rate, onAmountCalculated]);
+  
+  const IRS_RATE = 0.67; // 2024 IRS standard mileage rate
 
   const handleStartLocationSelect = (place: google.maps.places.PlaceResult) => {
     setStartPlace(place);
@@ -48,7 +35,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
     setEndLocation(place.formatted_address || place.name || '');
   };
 
-  const calculateDistanceUsingPlaces = () => {
+  const calculateDistanceAndAmount = () => {
     if (!startPlace?.geometry?.location || !endPlace?.geometry?.location) {
       toast({
         title: "Location Error",
@@ -76,15 +63,18 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
         if (status === google.maps.DistanceMatrixStatus.OK && response) {
           const element = response.rows[0]?.elements[0];
           if (element?.status === google.maps.DistanceMatrixElementStatus.OK) {
-            const distanceText = element.distance?.text || '';
             const distanceValue = element.distance?.value || 0; // in meters
-            const distanceInMiles = (distanceValue * 0.000621371).toFixed(1);
+            const distanceInMiles = distanceValue * 0.000621371; // Convert to miles
+            const roundedMiles = Math.round(distanceInMiles * 10) / 10; // Round to 1 decimal
+            const amount = roundedMiles * IRS_RATE;
 
-            setMiles(distanceInMiles);
+            setCalculatedMiles(roundedMiles);
+            setCalculatedAmount(amount);
+            onAmountCalculated(amount);
             
             toast({
               title: "Distance Calculated!",
-              description: `${distanceText} (${distanceInMiles} miles) between your locations.`,
+              description: `${roundedMiles} miles at $${IRS_RATE}/mile = $${amount.toFixed(2)}`,
             });
           } else {
             toast({
@@ -96,7 +86,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
         } else {
           toast({
             title: "Distance Calculation Failed",
-            description: "Unable to calculate distance. Please enter miles manually.",
+            description: "Unable to calculate distance. Please try again.",
             variant: "destructive"
           });
         }
@@ -106,7 +96,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
       console.error('Distance calculation error:', error);
       toast({
         title: "Service Unavailable",
-        description: "Distance calculation service is not available. Please enter miles manually.",
+        description: "Distance calculation service is not available. Please try again.",
         variant: "destructive"
       });
     }
@@ -118,7 +108,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
     <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
       <div className="flex items-center gap-2">
         <MapPin className="h-4 w-4 text-blue-600" />
-        <h4 className="font-medium text-blue-900">Mileage Calculator</h4>
+        <h4 className="font-medium text-blue-900">Track Mileage</h4>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -144,44 +134,14 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
       <div className="flex justify-center">
         <Button
           type="button"
-          onClick={calculateDistanceUsingPlaces}
+          onClick={calculateDistanceAndAmount}
           disabled={isCalculatingDistance || !canCalculateDistance}
           className="flex items-center gap-2"
           variant="outline"
         >
           <Route className="h-4 w-4" />
-          {isCalculatingDistance ? 'Calculating...' : 'Calculate Distance'}
+          {isCalculatingDistance ? 'Calculating...' : 'Calculate Mileage'}
         </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="miles">Miles Driven*</Label>
-          <Input
-            id="miles"
-            type="number"
-            placeholder="0"
-            step="0.1"
-            min="0"
-            value={miles}
-            onChange={(e) => setMiles(e.target.value)}
-            required
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="rate">Rate per Mile ($)</Label>
-          <Input
-            id="rate"
-            type="number"
-            placeholder="0.67"
-            step="0.01"
-            min="0"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-          />
-          <p className="text-xs text-blue-600">2024 IRS standard rate: $0.67/mile</p>
-        </div>
       </div>
       
       {calculatedAmount > 0 && (
@@ -189,17 +149,21 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calculator className="h-4 w-4 text-green-600" />
-              <span className="font-medium text-green-900">Calculated Amount:</span>
+              <span className="font-medium text-green-900">Deductible Amount:</span>
             </div>
             <span className="text-lg font-bold text-green-900">
               ${calculatedAmount.toFixed(2)}
             </span>
           </div>
           <p className="text-sm text-green-700 mt-1">
-            {miles} miles × ${rate}/mile = ${calculatedAmount.toFixed(2)}
+            {calculatedMiles} miles × ${IRS_RATE}/mile (2024 IRS rate)
           </p>
         </div>
       )}
+      
+      <p className="text-xs text-blue-600">
+        * Based on 2024 IRS standard mileage rate of ${IRS_RATE} per mile
+      </p>
     </div>
   );
 };

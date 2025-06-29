@@ -53,30 +53,26 @@ const PasswordResetForm = ({ onSuccess }: PasswordResetFormProps) => {
     try {
       console.log('Updating password...');
       
-      // First check if we have a valid session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error('No valid session for password reset:', sessionError);
-        toast({
-          title: "Session expired",
-          description: "Your password reset session has expired. Please request a new password reset link.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const { error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
         console.error('Password update error:', error);
-        toast({
-          title: "Password update failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        
+        if (error.message.includes('session_not_found') || error.message.includes('invalid_session')) {
+          toast({
+            title: "Session expired",
+            description: "Your password reset session has expired. Please request a new password reset link.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Password update failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return;
       }
 

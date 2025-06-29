@@ -24,7 +24,7 @@ const Auth = () => {
     // Check if user is already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && !searchParams.get('access_token')) {
+      if (session && !searchParams.get('access_token') && !searchParams.get('type')) {
         navigate('/dashboard');
       }
     };
@@ -32,39 +32,16 @@ const Auth = () => {
     checkUser();
 
     // Check URL parameters for password recovery
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
     const type = searchParams.get('type');
     
-    console.log('URL params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
+    console.log('URL params:', { type, hasAccessToken: !!searchParams.get('access_token') });
 
-    if (type === 'recovery' && accessToken && refreshToken) {
-      // Set the session with the tokens from the URL
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('Error setting session:', error);
-          toast({
-            title: "Session Error",
-            description: "There was an error with your password reset link. Please try requesting a new one.",
-            variant: "destructive",
-          });
-        } else {
-          console.log('Session set successfully for password recovery');
-          setIsPasswordRecovery(true);
-          toast({
-            title: "Password Reset",
-            description: "Please enter your new password below.",
-          });
-        }
-      });
-    } else if (type === 'recovery') {
+    if (type === 'recovery') {
+      console.log('Password recovery detected from URL');
+      setIsPasswordRecovery(true);
       toast({
-        title: "Invalid Reset Link",
-        description: "This password reset link is invalid or has expired. Please request a new one.",
-        variant: "destructive",
+        title: "Password Reset",
+        description: "Please enter your new password below.",
       });
     }
 
@@ -77,6 +54,7 @@ const Auth = () => {
       }
       
       if (event === 'PASSWORD_RECOVERY') {
+        console.log('PASSWORD_RECOVERY event detected');
         setIsPasswordRecovery(true);
         toast({
           title: "Password Reset Ready",
@@ -111,7 +89,7 @@ const Auth = () => {
               setIsPasswordRecovery(false);
               toast({
                 title: "Password Updated Successfully!",
-                description: "Your password has been updated. You will now be signed in automatically.",
+                description: "Your password has been updated. You are now signed in.",
               });
               // The auth state change will handle navigation to dashboard
             }}

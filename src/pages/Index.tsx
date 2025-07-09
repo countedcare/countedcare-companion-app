@@ -11,31 +11,28 @@ const Index = () => {
     name: '',
     email: '',
     isCaregiver: true,
-    onboardingComplete: false
+    onboardingComplete: false,
   });
 
   useEffect(() => {
     if (loading) return;
-    
-    // Check for password recovery in URL first
+
     const urlParams = new URLSearchParams(window.location.search);
     const isPasswordRecovery = urlParams.get('type') === 'recovery';
-    
+
     if (isPasswordRecovery) {
-      // Redirect to auth page with recovery parameters
-      navigate('/auth' + window.location.search);
+      // Send user directly to password reset screen
+      navigate('/auth/reset-password' + window.location.search);
       return;
     }
-    
+
     if (user) {
-      // User is authenticated
       if (localUser.onboardingComplete) {
         navigate('/dashboard');
       } else {
         navigate('/onboarding');
       }
     } else {
-      // User is not authenticated, show auth screen
       navigate('/auth');
     }
   }, [user, loading, localUser.onboardingComplete, navigate]);

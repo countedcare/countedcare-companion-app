@@ -51,14 +51,19 @@ const Onboarding = () => {
   }, [user, authLoading, localUser.onboardingComplete, navigate]);
 
   const handleNext = () => {
-    // Validate step 1 (User Info)
-    if (step === 1 && (!localUser.name || !localUser.email)) {
-      toast({
-        title: "Please complete your information",
-        description: "Your name and email are required to continue.",
-        variant: "destructive",
-      });
-      return;
+    // Validate step 1 (User Info) - check both local user and auth user for name/email
+    if (step === 1) {
+      const hasName = localUser.name || user?.user_metadata?.name || user?.user_metadata?.full_name;
+      const hasEmail = localUser.email || user?.email;
+      
+      if (!hasName || !hasEmail) {
+        toast({
+          title: "Please complete your information",
+          description: "Your name and email are required to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     if (step === 2) {

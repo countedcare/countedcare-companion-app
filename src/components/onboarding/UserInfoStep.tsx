@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, US_STATES } from '@/types/User';
 import { Info } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserInfoStepProps {
   user: User;
@@ -12,6 +13,29 @@ interface UserInfoStepProps {
 }
 
 const UserInfoStep: React.FC<UserInfoStepProps> = ({ user, setUser }) => {
+  const { user: authUser } = useAuth();
+  
+  // Check if we already have name and email from auth
+  const hasName = authUser?.user_metadata?.name || authUser?.user_metadata?.full_name || user.name;
+  const hasEmail = authUser?.email || user.email;
+  
+  // Auto-populate from auth if available
+  React.useEffect(() => {
+    const updates: Partial<User> = {};
+    
+    if (!user.name && (authUser?.user_metadata?.name || authUser?.user_metadata?.full_name)) {
+      updates.name = authUser.user_metadata.name || authUser.user_metadata.full_name;
+    }
+    
+    if (!user.email && authUser?.email) {
+      updates.email = authUser.email;
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      setUser({ ...user, ...updates });
+    }
+  }, [authUser, user, setUser]);
+
   return (
     <div>
       <h2 className="text-xl font-heading mb-2">Let's get to know you</h2>
@@ -20,32 +44,36 @@ const UserInfoStep: React.FC<UserInfoStepProps> = ({ user, setUser }) => {
       </p>
       
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-sm font-medium">
-            Your Name <span className="text-red-500">*</span>
-          </Label>
-          <Input 
-            id="name" 
-            placeholder="Enter your full name" 
-            value={user.name} 
-            onChange={(e) => setUser({...user, name: e.target.value})}
-            className={!user.name ? "border-red-200 focus:border-red-300" : ""}
-          />
-        </div>
+        {!hasName && (
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">
+              Your Name <span className="text-red-500">*</span>
+            </Label>
+            <Input 
+              id="name" 
+              placeholder="Enter your full name" 
+              value={user.name} 
+              onChange={(e) => setUser({...user, name: e.target.value})}
+              className={!user.name ? "border-red-200 focus:border-red-300" : ""}
+            />
+          </div>
+        )}
         
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium">
-            Email Address <span className="text-red-500">*</span>
-          </Label>
-          <Input 
-            id="email" 
-            type="email" 
-            placeholder="your@email.com" 
-            value={user.email} 
-            onChange={(e) => setUser({...user, email: e.target.value})}
-            className={!user.email ? "border-red-200 focus:border-red-300" : ""}
-          />
-        </div>
+        {!hasEmail && (
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-medium">
+              Email Address <span className="text-red-500">*</span>
+            </Label>
+            <Input 
+              id="email" 
+              type="email" 
+              placeholder="your@email.com" 
+              value={user.email} 
+              onChange={(e) => setUser({...user, email: e.target.value})}
+              className={!user.email ? "border-red-200 focus:border-red-300" : ""}
+            />
+          </div>
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">

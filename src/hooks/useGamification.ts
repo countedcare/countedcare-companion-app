@@ -66,7 +66,7 @@ export const useGamification = (expenses: Expense[]) => {
         lastMissionReset: now.toISOString()
       }));
     }
-  }, [userProgress?.lastMissionReset, setUserProgress]);
+  }, [userProgress?.lastMissionReset]);
 
   // Calculate current progress based on expenses
   useEffect(() => {
@@ -125,7 +125,7 @@ export const useGamification = (expenses: Expense[]) => {
       ...newProgress,
       weeklyMissions: updatedMissions
     });
-  }, [expenses, userProgress?.lastMissionReset, setUserProgress]);
+  }, [expenses, userProgress?.lastMissionReset]);
 
   // Check for new badges
   useEffect(() => {
@@ -171,7 +171,7 @@ export const useGamification = (expenses: Expense[]) => {
         type: 'badge'
       });
     }
-  }, [userProgress?.expenseCount, userProgress?.totalExpenses, userProgress?.currentStreak, userProgress?.categoriesUsed, setUserProgress]);
+  }, [userProgress?.expenseCount, userProgress?.totalExpenses, userProgress?.currentStreak, userProgress?.categoriesUsed?.length]);
 
   const getAllBadges = (): Badge[] => {
     if (!userProgress || !userProgress.badgesEarned) {

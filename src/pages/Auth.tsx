@@ -21,11 +21,11 @@ const Auth = () => {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
+  // Check if user is already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && !searchParams.get('access_token') && !searchParams.get('type')) {
-        navigate('/dashboard');
+        navigate('/');
       }
     };
     
@@ -50,7 +50,7 @@ const Auth = () => {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_IN' && session && !isPasswordRecovery) {
-        navigate('/dashboard');
+        navigate('/');
       }
       
       if (event === 'PASSWORD_RECOVERY') {

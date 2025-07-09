@@ -17,6 +17,16 @@ const Index = () => {
   useEffect(() => {
     if (loading) return;
     
+    // Check for password recovery in URL first
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPasswordRecovery = urlParams.get('type') === 'recovery';
+    
+    if (isPasswordRecovery) {
+      // Redirect to auth page with recovery parameters
+      navigate('/auth' + window.location.search);
+      return;
+    }
+    
     if (user) {
       // User is authenticated
       if (localUser.onboardingComplete) {

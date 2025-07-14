@@ -26,14 +26,11 @@ const Index = () => {
       return;
     }
 
-    if (user) {
-      if (localUser.onboardingComplete) {
-        navigate('/dashboard');
-      } else {
-        navigate('/onboarding');
-      }
+    // Temporarily bypass auth - go directly to onboarding for new users, dashboard for completed users
+    if (localUser.onboardingComplete) {
+      navigate('/dashboard');
     } else {
-      navigate('/auth');
+      navigate('/onboarding');
     }
   }, [user, loading, localUser.onboardingComplete, navigate]);
 

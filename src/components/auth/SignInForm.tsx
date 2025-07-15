@@ -151,7 +151,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
       console.log('Sending password reset email to:', resetEmail);
       
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {

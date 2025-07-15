@@ -31,127 +31,79 @@ serve(async (req) => {
   }
 
   try {
-    const { from, to } = await req.json()
+    const body = await req.json()
+    const from = body?.from
+    const to = body?.to
 
     if (!from || !to) {
-      return new Response(
-        JSON.stringify({ error: 'Missing from or to address' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      console.error('Missing required parameters:', { from: !!from, to: !!to })
+      return new Response('Missing from or to address', { 
+        status: 400,
+        headers: corsHeaders
+      })
     }
 
-    // Get the API key from Supabase secrets
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
-    console.log('API Key present:', !!apiKey)
-    
     if (!apiKey) {
       console.error('Google Maps API key not found in environment variables')
-      return new Response(
-        JSON.stringify({ error: 'Google Maps API key not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return new Response('Google Maps API key not configured', { 
+        status: 500,
+        headers: corsHeaders
+      })
     }
 
-    // Encode addresses for URL
-    const encodedFrom = encodeURIComponent(from)
-    const encodedTo = encodeURIComponent(to)
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&units=imperial&key=${apiKey}`
+    console.log('Making request to Google Maps API for:', { from, to })
 
-    // Call Google Maps Distance Matrix API
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodedFrom}&destinations=${encodedTo}&units=imperial&key=${apiKey}`
-    console.log('Making request to Google Maps API')
-    
-    const response = await fetch(url)
+    const res = await fetch(url)
+    const data = await res.json()
 
-    if (!response.ok) {
-      console.error('Google Maps API HTTP error:', response.status, response.statusText)
-      throw new Error(`Google Maps API responded with status: ${response.status}`)
+    if (res.status !== 200) {
+      console.error('Google Maps API error:', data)
+      return new Response('Google Maps API failed', { 
+        status: 502,
+        headers: corsHeaders
+      })
     }
-
-    const data: DistanceMatrixResponse = await response.json()
-    console.log('Google Maps API response:', JSON.stringify(data, null, 2))
 
     if (data.status !== 'OK') {
-      console.error('Google Maps API status error:', data.status)
-      return new Response(
-        JSON.stringify({ error: `Google Maps API error: ${data.status}` }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      console.error('Google Maps API status error:', data.status, data.error_message)
+      return new Response(`Google Maps API error: ${data.status}`, { 
+        status: 400,
+        headers: corsHeaders
+      })
     }
 
     const element = data.rows[0]?.elements[0]
-    
-    if (!element || element.status !== 'OK') {
-      return new Response(
-        JSON.stringify({ error: 'Unable to calculate distance between addresses' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+    if (!element || element.status !== 'OK' || !element.distance) {
+      console.error('Invalid distance data:', element)
+      return new Response('Unable to calculate distance', { 
+        status: 400,
+        headers: corsHeaders
+      })
     }
 
-    if (!element.distance) {
-      return new Response(
-        JSON.stringify({ error: 'Distance data not available' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+    const distanceMeters = element.distance.value
+    const miles = distanceMeters / 1609.34
+    const deduction = miles * 0.67
 
-    // Extract distance in miles (Google returns in meters, convert to miles)
-    const distanceInMeters = element.distance.value
-    const distanceInMiles = distanceInMeters * 0.000621371 // Convert meters to miles
-    
-    // Calculate IRS reimbursement at $0.67 per mile for 2024
-    const irsRate = 0.67
-    const estimatedDeduction = distanceInMiles * irsRate
+    console.log('Calculation successful:', { miles: miles.toFixed(2), deduction: deduction.toFixed(2) })
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          from: data.origin_addresses[0],
-          to: data.destination_addresses[0],
-          distance: {
-            miles: Math.round(distanceInMiles * 10) / 10, // Round to 1 decimal place
-            text: element.distance.text
-          },
-          duration: element.duration ? {
-            text: element.duration.text,
-            minutes: Math.round(element.duration.value / 60)
-          } : null,
-          estimatedDeduction: Math.round(estimatedDeduction * 100) / 100, // Round to 2 decimal places
-          irsRate
-        }
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    return new Response(JSON.stringify({ 
+      miles: Math.round(miles * 10) / 10, 
+      deduction: Math.round(deduction * 100) / 100 
+    }), {
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json' 
       }
-    )
+    })
 
-  } catch (error) {
-    console.error('Error in calculate-mileage function:', error)
-    
-    return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error', 
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+  } catch (err) {
+    console.error('Server error:', err)
+    return new Response('Internal Server Error', { 
+      status: 500,
+      headers: corsHeaders
+    })
   }
 })

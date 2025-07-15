@@ -1,114 +1,133 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { MapPin, Calculator, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calculator, Route } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import PlacesAutocomplete from '@/components/places/PlacesAutocomplete';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MileageCalculatorProps {
   onAmountCalculated: (amount: number) => void;
-  apiKey: string;
+  apiKey?: string;
 }
 
-const MileageCalculator: React.FC<MileageCalculatorProps> = ({
-  onAmountCalculated,
-  apiKey
-}) => {
+interface MileageResult {
+  from: string;
+  to: string;
+  distance: {
+    miles: number;
+    text: string;
+  };
+  duration?: {
+    text: string;
+    minutes: number;
+  };
+  estimatedDeduction: number;
+  irsRate: number;
+}
+
+const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculated }) => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [startLocation, setStartLocation] = useState('');
-  const [endLocation, setEndLocation] = useState('');
-  const [startPlace, setStartPlace] = useState<google.maps.places.PlaceResult | null>(null);
-  const [endPlace, setEndPlace] = useState<google.maps.places.PlaceResult | null>(null);
-  const [calculatedAmount, setCalculatedAmount] = useState(0);
-  const [calculatedMiles, setCalculatedMiles] = useState(0);
-  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   
-  const IRS_RATE = 0.67; // 2024 IRS standard mileage rate
+  const [fromAddress, setFromAddress] = useState('');
+  const [toAddress, setToAddress] = useState('');
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [result, setResult] = useState<MileageResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    console.log('MileageCalculator received API key:', apiKey ? 'Key provided' : 'No key');
-  }, [apiKey]);
-
-  const handleStartLocationSelect = (place: google.maps.places.PlaceResult) => {
-    console.log('Start location selected:', place);
-    setStartPlace(place);
-    setStartLocation(place.formatted_address || place.name || '');
-  };
-
-  const handleEndLocationSelect = (place: google.maps.places.PlaceResult) => {
-    console.log('End location selected:', place);
-    setEndPlace(place);
-    setEndLocation(place.formatted_address || place.name || '');
-  };
-
-  const calculateDistanceAndAmount = () => {
-    if (!startPlace?.geometry?.location || !endPlace?.geometry?.location) {
+  const calculateMileage = async () => {
+    if (!fromAddress.trim() || !toAddress.trim()) {
       toast({
-        title: "Location Error",
-        description: "Please select valid locations from the dropdown suggestions.",
+        title: "Missing Information",
+        description: "Please enter both 'From' and 'To' addresses.",
         variant: "destructive"
       });
       return;
     }
 
-    setIsCalculatingDistance(true);
+    setIsCalculating(true);
+    setError(null);
+    setResult(null);
 
     try {
-      const service = new google.maps.DistanceMatrixService();
-      
-      service.getDistanceMatrix({
-        origins: [startPlace.geometry.location],
-        destinations: [endPlace.geometry.location],
-        travelMode: google.maps.TravelMode.DRIVING,
-        unitSystem: google.maps.UnitSystem.IMPERIAL,
-        avoidHighways: false,
-        avoidTolls: false
-      }, (response, status) => {
-        setIsCalculatingDistance(false);
-        
-        if (status === google.maps.DistanceMatrixStatus.OK && response) {
-          const element = response.rows[0]?.elements[0];
-          if (element?.status === google.maps.DistanceMatrixElementStatus.OK) {
-            const distanceValue = element.distance?.value || 0; // in meters
-            const distanceInMiles = distanceValue * 0.000621371; // Convert to miles
-            const roundedMiles = Math.round(distanceInMiles * 10) / 10; // Round to 1 decimal
-            const amount = roundedMiles * IRS_RATE;
-
-            setCalculatedMiles(roundedMiles);
-            setCalculatedAmount(amount);
-            onAmountCalculated(amount);
-            
-            toast({
-              title: "Distance Calculated!",
-              description: `${roundedMiles} miles at $${IRS_RATE}/mile = $${amount.toFixed(2)}`,
-            });
-          } else {
-            toast({
-              title: "Route Not Found",
-              description: "Could not find a driving route between these locations.",
-              variant: "destructive"
-            });
-          }
-        } else {
-          toast({
-            title: "Distance Calculation Failed",
-            description: "Unable to calculate distance. Please try again.",
-            variant: "destructive"
-          });
+      const { data, error } = await supabase.functions.invoke('calculate-mileage', {
+        body: {
+          from: fromAddress.trim(),
+          to: toAddress.trim()
         }
       });
-    } catch (error) {
-      setIsCalculatingDistance(false);
-      console.error('Distance calculation error:', error);
+
+      if (error) {
+        throw new Error(error.message || 'Failed to calculate mileage');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to calculate mileage');
+      }
+
+      setResult(data.data);
+      onAmountCalculated(data.data.estimatedDeduction);
+      
       toast({
-        title: "Service Unavailable",
-        description: "Distance calculation service is not available. Please try again.",
+        title: "Mileage Calculated!",
+        description: `Distance: ${data.data.distance.miles} miles • Deduction: $${data.data.estimatedDeduction}`
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      
+      toast({
+        title: "Calculation Failed",
+        description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setIsCalculating(false);
     }
   };
 
-  const canCalculateDistance = startPlace && endPlace && window.google?.maps?.DistanceMatrixService;
+  const saveMileageLog = async () => {
+    if (!user || !result) return;
+
+    setIsSaving(true);
+    
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .insert({
+          user_id: user.id,
+          amount: result.estimatedDeduction,
+          category: '🚘 Transportation & Travel for Medical Care',
+          description: `Mileage: ${result.from} to ${result.to}`,
+          date: new Date().toISOString().split('T')[0],
+          is_tax_deductible: true,
+          notes: `Distance: ${result.distance.miles} miles at $${result.irsRate}/mile IRS rate`
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Mileage Log Saved!",
+        description: "Your mileage expense has been added to your records."
+      });
+
+    } catch (err) {
+      console.error('Error saving mileage log:', err);
+      toast({
+        title: "Save Failed",
+        description: "Could not save mileage log. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
@@ -117,58 +136,98 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({
         <h4 className="font-medium text-blue-900">Track Mileage</h4>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <PlacesAutocomplete
-          onPlaceSelect={handleStartLocationSelect}
-          placeholder="Enter starting address..."
-          label="From"
-          value={startLocation}
-          apiKey={apiKey}
-          types={['geocode', 'establishment']}
-        />
+      <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="from-address" className="text-sm font-medium">From Address</Label>
+          <Input
+            id="from-address"
+            placeholder="Enter starting address"
+            value={fromAddress}
+            onChange={(e) => setFromAddress(e.target.value)}
+            className="bg-white"
+          />
+        </div>
         
-        <PlacesAutocomplete
-          onPlaceSelect={handleEndLocationSelect}
-          placeholder="Enter destination address..."
-          label="To"
-          value={endLocation}
-          apiKey={apiKey}
-          types={['geocode', 'establishment']}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="to-address" className="text-sm font-medium">To Address</Label>
+          <Input
+            id="to-address"
+            placeholder="Enter destination address"
+            value={toAddress}
+            onChange={(e) => setToAddress(e.target.value)}
+            className="bg-white"
+          />
+        </div>
       </div>
 
-      <div className="flex justify-center">
-        <Button
-          type="button"
-          onClick={calculateDistanceAndAmount}
-          disabled={isCalculatingDistance || !canCalculateDistance}
-          className="flex items-center gap-2"
-          variant="outline"
-        >
-          <Route className="h-4 w-4" />
-          {isCalculatingDistance ? 'Calculating...' : 'Calculate Mileage'}
-        </Button>
-      </div>
-      
-      {calculatedAmount > 0 && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calculator className="h-4 w-4 text-green-600" />
-              <span className="font-medium text-green-900">Deductible Amount:</span>
+      <Button
+        onClick={calculateMileage}
+        disabled={isCalculating || !fromAddress.trim() || !toAddress.trim()}
+        className="w-full"
+      >
+        {isCalculating ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Calculating...
+          </>
+        ) : (
+          <>
+            <Calculator className="h-4 w-4 mr-2" />
+            Calculate Mileage
+          </>
+        )}
+      </Button>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {result && (
+        <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-md">
+          <div className="space-y-2">
+            <h4 className="font-semibold text-sm text-green-900">Calculation Results</h4>
+            <div className="text-sm space-y-1 text-green-800">
+              <p><strong>From:</strong> {result.from}</p>
+              <p><strong>To:</strong> {result.to}</p>
+              <p><strong>Distance:</strong> {result.distance.miles} miles</p>
+              {result.duration && (
+                <p><strong>Duration:</strong> {result.duration.text}</p>
+              )}
+              <p className="text-lg font-bold text-green-900">
+                <strong>Estimated deduction:</strong> ${result.estimatedDeduction}
+              </p>
+              <p className="text-xs text-green-600">
+                Based on IRS rate of ${result.irsRate}/mile for 2024
+              </p>
             </div>
-            <span className="text-lg font-bold text-green-900">
-              ${calculatedAmount.toFixed(2)}
-            </span>
           </div>
-          <p className="text-sm text-green-700 mt-1">
-            {calculatedMiles} miles × ${IRS_RATE}/mile (2024 IRS rate)
-          </p>
+          
+          <Button
+            onClick={saveMileageLog}
+            disabled={isSaving}
+            variant="outline"
+            size="sm"
+            className="w-full bg-white"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Mileage Log
+              </>
+            )}
+          </Button>
         </div>
       )}
-      
+
       <p className="text-xs text-blue-600">
-        * Based on 2024 IRS standard mileage rate of ${IRS_RATE} per mile
+        * Based on 2024 IRS standard mileage rate of $0.67 per mile
       </p>
     </div>
   );

@@ -15,16 +15,16 @@ const Index = () => {
   });
 
   useEffect(() => {
-    if (loading) return;
-
     const urlParams = new URLSearchParams(window.location.search);
     const isPasswordRecovery = urlParams.get('type') === 'recovery';
 
+    // Always check for password recovery first, regardless of loading or auth state
     if (isPasswordRecovery) {
-      // Send user directly to reset password page
       navigate('/reset-password' + window.location.search);
       return;
     }
+
+    if (loading) return;
 
     if (user) {
       if (localUser.onboardingComplete) {

@@ -45,7 +45,10 @@ serve(async (req) => {
 
     // Get the API key from Supabase secrets
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    console.log('API Key present:', !!apiKey)
+    
     if (!apiKey) {
+      console.error('Google Maps API key not found in environment variables')
       return new Response(
         JSON.stringify({ error: 'Google Maps API key not configured' }),
         { 
@@ -60,17 +63,21 @@ serve(async (req) => {
     const encodedTo = encodeURIComponent(to)
 
     // Call Google Maps Distance Matrix API
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodedFrom}&destinations=${encodedTo}&units=imperial&key=${apiKey}`
-    )
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodedFrom}&destinations=${encodedTo}&units=imperial&key=${apiKey}`
+    console.log('Making request to Google Maps API')
+    
+    const response = await fetch(url)
 
     if (!response.ok) {
+      console.error('Google Maps API HTTP error:', response.status, response.statusText)
       throw new Error(`Google Maps API responded with status: ${response.status}`)
     }
 
     const data: DistanceMatrixResponse = await response.json()
+    console.log('Google Maps API response:', JSON.stringify(data, null, 2))
 
     if (data.status !== 'OK') {
+      console.error('Google Maps API status error:', data.status)
       return new Response(
         JSON.stringify({ error: `Google Maps API error: ${data.status}` }),
         { 

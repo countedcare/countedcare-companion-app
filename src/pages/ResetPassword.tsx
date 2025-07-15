@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 
@@ -7,6 +7,16 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash && hash.includes('access_token')) {
+      supabase.auth.setSession({
+        access_token: new URLSearchParams(hash.replace('#', '?')).get('access_token')!,
+        refresh_token: new URLSearchParams(hash.replace('#', '?')).get('refresh_token')!,
+      })
+    }
+  }, [])
 
   const handleReset = async () => {
     setLoading(true)

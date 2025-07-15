@@ -281,6 +281,36 @@ export type Database = {
           },
         ]
       }
+      user_documents: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          document_type: string
+          id: number
+          is_shared: boolean | null
+          sensitivity_level: number
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          document_type: string
+          id?: never
+          is_shared?: boolean | null
+          sensitivity_level: number
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          document_type?: string
+          id?: never
+          is_shared?: boolean | null
+          sensitivity_level?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

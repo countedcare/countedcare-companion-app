@@ -21,8 +21,8 @@ const Index = () => {
     const isPasswordRecovery = urlParams.get('type') === 'recovery';
 
     if (isPasswordRecovery) {
-      // Send user directly to password reset screen
-      navigate('/auth/reset-password' + window.location.search);
+      // Send user directly to auth page which handles password reset
+      navigate('/auth' + window.location.search);
       return;
     }
 

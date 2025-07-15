@@ -15,6 +15,7 @@ const ResetPassword = () => {
         access_token: new URLSearchParams(hash.replace('#', '?')).get('access_token')!,
         refresh_token: new URLSearchParams(hash.replace('#', '?')).get('refresh_token')!,
       })
+      supabase.auth.getSession().then(console.log)
     }
   }, [])
 

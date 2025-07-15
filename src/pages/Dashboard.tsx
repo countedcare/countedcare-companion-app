@@ -1,18 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus, Receipt, FileText } from 'lucide-react';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { User, Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
-import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
-import ExpenseSummaryCard from '@/components/dashboard/ExpenseSummaryCard';
-import ExpenseAccountsList from '@/components/dashboard/ExpenseAccountsList';
-import QuickActions from '@/components/dashboard/QuickActions';
-import ExpenseChart from '@/components/dashboard/ExpenseChart';
-import LatestExpenses from '@/components/dashboard/LatestExpenses';
-import GamificationSection from '@/components/dashboard/GamificationSection';
+import { User, Expense } from '@/types/User';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [user] = useLocalStorage<User>('countedcare-user', {
     name: '',
     email: '',
@@ -20,9 +20,9 @@ const Dashboard = () => {
     onboardingComplete: false
   });
   
-  const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
-  const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  const [timeFrame, setTimeFrame] = useState<'month' | 'year'>('month');
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Redirect to onboarding if not completed
   React.useEffect(() => {
@@ -31,149 +31,203 @@ const Dashboard = () => {
     }
   }, [user, navigate]);
 
-  // Calculate total expenses for current period
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
-      
-      if (timeFrame === 'month') {
-        return expenseDate.getMonth() === currentMonth && 
-               expenseDate.getFullYear() === currentYear;
-      } else {
-        return expenseDate.getFullYear() === currentYear;
-      }
-    });
-  }, [expenses, timeFrame, currentMonth, currentYear]);
-  
-  // Calculate total expenses
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const yearlyExpenses = expenses.filter(expense => {
-    const expenseDate = new Date(expense.date);
-    return expenseDate.getFullYear() === currentYear;
-  }).reduce((sum, expense) => sum + expense.amount, 0);
-  
-  // Calculate category totals
-  const categoryTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
+  // Load expenses from Supabase
+  const loadExpenses = async () => {
+    if (!authUser) return;
     
-    filteredExpenses.forEach(expense => {
-      if (!totals[expense.category]) {
-        totals[expense.category] = 0;
-      }
-      totals[expense.category] += expense.amount;
-    });
-    
-    return Object.entries(totals).map(([name, value]) => ({
-      name,
-      value
-    })).sort((a, b) => b.value - a.value);
-  }, [filteredExpenses]);
-  
-  // Calculate tax threshold based on income
-  const householdAGI = user.householdAGI || 100000; // Default 100k if not set
-  const incomeThreshold = householdAGI * 0.075; // 7.5% of income
-  const incomeProgressPercentage = Math.min((yearlyExpenses / incomeThreshold) * 100, 100);
-  
-  // Get the latest expenses
-  const latestExpenses = [...expenses].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  ).slice(0, 3);
-  
-  // Monthly data for bar chart
-  const monthlyData = useMemo(() => {
-    const data: Record<string, number> = {};
-    
-    // Initialize all months/categories
-    if (timeFrame === 'month') {
-      EXPENSE_CATEGORIES.forEach(category => {
-        data[category] = 0;
-      });
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false });
       
-      // Fill in actual data
-      filteredExpenses.forEach(expense => {
-        data[expense.category] += expense.amount;
-      });
+      if (error) throw error;
       
-      return Object.entries(data).map(([name, amount]) => ({
-        name,
-        amount
+      // Transform database format to local format
+      const transformedExpenses: Expense[] = (data || []).map(expense => ({
+        ...expense,
+        careRecipientId: expense.care_recipient_id || '',
+        receiptUrl: expense.receipt_url,
+        description: expense.description || expense.notes || '',
       }));
-    } else {
-      // Initialize all months
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      monthNames.forEach(month => {
-        data[month] = 0;
-      });
       
-      // Fill in actual data
-      expenses.filter(expense => {
-        const expenseDate = new Date(expense.date);
-        return expenseDate.getFullYear() === currentYear;
-      }).forEach(expense => {
-        const expenseDate = new Date(expense.date);
-        const monthName = monthNames[expenseDate.getMonth()];
-        data[monthName] += expense.amount;
-      });
-      
-      return Object.entries(data).map(([name, amount]) => ({
-        name,
-        amount
-      }));
+      setExpenses(transformedExpenses);
+    } catch (error) {
+      console.error('Error loading expenses:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [filteredExpenses, timeFrame, EXPENSE_CATEGORIES, expenses, currentYear]);
-
-  // Format currency helper
-  const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString()}`;
   };
 
-  const nextPayday = useMemo(() => {
-    // Just a simple calculation - assuming payday is every 2 weeks on Friday
-    const today = new Date();
-    const friday = new Date();
-    friday.setDate(today.getDate() + (5 - today.getDay() + 7) % 7);
-    if ((friday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) < 7) {
-      friday.setDate(friday.getDate() + 14);
+  useEffect(() => {
+    loadExpenses();
+  }, [authUser]);
+
+  // Auto-show receipt modal on first visit
+  useEffect(() => {
+    if (!loading && expenses.length === 0) {
+      setShowReceiptModal(true);
     }
-    const daysUntil = Math.ceil((friday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntil;
-  }, []);
+  }, [loading, expenses.length]);
+
+  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const potentiallyDeductible = expenses.filter(e => e.is_potentially_deductible === true).length;
+  
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="container-padding py-3 sm:py-6 space-y-4 sm:space-y-6">
-        <WelcomeBanner user={user} />
+      <div className="container-padding py-6 space-y-6">
+        {/* Simplified Header */}
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-heading text-foreground">
+            Welcome back, {user.name || 'Caregiver'}
+          </h1>
+          <p className="text-muted-foreground">
+            Track your caregiving expenses and discover tax deductions
+          </p>
+        </div>
 
-        <ExpenseSummaryCard
-          totalExpenses={totalExpenses}
-          timeFrame={timeFrame}
-          setTimeFrame={setTimeFrame}
-          incomeThreshold={incomeThreshold}
-          yearlyExpenses={yearlyExpenses}
-          incomeProgressPercentage={incomeProgressPercentage}
-          nextPayday={nextPayday}
-          formatCurrency={formatCurrency}
-        />
+        {/* Main CTA - Always prominent */}
+        <Card className="border-primary/20">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                <Receipt className="h-8 w-8 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold">Add an Expense</h2>
+                <p className="text-sm text-muted-foreground">
+                  Upload a receipt or enter expense details manually
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowReceiptModal(true)}
+                size="lg"
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Expense
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-        <ExpenseAccountsList categoryTotals={categoryTotals} />
+        {/* Simple Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Tracked
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Potential Deductions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{potentiallyDeductible}</div>
+              <p className="text-xs text-muted-foreground">
+                might qualify for tax deductions
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {expenses.length > 0 ? 
+                  new Date(expenses[0]?.created_at || expenses[0]?.date || '').toLocaleDateString() : 
+                  'None'
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                last expense added
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <QuickActions />
-
-        <GamificationSection expenses={expenses} />
-
-        <ExpenseChart
-          timeFrame={timeFrame}
-          categoryTotals={categoryTotals}
-          monthlyData={monthlyData}
-          filteredExpenses={filteredExpenses}
-        />
-
-        <LatestExpenses latestExpenses={latestExpenses} />
+        {/* Recent Expenses */}
+        {expenses.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Recent Expenses
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {expenses.slice(0, 5).map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="font-medium">{expense.category}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(expense.date).toLocaleDateString()}
+                        {expense.description && ` • ${expense.description}`}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{formatCurrency(expense.amount)}</div>
+                      {expense.is_potentially_deductible === true && (
+                        <div className="text-xs text-green-600">Potentially deductible</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {expenses.length > 5 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/expenses')}
+                    className="w-full"
+                  >
+                    View all {expenses.length} expenses
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+      
+      <ReceiptCaptureModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        onExpenseAdded={() => {
+          loadExpenses();
+          setShowReceiptModal(false);
+        }}
+      />
     </Layout>
   );
 };

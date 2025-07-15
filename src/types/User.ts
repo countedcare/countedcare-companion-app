@@ -196,15 +196,22 @@ export interface Expense {
   date: string;
   category: string;
   subcategory?: string;
-  description: string;
-  careRecipientId: string;
+  description?: string;
+  careRecipientId?: string;
   careRecipientName?: string;
   receiptUrl?: string;
   expense_tags?: string[];
   is_tax_deductible?: boolean;
   is_reimbursed?: boolean;
+  is_potentially_deductible?: boolean | null;
   reimbursement_source?: string;
   synced_transaction_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  care_recipient_id?: string;
+  receipt_url?: string;
+  notes?: string;
 }
 
 export interface Resource {

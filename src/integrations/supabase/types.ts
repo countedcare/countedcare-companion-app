@@ -60,6 +60,7 @@ export type Database = {
           description: string | null
           expense_tags: string[] | null
           id: string
+          is_potentially_deductible: boolean | null
           is_reimbursed: boolean | null
           is_tax_deductible: boolean | null
           notes: string | null
@@ -78,6 +79,7 @@ export type Database = {
           description?: string | null
           expense_tags?: string[] | null
           id?: string
+          is_potentially_deductible?: boolean | null
           is_reimbursed?: boolean | null
           is_tax_deductible?: boolean | null
           notes?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           description?: string | null
           expense_tags?: string[] | null
           id?: string
+          is_potentially_deductible?: boolean | null
           is_reimbursed?: boolean | null
           is_tax_deductible?: boolean | null
           notes?: string | null

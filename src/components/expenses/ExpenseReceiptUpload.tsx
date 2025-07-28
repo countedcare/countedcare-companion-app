@@ -33,6 +33,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       const reader = new FileReader();
       reader.onload = () => {
         const base64String = reader.result as string;
+        // Remove the data URL prefix (data:image/jpeg;base64,) 
         const base64Data = base64String.split(',')[1];
         resolve(base64Data);
       };
@@ -89,26 +90,36 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     setIsUploading(true);
     
     try {
+      console.log('File selected:', file.type, file.size);
+      
+      // Validate file type
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        throw new Error('Please select an image or PDF file');
+      }
+      
       // Create object URL for immediate preview
       const fileUrl = URL.createObjectURL(file);
       setReceiptUrl(fileUrl);
+      
+      console.log('File URL created:', fileUrl);
       
       toast({
         title: "Receipt Uploaded",
         description: "Your receipt has been attached to this expense."
       });
 
-      // Process with Gemini AI for expense data extraction if it's an image or document
-      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+      // Process with Gemini AI for expense data extraction if it's an image
+      if (file.type.startsWith('image/')) {
         await processDocumentWithGemini(file);
       }
     } catch (error) {
       console.error('Upload error:', error);
       toast({
         title: "Upload Error",
-        description: "There was an issue uploading your receipt.",
+        description: error instanceof Error ? error.message : "There was an issue uploading your receipt.",
         variant: "destructive"
       });
+      setReceiptUrl(undefined);
     } finally {
       setIsUploading(false);
     }

@@ -88,21 +88,30 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     
     setIsUploading(true);
     
-    // Create object URL for preview
-    const fileUrl = URL.createObjectURL(file);
-    setReceiptUrl(fileUrl);
+    try {
+      // Create object URL for immediate preview
+      const fileUrl = URL.createObjectURL(file);
+      setReceiptUrl(fileUrl);
+      
+      toast({
+        title: "Receipt Uploaded",
+        description: "Your receipt has been attached to this expense."
+      });
 
-    // Process with Gemini AI for expense data extraction if it's an image or document
-    if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-      await processDocumentWithGemini(file);
+      // Process with Gemini AI for expense data extraction if it's an image or document
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        await processDocumentWithGemini(file);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "There was an issue uploading your receipt.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
     }
-    
-    setIsUploading(false);
-    
-    toast({
-      title: "Receipt Uploaded",
-      description: "Your receipt has been attached to this expense."
-    });
   };
 
   const handleScan = () => {

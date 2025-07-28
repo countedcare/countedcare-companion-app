@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Receipt, FileText, DollarSign, Calendar, Calculator, Hash, Star, Flame } from 'lucide-react';
+import { Plus, Receipt, FileText, DollarSign, Calendar, Calculator, Hash, Star, Flame, Camera, Car, PenTool } from 'lucide-react';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User, Expense } from '@/types/User';
@@ -231,36 +231,61 @@ const Dashboard = () => {
             </TabsList>
             
             <TabsContent value="overview" className="space-y-4 mt-4">
-              {/* Add Expense Section */}
+              {/* Quick Track Actions */}
               <Card className="bg-white border-0 shadow-sm">
                 <CardContent className="p-6">
-                  <div className="text-center space-y-4">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                      <Plus className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold mb-2">Add an Expense</h2>
-                      <p className="text-gray-600 mb-6">
-                        Upload a receipt or enter expense details manually
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Button 
-                        onClick={() => setShowReceiptModal(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        <Receipt className="h-4 w-4 mr-2" />
-                        Scan Receipt
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => navigate('/expenses/new')}
-                        className="border-gray-300"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Manual Entry
-                      </Button>
-                    </div>
+                  <div className="text-center space-y-4 mb-6">
+                    <h2 className="text-xl font-semibold">Track Today's Caregiving Costs</h2>
+                    <p className="text-gray-600">
+                      Choose your preferred way to add an expense
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {/* Scan Receipt */}
+                    <Button
+                      onClick={() => setShowReceiptModal(true)}
+                      variant="ghost"
+                      className="w-full h-16 flex items-center justify-start space-x-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] hover:shadow-md bg-white border-gray-200 hover:bg-gray-50"
+                    >
+                      <div className="p-3 rounded-xl bg-blue-100">
+                        <Camera className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-800">Scan a Receipt</div>
+                        <p className="text-sm text-gray-500">Capture or upload receipt photo</p>
+                      </div>
+                    </Button>
+
+                    {/* Enter Mileage */}
+                    <Button
+                      onClick={() => navigate('/expenses/new?category=transportation&subcategory=mileage')}
+                      variant="ghost"
+                      className="w-full h-16 flex items-center justify-start space-x-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] hover:shadow-md bg-white border-gray-200 hover:bg-gray-50"
+                    >
+                      <div className="p-3 rounded-xl bg-green-100">
+                        <Car className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-800">Enter Mileage</div>
+                        <p className="text-sm text-gray-500">Track car travel expenses</p>
+                      </div>
+                    </Button>
+
+                    {/* Manual Expense */}
+                    <Button
+                      onClick={() => navigate('/expenses/new')}
+                      variant="ghost"
+                      className="w-full h-16 flex items-center justify-start space-x-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] hover:shadow-md bg-white border-gray-200 hover:bg-gray-50"
+                    >
+                      <div className="p-3 rounded-xl bg-purple-100">
+                        <PenTool className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-800">Add Expense</div>
+                        <p className="text-sm text-gray-500">Manual entry form</p>
+                      </div>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

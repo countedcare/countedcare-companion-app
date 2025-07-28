@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Receipt, FileText } from 'lucide-react';
+import { Plus, Receipt, FileText, DollarSign, Calendar, Calculator, Hash, Star, Flame } from 'lucide-react';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { User, Expense } from '@/types/User';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -72,7 +73,20 @@ const Dashboard = () => {
   }, [loading, expenses.length]);
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const potentiallyDeductible = expenses.filter(e => e.is_potentially_deductible === true).length;
+  const potentiallyDeductible = expenses.filter(e => e.is_potentially_deductible === true);
+  const deductibleAmount = potentiallyDeductible.reduce((sum, expense) => sum + expense.amount, 0);
+  
+  // Get current and last month expenses
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  const thisMonthExpenses = expenses.filter(expense => {
+    const expenseDate = new Date(expense.date);
+    return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+  });
+  
+  const thisMonthTotal = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -90,134 +104,205 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="container-padding py-6 space-y-6">
-        {/* Simplified Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-heading text-foreground">
-            Welcome back, {user.name || 'Caregiver'}
-          </h1>
-          <p className="text-muted-foreground">
-            Track your caregiving expenses and discover tax deductions
-          </p>
-        </div>
-
-        {/* Main CTA - Always prominent */}
-        <Card className="border-primary/20">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                <Receipt className="h-8 w-8 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold">Add an Expense</h2>
-                <p className="text-sm text-muted-foreground">
-                  Upload a receipt or enter expense details manually
-                </p>
-              </div>
-              <Button 
-                onClick={() => setShowReceiptModal(true)}
-                size="lg"
-                className="w-full"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Expense
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+        {/* Total Expenses Header */}
+        <div className="bg-white rounded-2xl mx-4 mt-4 p-6 shadow-sm border border-gray-100">
+          <div className="text-center">
+            <h1 className="text-lg font-medium text-gray-600 mb-2">Total Expenses</h1>
+            <div className="text-4xl font-bold text-gray-900 mb-4">
+              {formatCurrency(totalExpenses)}
+            </div>
+            <div className="flex justify-center gap-2">
+              <Button variant="default" size="sm" className="bg-blue-100 text-blue-700 hover:bg-blue-200">
+                This Month
+              </Button>
+              <Button variant="outline" size="sm" className="text-gray-600">
+                Last Month
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Simple Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Tracked
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground">
-                {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Potential Deductions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{potentiallyDeductible}</div>
-              <p className="text-xs text-muted-foreground">
-                might qualify for tax deductions
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {expenses.length > 0 ? 
-                  new Date(expenses[0]?.created_at || expenses[0]?.date || '').toLocaleDateString() : 
-                  'None'
-                }
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4">
+          <Card className="bg-white border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Total Tracked</div>
+                  <div className="text-xl font-bold">{formatCurrency(totalExpenses)}</div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                last expense added
-              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">This Month</div>
+                  <div className="text-xl font-bold">{formatCurrency(thisMonthTotal)}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Calculator className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Tax Deductible</div>
+                  <div className="text-xl font-bold">{formatCurrency(deductibleAmount)}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Hash className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Total Items</div>
+                  <div className="text-xl font-bold">{expenses.length}</div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Recent Expenses */}
-        {expenses.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Recent Expenses
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {expenses.slice(0, 5).map((expense) => (
-                  <div key={expense.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium">{expense.category}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(expense.date).toLocaleDateString()}
-                        {expense.description && ` • ${expense.description}`}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">{formatCurrency(expense.amount)}</div>
-                      {expense.is_potentially_deductible === true && (
-                        <div className="text-xs text-green-600">Potentially deductible</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                
-                {expenses.length > 5 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/expenses')}
-                    className="w-full"
-                  >
-                    View all {expenses.length} expenses
-                  </Button>
-                )}
+        {/* Gamification Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 mb-4">
+          <Card className="bg-white border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Star className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-lg font-semibold">Level 1</div>
+                  <div className="text-sm text-gray-600">Newcomer</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">15</div>
+                  <div className="text-sm text-gray-600">Total XP</div>
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
+
+          <Card className="bg-white border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <Flame className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-lg font-semibold">0 Day Streak</div>
+                  <div className="text-sm text-gray-600">Weekly: 1/5</div>
+                </div>
+                <div className="w-20 h-2 bg-gray-200 rounded-full">
+                  <div className="w-1/5 h-full bg-orange-500 rounded-full"></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs Navigation */}
+        <div className="px-4">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="expenses">Expenses</TabsTrigger>
+              <TabsTrigger value="insights">Insights</TabsTrigger>
+              <TabsTrigger value="achievements">Achievements</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="overview" className="space-y-4 mt-4">
+              {/* Add Expense Section */}
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                      <Plus className="h-8 w-8 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2">Add an Expense</h2>
+                      <p className="text-gray-600 mb-6">
+                        Upload a receipt or enter expense details manually
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Button 
+                        onClick={() => setShowReceiptModal(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Receipt className="h-4 w-4 mr-2" />
+                        Scan Receipt
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => navigate('/expenses/new')}
+                        className="border-gray-300"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Manual Entry
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="expenses">
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">View all your expenses here</p>
+                    <Button 
+                      onClick={() => navigate('/expenses')}
+                      className="mt-4"
+                    >
+                      View All Expenses
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="insights">
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">Expense insights coming soon</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="achievements">
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">Track your achievements here</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
       
       <ReceiptCaptureModal

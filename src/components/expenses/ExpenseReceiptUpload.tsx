@@ -32,7 +32,7 @@ function ReceiptPreview({ filePath }: { filePath: string }) {
 
   if (!signedUrl) return <p>Loading preview...</p>;
 
-  return filePath.toLowerCase().endsWith(".pdf") ? (
+  return filePath.includes(".pdf") ? (
     <embed src={signedUrl} type="application/pdf" width="100%" height="300px" />
   ) : (
     <img src={signedUrl} alt="Receipt" style={{ width: "100%", height: "auto" }} />

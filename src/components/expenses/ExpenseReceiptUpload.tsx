@@ -77,20 +77,77 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   };
 
   const uploadFileToSupabase = async (file: File) => {
-    const filePath = `receipts/${Date.now()}-${file.name}`;
+    const filePath = `${Date.now()}-${file.name}`;
     const { error: uploadError } = await supabase.storage
       .from('receipts')
       .upload(filePath, file);
 
     if (uploadError) throw new Error(uploadError.message);
 
-    const { data: signedData, error: signedError } = await supabase.storage
-      .from('receipts')
-      .createSignedUrl(filePath, 60 * 60); // 1 hour
+    return filePath; // Return the file path, not the signed URL
+  };
 
-    if (signedError) throw new Error(signedError.message);
+  const ReceiptPreview = ({ filePath }: { filePath: string }) => {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    return signedData.signedUrl;
+    useEffect(() => {
+      const getSignedUrl = async () => {
+        setIsLoading(true);
+        
+        // Check if it's already a full URL (signed URL, blob URL, or regular URL)
+        if (filePath.startsWith('http') || filePath.startsWith('blob:') || filePath.startsWith('/')) {
+          setSignedUrl(filePath);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get signed URL from Supabase storage
+        const { data, error } = await supabase.storage
+          .from('receipts')
+          .createSignedUrl(filePath, 60 * 60); // 1 hour
+        
+        if (!error && data) {
+          setSignedUrl(data.signedUrl);
+        } else {
+          console.error('Error getting signed URL:', error);
+        }
+        setIsLoading(false);
+      };
+      
+      if (filePath) getSignedUrl();
+    }, [filePath]);
+
+    if (isLoading) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-muted">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+    }
+
+    if (!signedUrl) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
+          Failed to load preview
+        </div>
+      );
+    }
+
+    return filePath.toLowerCase().includes(".pdf") ? (
+      <embed 
+        src={signedUrl} 
+        type="application/pdf" 
+        className="w-full h-full"
+        style={{ minHeight: '300px' }}
+      />
+    ) : (
+      <img 
+        src={signedUrl} 
+        alt="Receipt" 
+        className="w-full h-full object-contain"
+      />
+    );
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,8 +161,8 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
         throw new Error('Please select an image or PDF file');
       }
 
-      const signedUrl = await uploadFileToSupabase(file);
-      setReceiptUrl(signedUrl);
+      const uploadedFilePath = await uploadFileToSupabase(file);
+      setReceiptUrl(uploadedFilePath);
 
       toast({
         title: "Receipt Uploaded",
@@ -235,11 +292,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       ) : (
         <div className="border rounded-md p-3">
           <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
-            {receiptUrl?.toLowerCase().includes(".pdf") ? (
-              <embed src={receiptUrl} type="application/pdf" className="w-full h-full" />
-            ) : (
-              <img src={receiptUrl} alt="Receipt" className="w-full h-full object-contain" />
-            )}
+            <ReceiptPreview filePath={receiptUrl} />
           </div>
           <Button
             type="button"

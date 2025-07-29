@@ -16,29 +16,6 @@ interface ExpenseReceiptUploadProps {
   onReceiptProcessed: (data: any) => void;
 }
 
-function ReceiptPreview({ filePath }: { filePath: string }) {
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const getSignedUrl = async () => {
-      const { data, error } = await supabase
-        .storage
-        .from("receipts")
-        .createSignedUrl(filePath, 60 * 5); // 5 min
-      if (!error) setSignedUrl(data.signedUrl);
-    };
-    if (filePath) getSignedUrl();
-  }, [filePath]);
-
-  if (!signedUrl) return <p>Loading preview...</p>;
-
-  return filePath.includes(".pdf") ? (
-    <embed src={signedUrl} type="application/pdf" width="100%" height="300px" />
-  ) : (
-    <img src={signedUrl} alt="Receipt" style={{ width: "100%", height: "auto" }} />
-  );
-}
-
 const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   receiptUrl,
   setReceiptUrl,
@@ -66,7 +43,6 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const processDocumentWithGemini = async (file: File) => {
     try {
       setIsProcessingDocument(true);
-      
       toast({
         title: "Processing Document",
         description: "Extracting expense data from your document..."
@@ -78,22 +54,18 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
         body: { imageBase64: base64Data }
       });
 
-      if (error) {
-        console.error('OCR processing error:', error);
-        throw new Error(error.message || 'Failed to process document');
-      }
+      if (error) throw new Error(error.message || 'Failed to process document');
 
       if (data?.success && data?.data) {
         onReceiptProcessed(data.data);
         toast({
           title: "Document Processed!",
-          description: "Expense data extracted successfully from your document"
+          description: "Expense data extracted successfully."
         });
       } else {
         throw new Error('Failed to extract data from document');
       }
     } catch (error) {
-      console.error('Error processing document:', error);
       toast({
         title: "Processing Error", 
         description: "Could not extract data from document. You can still add the expense manually.",
@@ -104,6 +76,23 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     }
   };
 
+  const uploadFileToSupabase = async (file: File) => {
+    const filePath = `receipts/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from('receipts')
+      .upload(filePath, file);
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from('receipts')
+      .createSignedUrl(filePath, 60 * 60); // 1 hour
+
+    if (signedError) throw new Error(signedError.message);
+
+    return signedData.signedUrl;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -111,30 +100,22 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     setIsUploading(true);
     
     try {
-      console.log('File selected:', file.type, file.size);
-      
-      // Validate file type
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
         throw new Error('Please select an image or PDF file');
       }
-      
-      // Create object URL for immediate preview
-      const fileUrl = URL.createObjectURL(file);
-      setReceiptUrl(fileUrl);
-      
-      console.log('File URL created:', fileUrl);
-      
+
+      const signedUrl = await uploadFileToSupabase(file);
+      setReceiptUrl(signedUrl);
+
       toast({
         title: "Receipt Uploaded",
-        description: "Your receipt has been attached to this expense."
+        description: "Your receipt has been uploaded successfully."
       });
 
-      // Process with Gemini AI for expense data extraction if it's an image
       if (file.type.startsWith('image/')) {
         await processDocumentWithGemini(file);
       }
     } catch (error) {
-      console.error('Upload error:', error);
       toast({
         title: "Upload Error",
         description: error instanceof Error ? error.message : "There was an issue uploading your receipt.",
@@ -148,7 +129,6 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
   const handleScan = () => {
     setIsUploading(true);
-    
     toast({
       title: "Accessing Camera",
       description: "Please allow camera access to scan your receipt."
@@ -157,10 +137,9 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     setTimeout(() => {
       setReceiptUrl("/placeholder.svg");
       setIsUploading(false);
-      
       toast({
         title: "Receipt Scanned",
-        description: "Your receipt has been scanned and attached to this expense."
+        description: "Your receipt has been scanned."
       });
     }, 1500);
   };
@@ -193,9 +172,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
             
             <div className="mb-4">
               <CameraCapture
-                onImageCaptured={(imageUri, photo) => {
-                  setReceiptUrl(imageUri);
-                }}
+                onImageCaptured={(imageUri) => setReceiptUrl(imageUri)}
                 onReceiptProcessed={onReceiptProcessed}
                 disabled={isUploading || isProcessingDocument}
               />
@@ -206,7 +183,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                 <input
                   type="file"
                   id="receipt-upload"
-                  accept="image/*,.pdf,.doc,.docx"
+                  accept="image/*,.pdf"
                   onChange={handleFileUpload}
                   className="hidden"
                   disabled={isUploading || isProcessingDocument}
@@ -259,17 +236,9 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
         <div className="border rounded-md p-3">
           <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
             {receiptUrl?.toLowerCase().includes(".pdf") ? (
-              <embed
-                src={receiptUrl}
-                type="application/pdf"
-                className="w-full h-full"
-              />
+              <embed src={receiptUrl} type="application/pdf" className="w-full h-full" />
             ) : (
-              <img
-                src={receiptUrl}
-                alt="Receipt"
-                className="w-full h-full object-contain"
-              />
+              <img src={receiptUrl} alt="Receipt" className="w-full h-full object-contain" />
             )}
           </div>
           <Button

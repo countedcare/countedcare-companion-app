@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -33,7 +32,6 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       const reader = new FileReader();
       reader.onload = () => {
         const base64String = reader.result as string;
-        // Remove the data URL prefix (data:image/jpeg;base64,) 
         const base64Data = base64String.split(',')[1];
         resolve(base64Data);
       };
@@ -237,11 +235,19 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       ) : (
         <div className="border rounded-md p-3">
           <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
-            <img 
-              src={receiptUrl} 
-              alt="Receipt" 
-              className="w-full h-full object-contain"
-            />
+            {receiptUrl?.toLowerCase().endsWith(".pdf") ? (
+              <embed
+                src={receiptUrl}
+                type="application/pdf"
+                className="w-full h-full"
+              />
+            ) : (
+              <img
+                src={receiptUrl}
+                alt="Receipt"
+                className="w-full h-full object-contain"
+              />
+            )}
           </div>
           <Button
             type="button"

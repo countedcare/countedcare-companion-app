@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,6 +14,29 @@ interface ExpenseReceiptUploadProps {
   isProcessingDocument: boolean;
   setIsProcessingDocument: (loading: boolean) => void;
   onReceiptProcessed: (data: any) => void;
+}
+
+function ReceiptPreview({ filePath }: { filePath: string }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getSignedUrl = async () => {
+      const { data, error } = await supabase
+        .storage
+        .from("receipts")
+        .createSignedUrl(filePath, 60 * 5); // 5 min
+      if (!error) setSignedUrl(data.signedUrl);
+    };
+    if (filePath) getSignedUrl();
+  }, [filePath]);
+
+  if (!signedUrl) return <p>Loading preview...</p>;
+
+  return filePath.toLowerCase().endsWith(".pdf") ? (
+    <embed src={signedUrl} type="application/pdf" width="100%" height="300px" />
+  ) : (
+    <img src={signedUrl} alt="Receipt" style={{ width: "100%", height: "auto" }} />
+  );
 }
 
 const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
@@ -242,11 +265,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                 className="w-full h-full"
               />
             ) : (
-              <img
-                src={receiptUrl}
-                alt="Receipt"
-                className="w-full h-full object-contain"
-              />
+              <ReceiptPreview filePath={receiptUrl} />
             )}
           </div>
           <Button

@@ -258,14 +258,18 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       ) : (
         <div className="border rounded-md p-3">
           <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
-            {receiptUrl?.toLowerCase().endsWith(".pdf") ? (
+            {receiptUrl?.toLowerCase().includes(".pdf") ? (
               <embed
                 src={receiptUrl}
                 type="application/pdf"
                 className="w-full h-full"
               />
             ) : (
-              <ReceiptPreview filePath={receiptUrl} />
+              <img
+                src={receiptUrl}
+                alt="Receipt"
+                className="w-full h-full object-contain"
+              />
             )}
           </div>
           <Button

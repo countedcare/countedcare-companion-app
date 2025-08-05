@@ -108,7 +108,11 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
           .createSignedUrl(filePath, 60 * 60); // 1 hour
         
         if (!error && data) {
-          setSignedUrl(data.signedUrl);
+          // Convert relative URL to absolute URL
+          const absoluteUrl = data.signedUrl.startsWith('/') 
+            ? `${window.location.origin}${data.signedUrl}` 
+            : data.signedUrl;
+          setSignedUrl(absoluteUrl);
         } else {
           console.error('Error getting signed URL:', error);
         }

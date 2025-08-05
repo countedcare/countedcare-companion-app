@@ -27,6 +27,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 }) => {
   const { toast } = useToast();
 
+  // 🔄 Convert file to base64 for Gemini OCR
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -40,6 +41,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     });
   };
 
+  // 🔄 Process receipt with Gemini
   const processDocumentWithGemini = async (file: File) => {
     try {
       setIsProcessingDocument(true);
@@ -49,7 +51,6 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       });
 
       const base64Data = await convertFileToBase64(file);
-      
       const { data, error } = await supabase.functions.invoke('gemini-receipt-ocr', {
         body: { imageBase64: base64Data }
       });
@@ -65,7 +66,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       } else {
         throw new Error('Failed to extract data from document');
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Processing Error", 
         description: "Could not extract data from document. You can still add the expense manually.",
@@ -76,17 +77,18 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     }
   };
 
+  // 🔄 Upload file to Supabase
   const uploadFileToSupabase = async (file: File) => {
-    const filePath = `${Date.now()}-${file.name}`;
+    const filePath = `receipts/${Date.now()}-${file.name}`; // Save inside receipts folder
     const { error: uploadError } = await supabase.storage
       .from('receipts')
       .upload(filePath, file);
 
     if (uploadError) throw new Error(uploadError.message);
-
-    return filePath; // Return the file path, not the signed URL
+    return filePath; // Return stored file path
   };
 
+  // 🔄 Preview component for receipts
   const ReceiptPreview = ({ filePath }: { filePath: string }) => {
     const [signedUrl, setSignedUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -94,31 +96,28 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     useEffect(() => {
       const getSignedUrl = async () => {
         setIsLoading(true);
-        
-        // Check if it's already a full URL (signed URL, blob URL, or regular URL)
+
+        // Use directly if already a full URL or local blob
         if (filePath.startsWith('http') || filePath.startsWith('blob:') || filePath.startsWith('/')) {
           setSignedUrl(filePath);
           setIsLoading(false);
           return;
         }
-        
-        // Get signed URL from Supabase storage
+
+        // Get signed URL from Supabase
         const { data, error } = await supabase.storage
           .from('receipts')
           .createSignedUrl(filePath, 60 * 60); // 1 hour
-        
-        if (!error && data) {
-          // Convert relative URL to absolute URL
-          const absoluteUrl = data.signedUrl.startsWith('/') 
-            ? `${window.location.origin}${data.signedUrl}` 
-            : data.signedUrl;
-          setSignedUrl(absoluteUrl);
+
+        if (error) {
+          console.error('Error getting signed URL:', error.message);
+          setSignedUrl(null);
         } else {
-          console.error('Error getting signed URL:', error);
+          setSignedUrl(data?.signedUrl || null);
         }
         setIsLoading(false);
       };
-      
+
       if (filePath) getSignedUrl();
     }, [filePath]);
 
@@ -138,28 +137,19 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       );
     }
 
-    return filePath.toLowerCase().includes(".pdf") ? (
-      <embed 
-        src={signedUrl} 
-        type="application/pdf" 
-        className="w-full h-full"
-        style={{ minHeight: '300px' }}
-      />
+    return filePath.toLowerCase().includes('.pdf') ? (
+      <embed src={signedUrl} type="application/pdf" className="w-full h-full" style={{ minHeight: '300px' }} />
     ) : (
-      <img 
-        src={signedUrl} 
-        alt="Receipt" 
-        className="w-full h-full object-contain"
-      />
+      <img src={signedUrl} alt="Receipt" className="w-full h-full object-contain" />
     );
   };
 
+  // 🔄 Handle file upload event
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setIsUploading(true);
-    
     try {
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
         throw new Error('Please select an image or PDF file');
@@ -188,13 +178,14 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     }
   };
 
+  // 🔄 Handle scan event
   const handleScan = () => {
     setIsUploading(true);
     toast({
       title: "Accessing Camera",
       description: "Please allow camera access to scan your receipt."
     });
-    
+
     setTimeout(() => {
       setReceiptUrl("/placeholder.svg");
       setIsUploading(false);
@@ -205,6 +196,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     }, 1500);
   };
 
+  // 🔄 Remove receipt
   const removeReceipt = () => {
     setReceiptUrl(undefined);
     toast({
@@ -216,7 +208,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   return (
     <div className="space-y-2">
       <Label>Receipt & Document Upload</Label>
-      
+
       {!receiptUrl ? (
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
           <div className="text-center space-y-4">
@@ -230,7 +222,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                 AI will automatically extract expense details
               </p>
             </div>
-            
+
             <div className="mb-4">
               <CameraCapture
                 onImageCaptured={(imageUri) => setReceiptUrl(imageUri)}
@@ -268,7 +260,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                   </Button>
                 </label>
               </div>
-              
+
               <Button
                 type="button"
                 variant="outline"
@@ -280,7 +272,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                 Scan Receipt
               </Button>
             </div>
-            
+
             {(isUploading || isProcessingDocument) && (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center justify-center gap-2">

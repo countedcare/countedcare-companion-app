@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Upload, Scan, FileText, Loader2 } from 'lucide-react';
-import CameraCapture from '@/components/mobile/CameraCapture';
+import { CameraService } from '@/services/cameraService';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ExpenseReceiptUploadProps {
@@ -178,22 +178,72 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     }
   };
 
-  // 🔄 Handle scan event
-  const handleScan = () => {
-    setIsUploading(true);
-    toast({
-      title: "Accessing Camera",
-      description: "Please allow camera access to scan your receipt."
-    });
+  // 🔄 Handle camera capture
+  const handleCameraCapture = async () => {
+    try {
+      setIsUploading(true);
+      
+      const hasPermission = await CameraService.requestPermissions();
+      if (!hasPermission) {
+        toast({
+          title: "Permission Required",
+          description: "Camera permission is needed to take photos",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    setTimeout(() => {
-      setReceiptUrl("/placeholder.svg");
-      setIsUploading(false);
+      const photo = await CameraService.takePicture();
+      if (photo.webPath) {
+        setReceiptUrl(photo.webPath);
+        
+        toast({
+          title: "Photo Captured",
+          description: "Receipt photo captured successfully"
+        });
+
+        // Auto-process with Gemini if it's an image
+        await processDocumentWithGemini(photo as any);
+      }
+    } catch (error) {
+      console.error('Error taking picture:', error);
       toast({
-        title: "Receipt Scanned",
-        description: "Your receipt has been scanned."
+        title: "Camera Error",
+        description: "Failed to capture photo. Please try again.",
+        variant: "destructive"
       });
-    }, 1500);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // 🔄 Handle gallery selection
+  const handleGalleryPick = async () => {
+    try {
+      setIsUploading(true);
+      
+      const photo = await CameraService.pickFromGallery();
+      if (photo.webPath) {
+        setReceiptUrl(photo.webPath);
+        
+        toast({
+          title: "Photo Selected",
+          description: "Receipt photo selected from gallery"
+        });
+
+        // Auto-process with Gemini if it's an image
+        await processDocumentWithGemini(photo as any);
+      }
+    } catch (error) {
+      console.error('Error picking from gallery:', error);
+      toast({
+        title: "Gallery Error",
+        description: "Failed to select photo. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // 🔄 Remove receipt
@@ -224,11 +274,28 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
             </div>
 
             <div className="mb-4">
-              <CameraCapture
-                onImageCaptured={(imageUri) => setReceiptUrl(imageUri)}
-                onReceiptProcessed={onReceiptProcessed}
-                disabled={isUploading || isProcessingDocument}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCameraCapture}
+                  disabled={isUploading || isProcessingDocument}
+                  className="w-full"
+                >
+                  <Scan className="mr-2 h-4 w-4" />
+                  Camera
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGalleryPick}
+                  disabled={isUploading || isProcessingDocument}
+                  className="w-full"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Gallery
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -264,7 +331,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleScan}
+                onClick={handleCameraCapture}
                 disabled={isUploading || isProcessingDocument}
                 className="w-full"
               >

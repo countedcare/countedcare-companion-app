@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { MessageCircle, Bot, Send } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -26,7 +27,7 @@ const ChatBot = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
     
     // Add user message
@@ -37,49 +38,54 @@ const ChatBot = () => {
       timestamp: new Date()
     };
     
+    const currentInput = input.trim();
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     
-    // Simulate AI response - in a production app, this would call an AI API
-    setTimeout(() => {
-      const questions = [
-        "What tax benefits are available for caregivers?",
-        "How can I find local support groups?",
-        "What respite care options are available?",
-        "Are there any caregiver training programs?",
-        "How do I manage medication schedules?",
-      ];
+    try {
+      // Get conversation history (excluding the current message)
+      const conversationHistory = messages.slice(1); // Skip the initial greeting
       
-      let response = "I'm here to help with caregiving resources. ";
-      
-      // Sample responses based on keywords
-      const userQ = input.toLowerCase();
-      
-      if (userQ.includes('tax') || userQ.includes('deduction') || userQ.includes('credit')) {
-        response += "Caregivers may qualify for tax benefits like the Child and Dependent Care Credit, Medical Expense Deductions, or Dependent Care FSAs. Check the resources tab for official IRS publications or consult with a tax professional for your specific situation.";
-      } else if (userQ.includes('support group') || userQ.includes('community')) {
-        response += "Local support groups can be found through organizations like the Family Caregiver Alliance, hospitals, or community centers. You can filter the resources by your ZIP code to find nearby support.";
-      } else if (userQ.includes('respite') || userQ.includes('break') || userQ.includes('time off')) {
-        response += "Respite care provides temporary relief for primary caregivers. Options include in-home care services, adult day centers, or short-term nursing facilities. Many states have respite care programs that may help with costs.";
-      } else if (userQ.includes('training') || userQ.includes('learn') || userQ.includes('skills')) {
-        response += "Many hospitals, community colleges, and organizations offer caregiver training programs. The Red Cross, Alzheimer's Association, and local Area Agencies on Aging often provide courses on caregiving skills.";
-      } else if (userQ.includes('medication') || userQ.includes('medicine') || userQ.includes('pills')) {
-        response += "Managing medications can be challenging. Consider using pill organizers, setting alarms, or medication management apps. Some pharmacies also offer blister packs or other organization systems.";
-      } else {
-        response += "I'd be happy to help you find information about that. You might want to check the resources section for more detailed information, or ask me about common topics like tax benefits, support groups, respite care, training programs, or medication management.";
+      const { data, error } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+          message: currentInput,
+          conversationHistory: conversationHistory
+        }
+      });
+
+      if (error) {
+        throw error;
       }
-      
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get AI response');
+      }
+
       const assistantMessage: Message = {
         id: Date.now().toString(),
-        content: response,
+        content: data.response,
         role: 'assistant',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      toast.error('Failed to get AI response. Please try again.');
+      
+      // Add fallback message
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: "I'm sorry, I'm having trouble responding right now. Please try again in a moment.",
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

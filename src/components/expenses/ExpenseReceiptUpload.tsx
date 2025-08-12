@@ -230,20 +230,29 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     const isPdf = filePath.toLowerCase().includes('.pdf') || (signedUrl && signedUrl.toLowerCase().includes('.pdf'));
 
     return (
-      <div className="w-full h-full overflow-auto flex items-center justify-center">
+      <div className="w-full h-full overflow-auto flex items-center justify-center relative">
         {isPdf ? (
-          <embed
-            src={signedUrl}
-            type="application/pdf"
-            className="w-full h-full"
-            style={{ minHeight: '300px', transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}
-          />
+          <div className="w-full h-full" style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
+            <object data={signedUrl} type="application/pdf" className="w-full h-full" aria-label="PDF preview">
+              <p className="p-4 text-center text-sm">
+                This browser cannot display the PDF inline.
+                <a href={signedUrl} target="_blank" rel="noreferrer" className="underline ml-1">Open the PDF in a new tab</a>.
+              </p>
+              <iframe src={signedUrl} className="w-full h-full" title="PDF preview" />
+            </object>
+            <div className="absolute bottom-2 right-2">
+              <a href={signedUrl} target="_blank" rel="noreferrer" className="text-xs underline">Open in new tab</a>
+            </div>
+          </div>
         ) : (
           <img
             src={signedUrl}
             alt="Receipt preview"
             className="max-w-full max-h-full object-contain"
             style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
           />
         )}
       </div>
@@ -272,6 +281,11 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       if (file.type.startsWith('image/')) {
         await processDocumentWithGemini(file);
+      } else if (file.type === 'application/pdf') {
+        toast({
+          title: 'PDF Uploaded',
+          description: 'Preview shown below. AI extraction currently supports images only.'
+        });
       }
     } catch (error) {
       toast({

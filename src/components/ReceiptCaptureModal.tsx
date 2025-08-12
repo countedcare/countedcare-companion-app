@@ -69,6 +69,7 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form data
+  const [vendor, setVendor] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -174,6 +175,7 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
   const resetForm = () => {
     setStep('capture');
     setReceiptUrl('');
+    setVendor('');
     setAmount('');
     setCategory('');
     setDate(new Date().toISOString().split('T')[0]);
@@ -300,6 +302,17 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
                       className="pl-10"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="vendor">Vendor</Label>
+                  <Input
+                    id="vendor"
+                    type="text"
+                    placeholder="e.g., Walgreens, UCLA Health"
+                    value={vendor}
+                    onChange={(e) => setVendor(e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">

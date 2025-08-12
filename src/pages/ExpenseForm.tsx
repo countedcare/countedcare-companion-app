@@ -17,6 +17,7 @@ import ExpenseLocationSection from '@/components/expenses/ExpenseLocationSection
 import ExpenseReceiptUpload from '@/components/expenses/ExpenseReceiptUpload';
 import ExpenseCategorySection from '@/components/expenses/ExpenseCategorySection';
 import ExpenseFormActions from '@/components/expenses/ExpenseFormActions';
+import GoogleMapsAPIConfig from '@/components/places/GoogleMapsAPIConfig';
 
 const ExpenseForm = () => {
   const { id } = useParams();
@@ -246,6 +247,9 @@ const ExpenseForm = () => {
                     onChange={(e) => setVendor(e.target.value)}
                   />
                 </div>
+
+                {/* Google Maps API Setup */}
+                <GoogleMapsAPIConfig onApiKeySaved={saveApiKey} currentApiKey={apiKey} />
 
                 {/* Location Search */}
                 <ExpenseLocationSection

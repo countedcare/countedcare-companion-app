@@ -47,7 +47,7 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
       {/* Category Selection */}
       <div className="space-y-2">
         <Label htmlFor="category">Category*</Label>
-        <Select onValueChange={handleCategoryChange} defaultValue={category}>
+        <Select onValueChange={handleCategoryChange} value={category}>
           <SelectTrigger id="category">
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>
@@ -65,7 +65,7 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
       {category && (
         <div className="space-y-2">
           <Label htmlFor="subcategory">Subcategory</Label>
-          <Select onValueChange={handleSubcategoryChange} defaultValue={subcategory}>
+          <Select onValueChange={handleSubcategoryChange} value={subcategory}>
             <SelectTrigger id="subcategory">
               <SelectValue placeholder="Select a subcategory (optional)" />
             </SelectTrigger>
@@ -80,9 +80,9 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
         </div>
       )}
       
-      {/* Mileage Calculator - Updated condition to match the correct rate */}
+      {/* Mileage Calculator - Trigger when mileage subcategory selected */}
       {category === '🚘 Transportation & Travel for Medical Care' && 
-       subcategory === 'Mileage for car travel (67 cents/mile in 2024)' && (
+       (subcategory?.toLowerCase().includes('mileage')) && (
         <MileageCalculator 
           onAmountCalculated={onMileageAmountCalculated}
           apiKey={apiKey}

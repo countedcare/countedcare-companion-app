@@ -141,7 +141,7 @@ export const EXPENSE_SUBCATEGORIES: Record<string, string[]> = {
     'Diabetic supplies and monitoring equipment'
   ],
   '🚘 Transportation & Travel for Medical Care': [
-    'Mileage for car travel (67 cents/mile in 2024)',
+    'Mileage for car travel (21 cents/mile in 2024)',
     'Public transportation fares',
     'Taxi or rideshare services',
     'Parking fees at medical facilities',

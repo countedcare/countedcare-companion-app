@@ -65,7 +65,7 @@ const ExpenseForm = () => {
     
     if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
       setCategory('🚘 Transportation & Travel for Medical Care');
-      setSubcategory('Mileage for car travel (67 cents/mile in 2024)');
+      setSubcategory('Mileage for car travel (21 cents/mile in 2024)');
     }
   }, [searchParams]);
   
@@ -214,6 +214,11 @@ const ExpenseForm = () => {
     setAmount(calculatedAmount.toString());
   };
 
+  const isMileageMode =
+    category === '🚘 Transportation & Travel for Medical Care' &&
+    (subcategory?.toLowerCase().includes('mileage') || subcategory?.toLowerCase().includes('mile'));
+
+
   return (
     <Layout>
       <div className="container-padding py-6">
@@ -235,30 +240,38 @@ const ExpenseForm = () => {
                   setAmount={setAmount}
                   date={date}
                   setDate={setDate}
+                  amountReadOnly={isMileageMode}
+                  amountNote={isMileageMode ? "Calculated from mileage at $0.21/mi" : undefined}
                 />
                 
                 {/* Vendor */}
-                <div className="space-y-2">
-                  <Label htmlFor="vendor">Vendor</Label>
-                  <Input
-                    id="vendor"
-                    placeholder="e.g., Walgreens, UCLA Health"
-                    value={vendor}
-                    onChange={(e) => setVendor(e.target.value)}
-                  />
-                </div>
+                {!isMileageMode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="vendor">Vendor</Label>
+                    <Input
+                      id="vendor"
+                      placeholder="e.g., Walgreens, UCLA Health"
+                      value={vendor}
+                      onChange={(e) => setVendor(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 {/* Google Maps API Setup */}
-                <GoogleMapsAPIConfig onApiKeySaved={saveApiKey} currentApiKey={apiKey} />
+                {!isMileageMode && (
+                  <GoogleMapsAPIConfig onApiKeySaved={saveApiKey} currentApiKey={apiKey} />
+                )}
 
                 {/* Location Search */}
-                <ExpenseLocationSection
-                  selectedLocation={selectedLocation}
-                  setSelectedLocation={setSelectedLocation}
-                  title={title}
-                  setTitle={setTitle}
-                  apiKey={apiKey}
-                />
+                {!isMileageMode && (
+                  <ExpenseLocationSection
+                    selectedLocation={selectedLocation}
+                    setSelectedLocation={setSelectedLocation}
+                    title={title}
+                    setTitle={setTitle}
+                    apiKey={apiKey}
+                  />
+                )}
                 
                 {/* Category Selection */}
                 <ExpenseCategorySection
@@ -273,15 +286,17 @@ const ExpenseForm = () => {
                 />
 
                 {/* Receipt Upload */}
-                <ExpenseReceiptUpload
-                  receiptUrl={receiptUrl}
-                  setReceiptUrl={setReceiptUrl}
-                  isUploading={isUploading}
-                  setIsUploading={setIsUploading}
-                  isProcessingDocument={isProcessingDocument}
-                  setIsProcessingDocument={setIsProcessingDocument}
-                  onReceiptProcessed={handleReceiptProcessed}
-                />
+                {!isMileageMode && (
+                  <ExpenseReceiptUpload
+                    receiptUrl={receiptUrl}
+                    setReceiptUrl={setReceiptUrl}
+                    isUploading={isUploading}
+                    setIsUploading={setIsUploading}
+                    isProcessingDocument={isProcessingDocument}
+                    setIsProcessingDocument={setIsProcessingDocument}
+                    onReceiptProcessed={handleReceiptProcessed}
+                  />
+                )}
                 
                 {/* Notes */}
                 <div className="space-y-2">

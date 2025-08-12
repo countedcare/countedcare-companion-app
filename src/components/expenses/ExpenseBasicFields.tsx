@@ -16,6 +16,8 @@ interface ExpenseBasicFieldsProps {
   setAmount: (value: string) => void;
   date: Date;
   setDate: (date: Date) => void;
+  amountReadOnly?: boolean;
+  amountNote?: string;
 }
 
 const ExpenseBasicFields: React.FC<ExpenseBasicFieldsProps> = ({
@@ -24,7 +26,9 @@ const ExpenseBasicFields: React.FC<ExpenseBasicFieldsProps> = ({
   amount,
   setAmount,
   date,
-  setDate
+  setDate,
+  amountReadOnly,
+  amountNote
 }) => {
   return (
     <div className="space-y-4">
@@ -50,7 +54,12 @@ const ExpenseBasicFields: React.FC<ExpenseBasicFieldsProps> = ({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           required
+          readOnly={!!amountReadOnly}
+          aria-readonly={amountReadOnly ? 'true' : 'false'}
         />
+        {amountNote && (
+          <p className="text-xs text-muted-foreground">{amountNote}</p>
+        )}
       </div>
       
       <div className="space-y-2">

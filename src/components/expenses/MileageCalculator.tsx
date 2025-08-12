@@ -66,16 +66,25 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         throw new Error(error.message || 'Failed to calculate mileage');
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to calculate mileage');
-      }
+      // Edge function returns { miles, deduction }
+      const miles = typeof data?.miles === 'number' ? Math.round(data.miles * 10) / 10 : 0;
+      // Compute using $0.21/mi to ensure consistency and clarity
+      const computedDeduction = Math.round(miles * 0.21 * 100) / 100;
 
-      setResult(data.data);
-      onAmountCalculated(data.data.estimatedDeduction);
+      const resultPayload: MileageResult = {
+        from: fromAddress.trim(),
+        to: toAddress.trim(),
+        distance: { miles, text: `${miles} miles` },
+        estimatedDeduction: computedDeduction,
+        irsRate: 0.21
+      };
+
+      setResult(resultPayload);
+      onAmountCalculated(computedDeduction);
       
       toast({
         title: "Mileage Calculated!",
-        description: `Distance: ${data.data.distance.miles} miles • Deduction: $${data.data.estimatedDeduction}`
+        description: `Distance: ${miles} miles • Total: $${computedDeduction}`
       });
 
     } catch (err) {
@@ -227,7 +236,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       )}
 
       <p className="text-xs text-blue-600">
-        * Based on 2024 IRS standard mileage rate of $0.67 per mile
+        * Based on 2024 IRS standard mileage rate of $0.21 per mile
       </p>
     </div>
   );

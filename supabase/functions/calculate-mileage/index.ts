@@ -85,7 +85,7 @@ serve(async (req) => {
 
     const distanceMeters = element.distance.value
     const miles = distanceMeters / 1609.34
-    const deduction = miles * 0.67
+    const deduction = miles * 0.21
 
     console.log('Calculation successful:', { miles: miles.toFixed(2), deduction: deduction.toFixed(2) })
 

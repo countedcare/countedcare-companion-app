@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { EXPENSE_CATEGORIES } from '@/types/User';
+import * as pdfjsLib from 'pdfjs-dist';
 interface ExpenseReceiptUploadProps {
   receiptUrl: string | undefined;
   setReceiptUrl: (url: string | undefined) => void;
@@ -229,17 +230,44 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
     const isPdf = filePath.toLowerCase().includes('.pdf') || (signedUrl && signedUrl.toLowerCase().includes('.pdf'));
 
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+    // Render the first page of the PDF into a canvas so it shows inline across browsers
+    useEffect(() => {
+      if (!isPdf || !signedUrl || !canvasRef.current) return;
+      const renderPdf = async () => {
+        try {
+          // Ensure the worker is set (use CDN to avoid bundler worker setup)
+          // @ts-ignore
+          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            // @ts-ignore
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+          }
+
+          const resp = await fetch(signedUrl, { cache: 'no-store' });
+          const buf = await resp.arrayBuffer();
+          // @ts-ignore
+          const loadingTask = pdfjsLib.getDocument({ data: buf });
+          const pdf = await loadingTask.promise;
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: zoom, rotation });
+          const canvas = canvasRef.current!;
+          const ctx = canvas.getContext('2d')!;
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: ctx, viewport }).promise;
+        } catch (e) {
+          console.error('PDF render failed', e);
+        }
+      };
+      renderPdf();
+    }, [isPdf, signedUrl, zoom, rotation]);
+
     return (
       <div className="w-full h-full overflow-auto flex items-center justify-center relative">
         {isPdf ? (
-          <div className="w-full h-full" style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
-            <object data={signedUrl} type="application/pdf" className="w-full h-full" aria-label="PDF preview">
-              <p className="p-4 text-center text-sm">
-                This browser cannot display the PDF inline.
-                <a href={signedUrl} target="_blank" rel="noreferrer" className="underline ml-1">Open the PDF in a new tab</a>.
-              </p>
-              <iframe src={signedUrl} className="w-full h-full" title="PDF preview" />
-            </object>
+          <div className="w-full h-full flex items-center justify-center">
+            <canvas ref={canvasRef} className="max-w-full max-h-full" aria-label="PDF preview"></canvas>
             <div className="absolute bottom-2 right-2">
               <a href={signedUrl} target="_blank" rel="noreferrer" className="text-xs underline">Open in new tab</a>
             </div>

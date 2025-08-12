@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import Layout from '@/components/Layout';
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -27,6 +28,7 @@ const ExpenseForm = () => {
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
   
   const [title, setTitle] = useState('');
+  const [vendor, setVendor] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [category, setCategory] = useState('');
@@ -72,8 +74,8 @@ const ExpenseForm = () => {
       const expenseToEdit = expenses.find(expense => expense.id === id);
       if (expenseToEdit) {
         setTitle(expenseToEdit.description || '');
+        setVendor(expenseToEdit.vendor || '');
         setAmount(expenseToEdit.amount.toString());
-        setDate(new Date(expenseToEdit.date));
         setCategory(expenseToEdit.category);
         setSubcategory(expenseToEdit.subcategory || '');
         setDescription(expenseToEdit.description || '');
@@ -108,6 +110,9 @@ const ExpenseForm = () => {
     
     if (extractedData.merchant) {
       setTitle(extractedData.merchant);
+    }
+    if (extractedData.vendor) {
+      setVendor(extractedData.vendor);
     }
     
     // Try to match category with new comprehensive categories
@@ -162,6 +167,7 @@ const ExpenseForm = () => {
       category,
       subcategory: subcategory || undefined,
       description: title || description,
+      vendor: vendor || undefined,
       careRecipientId,
       careRecipientName: recipients.find(r => r.id === careRecipientId)?.name,
       receiptUrl,
@@ -229,6 +235,17 @@ const ExpenseForm = () => {
                   date={date}
                   setDate={setDate}
                 />
+                
+                {/* Vendor */}
+                <div className="space-y-2">
+                  <Label htmlFor="vendor">Vendor</Label>
+                  <Input
+                    id="vendor"
+                    placeholder="e.g., Walgreens, UCLA Health"
+                    value={vendor}
+                    onChange={(e) => setVendor(e.target.value)}
+                  />
+                </div>
 
                 {/* Location Search */}
                 <ExpenseLocationSection

@@ -197,6 +197,7 @@ export interface Expense {
   category: string;
   subcategory?: string;
   description?: string;
+  vendor?: string;
   careRecipientId?: string;
   careRecipientName?: string;
   receiptUrl?: string;

@@ -127,6 +127,7 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
         user_id: user.id,
         amount: parseFloat(amount),
         category,
+        vendor: vendor || undefined,
         date,
         description: notes || undefined,
         receipt_url: receiptUrl || undefined

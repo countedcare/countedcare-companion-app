@@ -69,6 +69,7 @@ export type Database = {
           synced_transaction_id: string | null
           updated_at: string | null
           user_id: string
+          vendor: string | null
         }
         Insert: {
           amount: number
@@ -88,6 +89,7 @@ export type Database = {
           synced_transaction_id?: string | null
           updated_at?: string | null
           user_id: string
+          vendor?: string | null
         }
         Update: {
           amount?: number
@@ -107,6 +109,7 @@ export type Database = {
           synced_transaction_id?: string | null
           updated_at?: string | null
           user_id?: string
+          vendor?: string | null
         }
         Relationships: [
           {

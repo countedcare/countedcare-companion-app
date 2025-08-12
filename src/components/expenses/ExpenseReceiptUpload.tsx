@@ -212,22 +212,6 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       if (filePath) getSignedUrl();
     }, [filePath]);
 
-    if (isLoading) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-muted">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      );
-    }
-
-    if (!signedUrl) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
-          Failed to load preview
-        </div>
-      );
-    }
-
     const isPdf = filePath.toLowerCase().includes('.pdf') || (signedUrl && signedUrl.toLowerCase().includes('.pdf'));
 
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -262,6 +246,23 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       };
       renderPdf();
     }, [isPdf, signedUrl, zoom, rotation]);
+
+    if (isLoading) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-muted">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+    }
+
+    if (!signedUrl) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
+          Failed to load preview
+        </div>
+      );
+    }
+
 
     return (
       <div className="w-full h-full overflow-auto flex items-center justify-center relative">

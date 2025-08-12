@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Upload, Scan, FileText, Loader2, RotateCw, ZoomIn, ZoomOut, Calendar as CalendarIcon } from 'lucide-react';
+import { Upload, Scan, FileText, Loader2, RotateCw, ZoomIn, ZoomOut, Calendar as CalendarIcon, MapPin } from 'lucide-react';
 import { CameraService } from '@/services/cameraService';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
@@ -18,6 +18,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { EXPENSE_CATEGORIES } from '@/types/User';
 import * as pdfjsLib from 'pdfjs-dist';
+
 interface ExpenseReceiptUploadProps {
   receiptUrl: string | undefined;
   setReceiptUrl: (url: string | undefined) => void;
@@ -27,17 +28,21 @@ interface ExpenseReceiptUploadProps {
   setIsProcessingDocument: (loading: boolean) => void;
   onReceiptProcessed?: (data: any) => void;
   onSave?: (expenseData: {
+    title: string;
     vendor: string;
+    location?: string;
     category: string;
     amount: number;
     date: string;
     notes?: string;
     receiptUrl?: string;
-    extractedValues: { vendor?: string; category?: string; amount?: number; date?: string };
+    extractedValues: { title?: string; vendor?: string; location?: string; category?: string; amount?: number; date?: string };
     fieldConfidence: Record<string, number>;
   }) => void;
   initialValues?: {
+    title?: string;
     vendor?: string;
+    location?: string;
     category?: string;
     amount?: number;
     date?: string;
@@ -58,9 +63,11 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Form schema and setup
+  // ----- Form schema -----
   const FormSchema = z.object({
+    title: z.string().min(1, 'Expense title is required'),
     vendor: z.string().min(1, 'Vendor is required'),
+    location: z.string().optional(),
     category: z.string().min(1, 'Category is required'),
     amount: z.preprocess((val) => Number(val), z.number().positive('Amount must be greater than 0')),
     date: z.date(),
@@ -70,7 +77,9 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
+      title: '',
       vendor: '',
+      location: '',
       category: '',
       amount: undefined as unknown as number,
       date: new Date(),
@@ -80,21 +89,37 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
   // Apply initial values if provided
   useEffect(() => {
-    if (initialValues) {
-      if (initialValues.vendor) form.setValue('vendor', initialValues.vendor);
-      if (initialValues.category) form.setValue('category', initialValues.category);
-      if (typeof initialValues.amount === 'number') form.setValue('amount', initialValues.amount);
-      if (initialValues.date) form.setValue('date', new Date(initialValues.date));
-      if (initialValues.notes) form.setValue('notes', initialValues.notes);
-    }
+    if (!initialValues) return;
+    if (initialValues.title) form.setValue('title', initialValues.title);
+    if (initialValues.vendor) form.setValue('vendor', initialValues.vendor);
+    if (initialValues.location) form.setValue('location', initialValues.location);
+    if (initialValues.category) form.setValue('category', initialValues.category);
+    if (typeof initialValues.amount === 'number') form.setValue('amount', initialValues.amount);
+    if (initialValues.date) form.setValue('date', new Date(initialValues.date));
+    if (initialValues.notes) form.setValue('notes', initialValues.notes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialValues?.vendor, initialValues?.category, initialValues?.amount, initialValues?.date, initialValues?.notes]);
+  }, [
+    initialValues?.title,
+    initialValues?.vendor,
+    initialValues?.location,
+    initialValues?.category,
+    initialValues?.amount,
+    initialValues?.date,
+    initialValues?.notes,
+  ]);
 
-  // Extraction results
-  const [extractedValues, setExtractedValues] = useState<{ vendor?: string; category?: string; amount?: number; date?: string }>({});
+  // ----- Extraction results -----
+  const [extractedValues, setExtractedValues] = useState<{
+    title?: string;
+    vendor?: string;
+    location?: string;
+    category?: string;
+    amount?: number;
+    date?: string;
+  }>({});
   const [fieldConfidence, setFieldConfidence] = useState<Record<string, number>>({});
 
-  // Preview controls
+  // ----- Preview controls -----
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
 
@@ -102,143 +127,160 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const [lastProcessedBlob, setLastProcessedBlob] = useState<Blob | null>(null);
 
   const applyExtractedToForm = (data: any) => {
+    if (data.title) form.setValue('title', data.title);
+    if (!data.title) {
+      // derive a reasonable default
+      const d = data.date ? new Date(data.date) : undefined;
+      const dateStr = d ? d.toLocaleDateString() : '';
+      if (data.vendor || dateStr) form.setValue('title', [data.vendor, dateStr].filter(Boolean).join(' — '));
+    }
     if (data.vendor) form.setValue('vendor', data.vendor);
+    if (data.location) form.setValue('location', data.location);
     if (data.category) form.setValue('category', data.category);
     if (data.amount) form.setValue('amount', Number(data.amount));
     if (data.date) form.setValue('date', new Date(data.date));
   };
 
-  // 🔄 Convert file to base64 for Gemini OCR
-  const convertFileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  // Base64 util
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const base64String = reader.result as string;
-        const base64Data = base64String.split(',')[1];
-        resolve(base64Data);
-      };
+      reader.onload = () => resolve((reader.result as string).split(',')[1]);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+
+  // Render first page of a PDF to a JPEG file (for OCR)
+  const pdfFirstPageToImageFile = async (pdfArrayBuffer: ArrayBuffer): Promise<File> => {
+    // Ensure workerSrc configured
+    // @ts-ignore
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      // @ts-ignore
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+    }
+    // @ts-ignore
+    const loadingTask = pdfjsLib.getDocument({ data: pdfArrayBuffer });
+    const pdf = await loadingTask.promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2 }); // good quality for OCR
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b as Blob), 'image/jpeg', 0.92));
+    return new File([blob], `receipt-${Date.now()}.jpg`, { type: 'image/jpeg' });
   };
 
-  // 🔄 Process receipt with Gemini
+  // ----- OCR with Gemini -----
   const processDocumentWithGemini = async (file: File) => {
     try {
       setIsProcessingDocument(true);
-      toast({
-        title: "Processing Document",
-        description: "Extracting expense data from your document..."
-      });
+      toast({ title: 'Processing', description: 'Extracting expense data...' });
 
-      const base64Data = await convertFileToBase64(file);
+      const base64Data = await fileToBase64(file);
       const { data, error } = await supabase.functions.invoke('gemini-receipt-ocr', {
-        body: { imageBase64: base64Data }
+        body: { imageBase64: base64Data, wantFields: ['title', 'amount', 'date', 'vendor', 'location', 'category'] },
       });
-
       if (error) throw new Error(error.message || 'Failed to process document');
 
       if (data?.success && data?.data) {
-        const extracted = data.data;
-        setExtractedValues({
-          vendor: extracted.vendor,
-          category: extracted.category,
-          amount: extracted.amount ? Number(extracted.amount) : undefined,
-          date: extracted.date,
-        });
-        setFieldConfidence(extracted.fieldConfidence || {});
-        applyExtractedToForm(extracted);
-        onReceiptProcessed?.(data.data);
-        toast({
-          title: "Document Processed!",
-          description: "Expense data extracted successfully."
-        });
+        const ex = data.data || {};
+        const normalized = {
+          title: ex.title || undefined,
+          vendor: ex.vendor || undefined,
+          location: ex.location || undefined,
+          category: ex.category || undefined,
+          amount: ex.amount != null ? Number(ex.amount) : undefined,
+          date: ex.date || undefined,
+        };
+        setExtractedValues(normalized);
+        setFieldConfidence(ex.fieldConfidence || {});
+        applyExtractedToForm(normalized);
+        onReceiptProcessed?.(ex);
+        toast({ title: 'Done', description: 'Data extracted successfully.' });
       } else {
         throw new Error('Failed to extract data from document');
       }
     } catch (err) {
       console.error(err);
       toast({
-        title: "Processing Error",
-        description: "Could not extract data from document. You can still add the expense manually.",
-        variant: "destructive"
+        title: 'Processing Error',
+        description: 'Could not extract data. You can still enter it manually.',
+        variant: 'destructive',
       });
     } finally {
       setIsProcessingDocument(false);
     }
   };
 
-  // 🔄 Upload file to Supabase
+  // ----- Upload to Supabase -----
   const uploadFileToSupabase = async (file: File) => {
-    const filePath = `receipts/${Date.now()}-${file.name}`; // Save inside receipts folder
-    const { error: uploadError } = await supabase.storage
-      .from('receipts')
-      .upload(filePath, file);
-
+    const filePath = `receipts/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, file);
     if (uploadError) throw new Error(uploadError.message);
-    return filePath; // Return stored file path
+    return filePath;
   };
 
-  // 🔄 Preview component for receipts with zoom/rotate
+  // ----- Preview (image + pdf.js canvas) -----
   const ReceiptPreview = ({ filePath, zoom, rotation }: { filePath: string; zoom: number; rotation: number }) => {
     const [signedUrl, setSignedUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
       const getSignedUrl = async () => {
         setIsLoading(true);
-
-        // Use directly if already a full URL or local blob
         if (filePath.startsWith('http') || filePath.startsWith('blob:') || filePath.startsWith('/')) {
           setSignedUrl(filePath);
           setIsLoading(false);
           return;
         }
-
-        // Get signed URL from Supabase
-        const { data, error } = await supabase.storage
-          .from('receipts')
-          .createSignedUrl(filePath, 60 * 60); // 1 hour
-
+        const { data, error } = await supabase.storage.from('receipts').createSignedUrl(filePath, 60 * 60);
         if (error) {
-          console.error('Error getting signed URL:', error.message);
+          console.error('Signed URL error:', error.message);
           setSignedUrl(null);
         } else {
           setSignedUrl(data?.signedUrl || null);
         }
         setIsLoading(false);
       };
-
       if (filePath) getSignedUrl();
     }, [filePath]);
 
     const isPdf = filePath.toLowerCase().includes('.pdf') || (signedUrl && signedUrl.toLowerCase().includes('.pdf'));
 
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-    // Render the first page of the PDF into a canvas so it shows inline across browsers
+    // Render PDF page 1 into canvas, fit to container width, support zoom/rotation
     useEffect(() => {
-      if (!isPdf || !signedUrl || !canvasRef.current) return;
       const renderPdf = async () => {
-        try {
-          // Ensure the worker is set (use CDN to avoid bundler worker setup)
-          // @ts-ignore
-          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            // @ts-ignore
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
-          }
+        if (!isPdf || !signedUrl || !canvasRef.current || !containerRef.current) return;
 
+        // @ts-ignore
+        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          // @ts-ignore
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+        }
+        try {
           const resp = await fetch(signedUrl, { cache: 'no-store' });
           const buf = await resp.arrayBuffer();
           // @ts-ignore
           const loadingTask = pdfjsLib.getDocument({ data: buf });
           const pdf = await loadingTask.promise;
           const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: zoom, rotation });
-          const canvas = canvasRef.current!;
-          const ctx = canvas.getContext('2d')!;
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+
+          const viewportBase = page.getViewport({ scale: 1, rotation });
+          const containerWidth = containerRef.current.clientWidth || 600;
+          const scale = Math.max(0.5, Math.min(3, (containerWidth / viewportBase.width) * zoom));
+          const viewport = page.getViewport({ scale, rotation });
+
+          const canvas = canvasRef.current;
+          const ctx = canvas!.getContext('2d')!;
+          canvas!.width = viewport.width;
+          canvas!.height = viewport.height;
+          ctx.clearRect(0, 0, canvas!.width, canvas!.height);
           await page.render({ canvasContext: ctx, viewport }).promise;
         } catch (e) {
           console.error('PDF render failed', e);
@@ -249,46 +291,41 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
     if (isLoading) {
       return (
-        <div className="w-full h-full flex items-center justify-center bg-muted">
+        <div className="w-full h-80 sm:h-96 flex items-center justify-center bg-muted rounded">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       );
     }
-
     if (!signedUrl) {
       return (
-        <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
+        <div className="w-full h-80 sm:h-96 flex items-center justify-center bg-muted text-muted-foreground rounded">
           Failed to load preview
         </div>
       );
     }
 
-
     return (
-      <div className="w-full h-full overflow-auto flex items-center justify-center relative">
+      <div ref={containerRef} className="w-full h-80 sm:h-96 overflow-auto flex items-center justify-center bg-background rounded relative">
         {isPdf ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <canvas ref={canvasRef} className="max-w-full max-h-full" aria-label="PDF preview"></canvas>
-            <div className="absolute bottom-2 right-2">
-              <a href={signedUrl} target="_blank" rel="noreferrer" className="text-xs underline">Open in new tab</a>
-            </div>
-          </div>
+          <canvas ref={canvasRef} className="max-w-full max-h-full" aria-label="PDF preview" />
         ) : (
           <img
             src={signedUrl}
             alt="Receipt preview"
             className="max-w-full max-h-full object-contain"
             style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-            }}
           />
+        )}
+        {isPdf && (
+          <a href={signedUrl} target="_blank" rel="noreferrer" className="absolute bottom-2 right-2 text-xs underline">
+            open pdf
+          </a>
         )}
       </div>
     );
   };
 
-  // 🔄 Handle file upload event
+  // ----- Upload handlers -----
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -301,34 +338,34 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       const uploadedFilePath = await uploadFileToSupabase(file);
       setReceiptUrl(uploadedFilePath);
+
+      // Keep original for re-run
       setLastProcessedBlob(file);
 
-      toast({
-        title: "Receipt Uploaded",
-        description: "Your receipt has been uploaded successfully."
-      });
+      toast({ title: 'Receipt uploaded', description: 'Preview below.' });
 
-      if (file.type.startsWith('image/')) {
+      // Extraction for images and PDFs (PDF -> image first)
+      if (file.type === 'application/pdf') {
+        const buf = await file.arrayBuffer();
+        const imageFromPdf = await pdfFirstPageToImageFile(buf);
+        await processDocumentWithGemini(imageFromPdf);
+      } else {
         await processDocumentWithGemini(file);
-      } else if (file.type === 'application/pdf') {
-        toast({
-          title: 'PDF Uploaded',
-          description: 'Preview shown below. AI extraction currently supports images only.'
-        });
       }
     } catch (error) {
       toast({
-        title: "Upload Error",
-        description: error instanceof Error ? error.message : "There was an issue uploading your receipt.",
-        variant: "destructive"
+        title: 'Upload Error',
+        description: error instanceof Error ? error.message : 'There was an issue uploading your receipt.',
+        variant: 'destructive',
       });
       setReceiptUrl(undefined);
     } finally {
       setIsUploading(false);
+      // reset input so same file can be selected again
+      e.currentTarget.value = '';
     }
   };
 
-  // 🔄 Handle camera capture
   const handleCameraCapture = async () => {
     try {
       setIsUploading(true);
@@ -336,11 +373,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       const hasPermission = await CameraService.requestPermissions();
       if (!hasPermission) {
-        toast({
-          title: "Permission Required",
-          description: "Camera permission is needed to take photos",
-          variant: "destructive"
-        });
+        toast({ title: 'Permission Required', description: 'Camera permission is needed', variant: 'destructive' });
         return;
       }
 
@@ -349,69 +382,51 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
         const resp = await fetch(photo.webPath);
         const blob = await resp.blob();
         const file = new File([blob], `capture-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+
         const uploadedFilePath = await uploadFileToSupabase(file);
         setReceiptUrl(uploadedFilePath);
         setLastProcessedBlob(file);
-        
-        toast({
-          title: "Photo Captured",
-          description: "Receipt photo captured successfully"
-        });
 
+        toast({ title: 'Photo captured', description: 'Preview below.' });
         await processDocumentWithGemini(file);
       }
     } catch (error) {
-      console.error('Error taking picture:', error);
-      toast({
-        title: "Camera Error",
-        description: "Failed to capture photo. Please try again.",
-        variant: "destructive"
-      });
+      console.error('Camera error:', error);
+      toast({ title: 'Camera Error', description: 'Failed to capture photo.', variant: 'destructive' });
     } finally {
       setIsUploading(false);
     }
   };
 
-  // 🔄 Handle gallery selection
   const handleGalleryPick = async () => {
     try {
       setIsUploading(true);
       setZoom(1); setRotation(0);
-      
       const photo = await CameraService.pickFromGallery();
       if (photo.webPath) {
         const resp = await fetch(photo.webPath);
         const blob = await resp.blob();
         const file = new File([blob], `gallery-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+
         const uploadedFilePath = await uploadFileToSupabase(file);
         setReceiptUrl(uploadedFilePath);
         setLastProcessedBlob(file);
-        
-        toast({
-          title: "Photo Selected",
-          description: "Receipt photo selected from gallery"
-        });
 
+        toast({ title: 'Photo selected', description: 'Preview below.' });
         await processDocumentWithGemini(file);
       }
     } catch (error) {
-      console.error('Error picking from gallery:', error);
-      toast({
-        title: "Gallery Error",
-        description: "Failed to select photo. Please try again.",
-        variant: "destructive"
-      });
+      console.error('Gallery error:', error);
+      toast({ title: 'Gallery Error', description: 'Failed to select photo.', variant: 'destructive' });
     } finally {
       setIsUploading(false);
     }
   };
 
-  // 🔁 Re-run extraction using last file or current receipt URL
+  // Re-run extraction
   const getCurrentReceiptFile = async (): Promise<File | null> => {
     try {
-      if (lastProcessedBlob) {
-        return new File([lastProcessedBlob], `reprocess-${Date.now()}`);
-      }
+      if (lastProcessedBlob) return new File([lastProcessedBlob], `reprocess-${Date.now()}`);
       if (!receiptUrl) return null;
 
       let url = receiptUrl;
@@ -423,6 +438,12 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       if (!url) return null;
       const resp = await fetch(url);
       const blob = await resp.blob();
+
+      if (blob.type === 'application/pdf') {
+        const buf = await blob.arrayBuffer();
+        return await pdfFirstPageToImageFile(buf);
+      }
+
       const fileName = receiptUrl.split('/').pop() || `receipt-${Date.now()}`;
       return new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
     } catch (e) {
@@ -440,15 +461,12 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     await processDocumentWithGemini(file);
   };
 
-  // 🔄 Remove receipt
   const removeReceipt = () => {
     setReceiptUrl(undefined);
-    toast({
-      title: "Receipt Removed",
-      description: "The receipt has been removed from this expense."
-    });
+    toast({ title: 'Receipt Removed', description: 'It has been removed from this expense.' });
   };
 
+  // ----- UI -----
   return (
     <div className="space-y-2">
       <Label>Receipt & Document Upload</Label>
@@ -459,33 +477,17 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <div>
               <h3 className="text-lg font-medium mb-2">Add Receipt or Document</h3>
-              <p className="text-sm text-gray-600 mb-1">
-                Upload receipts, invoices, or expense documents
-              </p>
-              <p className="text-xs text-gray-500 mb-4">
-                AI will automatically extract expense details
-              </p>
+              <p className="text-sm text-gray-600 mb-1">Upload receipts, invoices, or expense documents</p>
+              <p className="text-xs text-gray-500 mb-4">AI will automatically extract expense details</p>
             </div>
 
             <div className="mb-4">
               <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCameraCapture}
-                  disabled={isUploading || isProcessingDocument}
-                  className="w-full"
-                >
+                <Button type="button" variant="outline" onClick={handleCameraCapture} disabled={isUploading || isProcessingDocument} className="w-full">
                   <Scan className="mr-2 h-4 w-4" />
                   Camera
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGalleryPick}
-                  disabled={isUploading || isProcessingDocument}
-                  className="w-full"
-                >
+                <Button type="button" variant="outline" onClick={handleGalleryPick} disabled={isUploading || isProcessingDocument} className="w-full">
                   <Upload className="mr-2 h-4 w-4" />
                   Gallery
                 </Button>
@@ -503,32 +505,16 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                   disabled={isUploading || isProcessingDocument}
                 />
                 <label htmlFor="receipt-upload">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full cursor-pointer"
-                    asChild
-                    disabled={isUploading || isProcessingDocument}
-                  >
+                  <Button type="button" variant="outline" className="w-full cursor-pointer" asChild disabled={isUploading || isProcessingDocument}>
                     <div>
-                      {isProcessingDocument ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="mr-2 h-4 w-4" />
-                      )}
+                      {isProcessingDocument ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                       {isProcessingDocument ? 'Processing...' : 'Upload File'}
                     </div>
                   </Button>
                 </label>
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCameraCapture}
-                disabled={isUploading || isProcessingDocument}
-                className="w-full"
-              >
+              <Button type="button" variant="outline" onClick={handleCameraCapture} disabled={isUploading || isProcessingDocument} className="w-full">
                 <Scan className="mr-2 h-4 w-4" />
                 Scan Receipt
               </Button>
@@ -548,7 +534,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
         </div>
       ) : (
         <div className="border rounded-md p-3 space-y-4">
-          <div className="aspect-[4/3] bg-muted rounded-md overflow-hidden relative">
+          <div className="bg-muted rounded-md overflow-hidden relative">
             <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
               <Button variant="outline" size="sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>
                 <ZoomOut className="h-4 w-4" />
@@ -574,7 +560,9 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                   toast({ title: 'Future date', description: 'Selected date is in the future. You can still save.' });
                 }
                 const payload = {
+                  title: values.title.trim(),
                   vendor: values.vendor.trim(),
+                  location: values.location?.trim() || '',
                   category: values.category,
                   amount: Number(values.amount),
                   date: dateStr,
@@ -587,6 +575,26 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
               })}
               className="space-y-4"
             >
+              {/* Expense Title */}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Expense Title</ShadFormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Walgreens prescription" {...field} />
+                    </FormControl>
+                    {extractedValues.title && (
+                      <div className="text-xs text-muted-foreground">
+                        <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.title || 0) * 100)}% confidence</Badge>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Vendor */}
               <FormField
                 control={form.control}
@@ -600,6 +608,26 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                     {extractedValues.vendor && (
                       <div className="text-xs text-muted-foreground">
                         <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.vendor || 0) * 100)}% confidence</Badge>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Location */}
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Location</ShadFormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Los Angeles, CA" {...field} />
+                    </FormControl>
+                    {extractedValues.location && (
+                      <div className="text-xs text-muted-foreground">
+                        <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.location || 0) * 100)}% confidence</Badge>
                       </div>
                     )}
                     <FormMessage />
@@ -646,7 +674,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                     <FormControl>
                       <Input type="number" step="0.01" inputMode="decimal" placeholder="0.00" {...field} />
                     </FormControl>
-                    {extractedValues.amount && (
+                    {extractedValues.amount != null && (
                       <div className="text-xs text-muted-foreground">
                         <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.amount || 0) * 100)}% confidence</Badge>
                       </div>
@@ -668,16 +696,9 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
                         <FormControl>
                           <Button
                             variant="outline"
-                            className={cn(
-                              'w-full justify-start text-left font-normal',
-                              !field.value && 'text-muted-foreground'
-                            )}
+                            className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')}
                           >
-                            {field.value ? (
-                              field.value.toLocaleDateString()
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
+                            {field.value ? field.value.toLocaleDateString() : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -734,3 +755,4 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 };
 
 export default ExpenseReceiptUpload;
+

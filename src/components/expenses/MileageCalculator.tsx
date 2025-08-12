@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Calculator, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,19 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [result, setResult] = useState<MileageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [placesReady, setPlacesReady] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      // Detect if the Places library is available
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ready = typeof window !== 'undefined' && (window as any).google?.maps?.places;
+      setPlacesReady(!!ready);
+    };
+    check();
+    const id = setInterval(check, 300);
+    return () => clearInterval(id);
+  }, [apiKey]);
 
   const calculateMileage = async () => {
     if (!fromAddress.trim() || !toAddress.trim()) {
@@ -156,7 +169,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
-          {isConfigured ? (
+          {isConfigured && placesReady ? (
             <PlacesAutocomplete
               label="From Address"
               placeholder="Enter starting address"
@@ -184,7 +197,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         </div>
         
         <div className="space-y-2">
-          {isConfigured ? (
+          {isConfigured && placesReady ? (
             <PlacesAutocomplete
               label="To Address"
               placeholder="Enter destination address"

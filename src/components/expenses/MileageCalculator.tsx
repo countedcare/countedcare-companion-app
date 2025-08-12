@@ -171,9 +171,9 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <Label htmlFor="round-trip" className="text-sm font-medium">Round trip</Label>
+      <div className="flex items-center gap-2">
         <Switch id="round-trip" checked={isRoundTrip} onCheckedChange={setIsRoundTrip} />
+        <Label htmlFor="round-trip" className="text-sm font-medium">Round trip</Label>
       </div>
 
       <Button

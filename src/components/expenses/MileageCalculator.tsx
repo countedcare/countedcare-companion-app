@@ -3,6 +3,7 @@ import { MapPin, Calculator, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +40,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [isSaving, setIsSaving] = useState(false);
   const [result, setResult] = useState<MileageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRoundTrip, setIsRoundTrip] = useState(false);
 
   const calculateMileage = async () => {
     if (!fromAddress.trim() || !toAddress.trim()) {
@@ -67,14 +69,14 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       }
 
       // Edge function returns { miles, deduction }
-      const miles = typeof data?.miles === 'number' ? Math.round(data.miles * 10) / 10 : 0;
-      // Compute using $0.21/mi to ensure consistency and clarity
-      const computedDeduction = Math.round(miles * 0.21 * 100) / 100;
+      const baseMiles = typeof data?.miles === 'number' ? Math.round(data.miles * 10) / 10 : 0;
+      const appliedMiles = isRoundTrip ? Math.round(baseMiles * 2 * 10) / 10 : baseMiles;
+      const computedDeduction = Math.round(appliedMiles * 0.21 * 100) / 100;
 
       const resultPayload: MileageResult = {
         from: fromAddress.trim(),
         to: toAddress.trim(),
-        distance: { miles, text: `${miles} miles` },
+        distance: { miles: appliedMiles, text: `${appliedMiles} miles` },
         estimatedDeduction: computedDeduction,
         irsRate: 0.21
       };
@@ -84,7 +86,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       
       toast({
         title: "Mileage Calculated!",
-        description: `Distance: ${miles} miles • Total: $${computedDeduction}`
+        description: `Distance: ${appliedMiles} miles • Total: $${computedDeduction}${isRoundTrip ? ' (round trip)' : ''}`
       });
 
     } catch (err) {
@@ -169,6 +171,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         </div>
       </div>
 
+      <div className="flex items-center justify-between">
+        <Label htmlFor="round-trip" className="text-sm font-medium">Round trip</Label>
+        <Switch id="round-trip" checked={isRoundTrip} onCheckedChange={setIsRoundTrip} />
+      </div>
+
       <Button
         onClick={calculateMileage}
         disabled={isCalculating || !fromAddress.trim() || !toAddress.trim()}
@@ -200,7 +207,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
             <div className="text-sm space-y-1 text-green-800">
               <p><strong>From:</strong> {result.from}</p>
               <p><strong>To:</strong> {result.to}</p>
-              <p><strong>Distance:</strong> {result.distance.miles} miles</p>
+              <p><strong>Distance:</strong> {result.distance.miles} miles {isRoundTrip && <span>(round trip)</span>}</p>
               {result.duration && (
                 <p><strong>Duration:</strong> {result.duration.text}</p>
               )}

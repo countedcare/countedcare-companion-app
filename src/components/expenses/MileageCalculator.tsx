@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import PlacesAutocomplete from '@/components/places/PlacesAutocomplete';
+import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 interface MileageCalculatorProps {
   onAmountCalculated: (amount: number) => void;
@@ -33,7 +35,8 @@ interface MileageResult {
 const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculated }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+  const { apiKey, isConfigured } = useGoogleMapsAPI();
+
   const [fromAddress, setFromAddress] = useState('');
   const [toAddress, setToAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
@@ -153,25 +156,59 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="from-address" className="text-sm font-medium">From Address</Label>
-          <Input
-            id="from-address"
-            placeholder="Enter starting address"
-            value={fromAddress}
-            onChange={(e) => setFromAddress(e.target.value)}
-            className="bg-white"
-          />
+          {isConfigured ? (
+            <PlacesAutocomplete
+              label="From Address"
+              placeholder="Enter starting address"
+              value={fromAddress}
+              apiKey={apiKey}
+              types={['address']}
+              onPlaceSelect={(place) => {
+                const addr = place.formatted_address || place.name || '';
+                setFromAddress(addr);
+              }}
+              className="bg-white"
+            />
+          ) : (
+            <>
+              <Label htmlFor="from-address" className="text-sm font-medium">From Address</Label>
+              <Input
+                id="from-address"
+                placeholder="Enter starting address"
+                value={fromAddress}
+                onChange={(e) => setFromAddress(e.target.value)}
+                className="bg-white"
+              />
+            </>
+          )}
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="to-address" className="text-sm font-medium">To Address</Label>
-          <Input
-            id="to-address"
-            placeholder="Enter destination address"
-            value={toAddress}
-            onChange={(e) => setToAddress(e.target.value)}
-            className="bg-white"
-          />
+          {isConfigured ? (
+            <PlacesAutocomplete
+              label="To Address"
+              placeholder="Enter destination address"
+              value={toAddress}
+              apiKey={apiKey}
+              types={['address']}
+              onPlaceSelect={(place) => {
+                const addr = place.formatted_address || place.name || '';
+                setToAddress(addr);
+              }}
+              className="bg-white"
+            />
+          ) : (
+            <>
+              <Label htmlFor="to-address" className="text-sm font-medium">To Address</Label>
+              <Input
+                id="to-address"
+                placeholder="Enter destination address"
+                value={toAddress}
+                onChange={(e) => setToAddress(e.target.value)}
+                className="bg-white"
+              />
+            </>
+          )}
         </div>
       </div>
 

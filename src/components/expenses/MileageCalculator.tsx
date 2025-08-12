@@ -44,23 +44,12 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [result, setResult] = useState<MileageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
-  const [placesReady, setPlacesReady] = useState(false);
+  
   const [fromIsGPS, setFromIsGPS] = useState(false);
   const [toIsGPS, setToIsGPS] = useState(false);
   const [fromPlaceId, setFromPlaceId] = useState<string | null>(null);
   const [toPlaceId, setToPlaceId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const check = () => {
-      // Detect if the Places library is available
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ready = typeof window !== 'undefined' && (window as any).google?.maps?.places;
-      setPlacesReady(!!ready);
-    };
-    check();
-    const id = setInterval(check, 300);
-    return () => clearInterval(id);
-  }, [apiKey]);
 
   const buildMapsPreviewLink = (value: string) => {
     const query = encodeURIComponent(value);
@@ -215,7 +204,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       <div className="grid grid-cols-1 gap-4">
         {/* From Address */}
         <div className="space-y-2">
-          {isConfigured && placesReady ? (
+          {isConfigured ? (
             <PlacesAutocomplete
               label="From Address"
               placeholder="Enter starting address"
@@ -264,7 +253,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
         {/* To Address */}
         <div className="space-y-2">
-          {isConfigured && placesReady ? (
+          {isConfigured ? (
             <PlacesAutocomplete
               label="To Address"
               placeholder="Enter destination address"

@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin } from 'lucide-react';
+import './places.css';
 
 interface PlacesAutocompleteProps {
   onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
@@ -28,6 +29,10 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   const [inputValue, setInputValue] = useState(value);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInputValue(value || '');
+  }, [value]);
 
   useEffect(() => {
     const loadGoogleMapsScript = () => {
@@ -131,6 +136,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
           ref={inputRef}
           id="places-input"
           type="text"
+          autoComplete="off"
           placeholder={placeholder}
           value={inputValue}
           onChange={handleInputChange}

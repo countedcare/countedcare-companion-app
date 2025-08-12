@@ -47,6 +47,8 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [placesReady, setPlacesReady] = useState(false);
   const [fromIsGPS, setFromIsGPS] = useState(false);
   const [toIsGPS, setToIsGPS] = useState(false);
+  const [fromPlaceId, setFromPlaceId] = useState<string | null>(null);
+  const [toPlaceId, setToPlaceId] = useState<string | null>(null);
 
   useEffect(() => {
     const check = () => {
@@ -78,9 +80,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         if (target === 'from') {
           setFromAddress(coords);
           setFromIsGPS(true);
+          setFromPlaceId(null);
         } else {
           setToAddress(coords);
           setToIsGPS(true);
+          setToPlaceId(null);
         }
         setResult(null);
         toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location.` });
@@ -111,7 +115,9 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       const { data, error } = await supabase.functions.invoke('calculate-mileage', {
         body: {
           from: fromAddress.trim(),
-          to: toAddress.trim()
+          to: toAddress.trim(),
+          fromPlaceId: fromPlaceId ?? undefined,
+          toPlaceId: toPlaceId ?? undefined,
         }
       });
 
@@ -217,6 +223,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 const addr = place.formatted_address || place.name || '';
                 setFromAddress(addr);
                 setFromIsGPS(false);
+                setFromPlaceId(place.place_id || null);
               }}
               className="bg-white"
             />
@@ -227,7 +234,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 id="from-address"
                 placeholder="Enter starting address"
                 value={fromAddress}
-                onChange={(e) => setFromAddress(e.target.value)}
+                onChange={(e) => { setFromAddress(e.target.value); setFromPlaceId(null); }}
                 className="bg-white"
               />
             </>
@@ -265,6 +272,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 const addr = place.formatted_address || place.name || '';
                 setToAddress(addr);
                 setToIsGPS(false);
+                setToPlaceId(place.place_id || null);
               }}
               className="bg-white"
             />
@@ -275,7 +283,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 id="to-address"
                 placeholder="Enter destination address"
                 value={toAddress}
-                onChange={(e) => setToAddress(e.target.value)}
+                onChange={(e) => { setToAddress(e.target.value); setToPlaceId(null); }}
                 className="bg-white"
               />
             </>

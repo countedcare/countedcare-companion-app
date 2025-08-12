@@ -34,6 +34,8 @@ serve(async (req) => {
     const body = await req.json()
     const from = body?.from
     const to = body?.to
+    const fromPlaceId = body?.fromPlaceId
+    const toPlaceId = body?.toPlaceId
 
     if (!from || !to) {
       console.error('Missing required parameters:', { from: !!from, to: !!to })
@@ -52,11 +54,13 @@ serve(async (req) => {
       })
     }
 
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&units=imperial&key=${apiKey}`
-    console.log('Making request to Google Maps API for:', { from, to })
+    const originParam = fromPlaceId ? `place_id:${fromPlaceId}` : encodeURIComponent(from)
+    const destinationParam = toPlaceId ? `place_id:${toPlaceId}` : encodeURIComponent(to)
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originParam}&destinations=${destinationParam}&units=imperial&mode=driving&key=${apiKey}`
+    console.log('Making request to Google Maps API for:', { from, to, fromPlaceId, toPlaceId, url })
 
     const res = await fetch(url)
-    const data = await res.json()
+    const data: DistanceMatrixResponse = await res.json()
 
     if (res.status !== 200) {
       console.error('Google Maps API error:', data)
@@ -91,7 +95,9 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       miles: Math.round(miles * 10) / 10, 
-      deduction: Math.round(deduction * 100) / 100 
+      deduction: Math.round(deduction * 100) / 100,
+      origin: data.origin_addresses?.[0] ?? null,
+      destination: data.destination_addresses?.[0] ?? null
     }), {
       headers: { 
         ...corsHeaders, 

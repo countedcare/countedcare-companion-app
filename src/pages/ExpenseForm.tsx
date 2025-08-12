@@ -1,324 +1,251 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
-import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
-import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
+import { ArrowLeftRight, MapPin, Loader2 } from 'lucide-react';
 
-// Import the new components
-import ExpenseBasicFields from '@/components/expenses/ExpenseBasicFields';
-import ExpenseLocationSection from '@/components/expenses/ExpenseLocationSection';
-import ExpenseReceiptUpload from '@/components/expenses/ExpenseReceiptUpload';
-import ExpenseCategorySection from '@/components/expenses/ExpenseCategorySection';
-import ExpenseFormActions from '@/components/expenses/ExpenseFormActions';
-import GoogleMapsAPIConfig from '@/components/places/GoogleMapsAPIConfig';
+declare global {
+  interface Window {
+    google?: typeof google;
+  }
+}
 
-const ExpenseForm = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [searchParams] = useSearchParams();
-  
-  const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
-  const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  
-  const [title, setTitle] = useState('');
-  const [vendor, setVendor] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState<Date>(new Date());
-  const [category, setCategory] = useState('');
-  const [subcategory, setSubcategory] = useState('');
-  const [description, setDescription] = useState('');
-  const [careRecipientId, setCareRecipientId] = useState('');
-  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isProcessingDocument, setIsProcessingDocument] = useState(false);
-  
-  // Enhanced tracking fields
-  const [expenseTags, setExpenseTags] = useState<string[]>([]);
-  const [isTaxDeductible, setIsTaxDeductible] = useState(false);
-  const [reimbursementSource, setReimbursementSource] = useState('');
-  const [linkedAccountId, setLinkedAccountId] = useState('');
-  
-  // Google Maps integration
-  const { apiKey, isConfigured, saveApiKey } = useGoogleMapsAPI();
-  const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
-  
-  // Auto-configure API key if not set
-  useEffect(() => {
-    if (!isConfigured) {
-      const defaultApiKey = 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak';
-      saveApiKey(defaultApiKey);
-    }
-  }, [isConfigured, saveApiKey]);
-  
-  // Handle pre-selected category from URL params
-  useEffect(() => {
-    const categoryParam = searchParams.get('category');
-    const subcategoryParam = searchParams.get('subcategory');
-    
-    if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
-      setCategory('🚘 Transportation & Travel for Medical Care');
-      setSubcategory('Mileage for car travel (67 cents/mile in 2024)');
-    }
-  }, [searchParams]);
-  
-  // For editing mode
-  useEffect(() => {
-    if (id) {
-      const expenseToEdit = expenses.find(expense => expense.id === id);
-      if (expenseToEdit) {
-        setTitle(expenseToEdit.description || '');
-        setVendor(expenseToEdit.vendor || '');
-        setAmount(expenseToEdit.amount.toString());
-        setCategory(expenseToEdit.category);
-        setSubcategory(expenseToEdit.subcategory || '');
-        setDescription(expenseToEdit.description || '');
-        setCareRecipientId(expenseToEdit.careRecipientId);
-        setReceiptUrl(expenseToEdit.receiptUrl);
-        setExpenseTags(expenseToEdit.expense_tags || []);
-        setIsTaxDeductible(expenseToEdit.is_tax_deductible || false);
-        setReimbursementSource(expenseToEdit.reimbursement_source || '');
-        setLinkedAccountId(expenseToEdit.synced_transaction_id || '');
-      }
-    }
-  }, [id, expenses]);
+type Props = {
+  apiKey: string;
+  defaultRatePerMile?: number;           // default 0.21
+  onAmountCalculated: (amount: number, miles: number) => void;
+  initialFrom?: string;
+  initialTo?: string;
+  roundTripDefault?: boolean;
+};
 
-  const handleReceiptProcessed = (extractedData: any) => {
-    console.log('Receipt data extracted:', extractedData);
-    
-    // Auto-populate form fields with extracted data
-    if (extractedData.amount && extractedData.amount > 0) {
-      setAmount(extractedData.amount.toString());
-    }
-    
-    if (extractedData.date) {
-      try {
-        const parsedDate = new Date(extractedData.date);
-        if (!isNaN(parsedDate.getTime())) {
-          setDate(parsedDate);
-        }
-      } catch (error) {
-        console.error('Error parsing date:', error);
-      }
-    }
-    
-    if (extractedData.merchant) {
-      setTitle(extractedData.merchant);
-    }
-    if (extractedData.vendor) {
-      setVendor(extractedData.vendor);
-    }
-    
-    // Try to match category with new comprehensive categories
-    if (extractedData.category) {
-      const matchedCategory = EXPENSE_CATEGORIES.find(cat => 
-        cat.toLowerCase().includes(extractedData.category.toLowerCase()) ||
-        extractedData.category.toLowerCase().includes('medical') && cat.includes('Medical') ||
-        extractedData.category.toLowerCase().includes('dental') && cat.includes('Dental') ||
-        extractedData.category.toLowerCase().includes('pharmacy') && cat.includes('Prescriptions')
-      );
-      if (matchedCategory) {
-        setCategory(matchedCategory);
-      }
-    }
-    
-    if (extractedData.description) {
-      setDescription(extractedData.description);
-    }
-    
-    // Set as potentially tax deductible for medical expenses
-    if (extractedData.category && (
-      extractedData.category.toLowerCase().includes('medical') ||
-      extractedData.category.toLowerCase().includes('pharmacy') ||
-      extractedData.category.toLowerCase().includes('dental')
-    )) {
-      setIsTaxDeductible(true);
-    }
-    
-    toast({
-      title: "Form Auto-Populated!",
-      description: "Please review and adjust the extracted information as needed.",
-    });
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate required fields
-    if (!amount || !category) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
+const loadGoogleMaps = (apiKey: string) =>
+  new Promise<void>((resolve, reject) => {
+    if (window.google?.maps) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>('script[data-gmaps="true"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Google Maps failed to load')));
       return;
     }
-    
-    const expenseData: Expense = {
-      id: id || `exp-${Date.now()}`,
-      amount: parseFloat(amount),
-      date: date.toISOString(),
-      category,
-      subcategory: subcategory || undefined,
-      description: title || description,
-      vendor: vendor || undefined,
-      careRecipientId,
-      careRecipientName: recipients.find(r => r.id === careRecipientId)?.name,
-      receiptUrl,
-      expense_tags: expenseTags.length > 0 ? expenseTags : undefined,
-      is_tax_deductible: isTaxDeductible,
-      reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : undefined,
-      synced_transaction_id: linkedAccountId && linkedAccountId !== 'none' ? linkedAccountId : undefined
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.gmaps = 'true';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Google Maps failed to load'));
+    document.head.appendChild(script);
+  });
+
+const toMiles = (meters: number) => meters / 1609.344;
+
+const MileageCalculator: React.FC<Props> = ({
+  apiKey,
+  defaultRatePerMile = 0.21,
+  onAmountCalculated,
+  initialFrom = '',
+  initialTo = '',
+  roundTripDefault = true,
+}) => {
+  const { toast } = useToast();
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
+  const [rate, setRate] = useState(defaultRatePerMile.toFixed(2));
+  const [roundTrip, setRoundTrip] = useState(roundTripDefault);
+  const [miles, setMiles] = useState<number | null>(null);
+  const [amount, setAmount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fromRef = useRef<HTMLInputElement | null>(null);
+  const toRef = useRef<HTMLInputElement | null>(null);
+  const fromAuto = useRef<google.maps.places.Autocomplete | null>(null);
+  const toAuto = useRef<google.maps.places.Autocomplete | null>(null);
+
+  // Initialize Google Places Autocomplete
+  useEffect(() => {
+    let mounted = true;
+    loadGoogleMaps(apiKey)
+      .then(() => {
+        if (!mounted) return;
+        if (fromRef.current && !fromAuto.current) {
+          fromAuto.current = new window.google!.maps.places.Autocomplete(fromRef.current!, {
+            fields: ['formatted_address', 'geometry', 'name'],
+          });
+          fromAuto.current.addListener('place_changed', () => {
+            const place = fromAuto.current!.getPlace();
+            setFrom(place.formatted_address || place.name || fromRef.current!.value);
+          });
+        }
+        if (toRef.current && !toAuto.current) {
+          toAuto.current = new window.google!.maps.places.Autocomplete(toRef.current!, {
+            fields: ['formatted_address', 'geometry', 'name'],
+          });
+          toAuto.current.addListener('place_changed', () => {
+            const place = toAuto.current!.getPlace();
+            setTo(place.formatted_address || place.name || toRef.current!.value);
+          });
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        toast({
+          title: 'Google Maps not available',
+          description: 'Enter addresses manually; distance lookup may fail.',
+          variant: 'destructive',
+        });
+      });
+    return () => {
+      mounted = false;
     };
-    
-    if (id) {
-      // Update existing expense
-      setExpenses(expenses.map(expense => 
-        expense.id === id ? expenseData : expense
-      ));
-      toast({
-        title: "Expense Updated",
-        description: "Your expense has been updated successfully."
-      });
-    } else {
-      // Add new expense
-      setExpenses([...expenses, expenseData]);
-      toast({
-        title: "Expense Added!",
-        description: "Your expense has been saved successfully."
-      });
-    }
-    
-    navigate('/expenses');
+  }, [apiKey, toast]);
+
+  const swap = () => {
+    setFrom((prev) => {
+      const tmp = to;
+      setTo(prev);
+      return tmp;
+    });
+    setMiles(null);
+    setAmount(null);
   };
-  
-  const handleDelete = () => {
-    if (id) {
-      setExpenses(expenses.filter(expense => expense.id !== id));
-      toast({
-        title: "Expense Deleted",
-        description: "Your expense has been deleted successfully."
+
+  const compute = async () => {
+    setLoading(true);
+    setMiles(null);
+    setAmount(null);
+    try {
+      if (!window.google?.maps) throw new Error('Google Maps not loaded');
+      if (!from || !to) throw new Error('Please enter both locations');
+
+      const svc = new window.google.maps.DistanceMatrixService();
+      const res = await svc.getDistanceMatrix({
+        origins: [from],
+        destinations: [to],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        unitSystem: window.google.maps.UnitSystem.IMPERIAL,
       });
-      navigate('/expenses');
+
+      const el = res.rows?.[0]?.elements?.[0];
+      if (!el || el.status !== 'OK') throw new Error('Could not calculate distance');
+
+      let totalMiles = toMiles(el.distance.value);
+      if (roundTrip) totalMiles *= 2;
+
+      // keep two decimals on miles
+      totalMiles = Math.round(totalMiles * 100) / 100;
+
+      const numericRate = Number(rate);
+      const totalAmount = Math.round(totalMiles * numericRate * 100) / 100;
+
+      setMiles(totalMiles);
+      setAmount(totalAmount);
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        title: 'Distance error',
+        description: e?.message || 'Failed to compute mileage',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleMileageAmountCalculated = (calculatedAmount: number) => {
-    setAmount(calculatedAmount.toString());
+  const apply = () => {
+    if (amount == null || miles == null) return;
+    onAmountCalculated(amount, miles);
+    toast({
+      title: 'Mileage applied',
+      description: `Added $${amount.toFixed(2)} for ${miles.toFixed(2)} mi${roundTrip ? ' (roundtrip)' : ''}.`,
+    });
   };
 
   return (
-    <Layout>
-      <div className="container-padding py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-heading">
-            {id ? 'Edit' : 'Add New'} Expense
-          </h1>
+    <Card className="p-4 space-y-4">
+      <div className="grid md:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="m-from" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" /> From
+          </Label>
+          <Input
+            id="m-from"
+            ref={fromRef}
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            placeholder="Start address or place"
+            autoComplete="off"
+          />
         </div>
-        
-        <form onSubmit={handleSubmit}>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {/* Basic Information */}
-                <ExpenseBasicFields
-                  title={title}
-                  setTitle={setTitle}
-                  amount={amount}
-                  setAmount={setAmount}
-                  date={date}
-                  setDate={setDate}
-                />
-                
-                {/* Vendor */}
-                <div className="space-y-2">
-                  <Label htmlFor="vendor">Vendor</Label>
-                  <Input
-                    id="vendor"
-                    placeholder="e.g., Walgreens, UCLA Health"
-                    value={vendor}
-                    onChange={(e) => setVendor(e.target.value)}
-                  />
-                </div>
 
-                {/* Google Maps API Setup */}
-                <GoogleMapsAPIConfig onApiKeySaved={saveApiKey} currentApiKey={apiKey} />
-
-                {/* Location Search */}
-                <ExpenseLocationSection
-                  selectedLocation={selectedLocation}
-                  setSelectedLocation={setSelectedLocation}
-                  title={title}
-                  setTitle={setTitle}
-                  apiKey={apiKey}
-                />
-                
-                {/* Category Selection */}
-                <ExpenseCategorySection
-                  category={category}
-                  setCategory={setCategory}
-                  subcategory={subcategory}
-                  setSubcategory={setSubcategory}
-                  careRecipientId={careRecipientId}
-                  setCareRecipientId={setCareRecipientId}
-                  recipients={recipients}
-                  onMileageAmountCalculated={handleMileageAmountCalculated}
-                />
-
-                {/* Receipt Upload */}
-                <ExpenseReceiptUpload
-                  receiptUrl={receiptUrl}
-                  setReceiptUrl={setReceiptUrl}
-                  isUploading={isUploading}
-                  setIsUploading={setIsUploading}
-                  isProcessingDocument={isProcessingDocument}
-                  setIsProcessingDocument={setIsProcessingDocument}
-                  onReceiptProcessed={handleReceiptProcessed}
-                />
-                
-                {/* Notes */}
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Enter any additional information about this expense"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                </div>
-                
-                {/* Enhanced Expense Fields */}
-                <EnhancedExpenseFields
-                  expenseTags={expenseTags}
-                  setExpenseTags={setExpenseTags}
-                  isTaxDeductible={isTaxDeductible}
-                  setIsTaxDeductible={setIsTaxDeductible}
-                  reimbursementSource={reimbursementSource}
-                  setReimbursementSource={setReimbursementSource}
-                  linkedAccountId={linkedAccountId}
-                  setLinkedAccountId={setLinkedAccountId}
-                />
-              </div>
-              
-              {/* Form Actions */}
-              <ExpenseFormActions
-                isEditing={!!id}
-                onDelete={handleDelete}
-              />
-            </CardContent>
-          </Card>
-        </form>
+        <div className="space-y-1">
+          <Label htmlFor="m-to" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" /> To
+          </Label>
+          <Input
+            id="m-to"
+            ref={toRef}
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            placeholder="Destination address or place"
+            autoComplete="off"
+          />
+        </div>
       </div>
-    </Layout>
+
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={swap} title="Swap">
+          <ArrowLeftRight className="h-4 w-4" />
+        </Button>
+
+        <div className="flex items-center gap-2 ml-auto">
+          <Checkbox id="roundtrip" checked={roundTrip} onCheckedChange={(v) => setRoundTrip(!!v)} />
+          <Label htmlFor="roundtrip">Roundtrip</Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Label htmlFor="rate">Rate $/mi</Label>
+          <Input
+            id="rate"
+            type="number"
+            step="0.01"
+            className="w-24"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+          />
+        </div>
+
+        <Button type="button" onClick={compute} disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Calculate'}
+        </Button>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div className="p-3 rounded bg-muted">
+          <div className="text-xs text-muted-foreground">Miles</div>
+          <div className="text-lg font-medium">{miles != null ? miles.toFixed(2) : '—'}</div>
+        </div>
+        <div className="p-3 rounded bg-muted">
+          <div className="text-xs text-muted-foreground">Rate</div>
+          <div className="text-lg font-medium">${Number(rate || 0).toFixed(2)}/mi</div>
+        </div>
+        <div className="p-3 rounded bg-muted">
+          <div className="text-xs text-muted-foreground">Amount</div>
+          <div className="text-lg font-medium">{amount != null ? `$${amount.toFixed(2)}` : '—'}</div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button type="button" variant="secondary" disabled={amount == null} onClick={apply}>
+          Apply to Expense
+        </Button>
+      </div>
+    </Card>
   );
 };
 
-export default ExpenseForm;
+export default MileageCalculator;
+

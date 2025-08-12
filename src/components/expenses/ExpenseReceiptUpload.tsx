@@ -2,10 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Upload, Scan, FileText, Loader2 } from 'lucide-react';
+import { Upload, Scan, FileText, Loader2, RotateCw, ZoomIn, ZoomOut, Calendar as CalendarIcon } from 'lucide-react';
 import { CameraService } from '@/services/cameraService';
 import { supabase } from '@/integrations/supabase/client';
-
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormField, FormItem, FormLabel as ShadFormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { EXPENSE_CATEGORIES } from '@/types/User';
 interface ExpenseReceiptUploadProps {
   receiptUrl: string | undefined;
   setReceiptUrl: (url: string | undefined) => void;
@@ -13,7 +24,24 @@ interface ExpenseReceiptUploadProps {
   setIsUploading: (loading: boolean) => void;
   isProcessingDocument: boolean;
   setIsProcessingDocument: (loading: boolean) => void;
-  onReceiptProcessed: (data: any) => void;
+  onReceiptProcessed?: (data: any) => void;
+  onSave?: (expenseData: {
+    vendor: string;
+    category: string;
+    amount: number;
+    date: string;
+    notes?: string;
+    receiptUrl?: string;
+    extractedValues: { vendor?: string; category?: string; amount?: number; date?: string };
+    fieldConfidence: Record<string, number>;
+  }) => void;
+  initialValues?: {
+    vendor?: string;
+    category?: string;
+    amount?: number;
+    date?: string;
+    notes?: string;
+  };
 }
 
 const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
@@ -23,9 +51,61 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   setIsUploading,
   isProcessingDocument,
   setIsProcessingDocument,
-  onReceiptProcessed
+  onReceiptProcessed,
+  onSave,
+  initialValues,
 }) => {
   const { toast } = useToast();
+
+  // Form schema and setup
+  const FormSchema = z.object({
+    vendor: z.string().min(1, 'Vendor is required'),
+    category: z.string().min(1, 'Category is required'),
+    amount: z.preprocess((val) => Number(val), z.number().positive('Amount must be greater than 0')),
+    date: z.date(),
+    notes: z.string().optional(),
+  });
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      vendor: '',
+      category: '',
+      amount: undefined as unknown as number,
+      date: new Date(),
+      notes: '',
+    },
+  });
+
+  // Apply initial values if provided
+  useEffect(() => {
+    if (initialValues) {
+      if (initialValues.vendor) form.setValue('vendor', initialValues.vendor);
+      if (initialValues.category) form.setValue('category', initialValues.category);
+      if (typeof initialValues.amount === 'number') form.setValue('amount', initialValues.amount);
+      if (initialValues.date) form.setValue('date', new Date(initialValues.date));
+      if (initialValues.notes) form.setValue('notes', initialValues.notes);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValues?.vendor, initialValues?.category, initialValues?.amount, initialValues?.date, initialValues?.notes]);
+
+  // Extraction results
+  const [extractedValues, setExtractedValues] = useState<{ vendor?: string; category?: string; amount?: number; date?: string }>({});
+  const [fieldConfidence, setFieldConfidence] = useState<Record<string, number>>({});
+
+  // Preview controls
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+
+  // Keep last uploaded/captured file for re-run extraction
+  const [lastProcessedBlob, setLastProcessedBlob] = useState<Blob | null>(null);
+
+  const applyExtractedToForm = (data: any) => {
+    if (data.vendor) form.setValue('vendor', data.vendor);
+    if (data.category) form.setValue('category', data.category);
+    if (data.amount) form.setValue('amount', Number(data.amount));
+    if (data.date) form.setValue('date', new Date(data.date));
+  };
 
   // 🔄 Convert file to base64 for Gemini OCR
   const convertFileToBase64 = (file: File): Promise<string> => {
@@ -58,7 +138,16 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       if (error) throw new Error(error.message || 'Failed to process document');
 
       if (data?.success && data?.data) {
-        onReceiptProcessed(data.data);
+        const extracted = data.data;
+        setExtractedValues({
+          vendor: extracted.vendor,
+          category: extracted.category,
+          amount: extracted.amount ? Number(extracted.amount) : undefined,
+          date: extracted.date,
+        });
+        setFieldConfidence(extracted.fieldConfidence || {});
+        applyExtractedToForm(extracted);
+        onReceiptProcessed?.(data.data);
         toast({
           title: "Document Processed!",
           description: "Expense data extracted successfully."
@@ -66,9 +155,10 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       } else {
         throw new Error('Failed to extract data from document');
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast({
-        title: "Processing Error", 
+        title: "Processing Error",
         description: "Could not extract data from document. You can still add the expense manually.",
         variant: "destructive"
       });
@@ -88,8 +178,8 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     return filePath; // Return stored file path
   };
 
-  // 🔄 Preview component for receipts
-  const ReceiptPreview = ({ filePath }: { filePath: string }) => {
+  // 🔄 Preview component for receipts with zoom/rotate
+  const ReceiptPreview = ({ filePath, zoom, rotation }: { filePath: string; zoom: number; rotation: number }) => {
     const [signedUrl, setSignedUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -137,10 +227,26 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       );
     }
 
-    return filePath.toLowerCase().includes('.pdf') ? (
-      <embed src={signedUrl} type="application/pdf" className="w-full h-full" style={{ minHeight: '300px' }} />
-    ) : (
-      <img src={signedUrl} alt="Receipt" className="w-full h-full object-contain" />
+    const isPdf = filePath.toLowerCase().includes('.pdf') || (signedUrl && signedUrl.toLowerCase().includes('.pdf'));
+
+    return (
+      <div className="w-full h-full overflow-auto flex items-center justify-center">
+        {isPdf ? (
+          <embed
+            src={signedUrl}
+            type="application/pdf"
+            className="w-full h-full"
+            style={{ minHeight: '300px', transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}
+          />
+        ) : (
+          <img
+            src={signedUrl}
+            alt="Receipt preview"
+            className="max-w-full max-h-full object-contain"
+            style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`, transformOrigin: 'center center' }}
+          />
+        )}
+      </div>
     );
   };
 
@@ -148,7 +254,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+    setZoom(1); setRotation(0);
     setIsUploading(true);
     try {
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
@@ -157,6 +263,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       const uploadedFilePath = await uploadFileToSupabase(file);
       setReceiptUrl(uploadedFilePath);
+      setLastProcessedBlob(file);
 
       toast({
         title: "Receipt Uploaded",
@@ -182,7 +289,8 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const handleCameraCapture = async () => {
     try {
       setIsUploading(true);
-      
+      setZoom(1); setRotation(0);
+
       const hasPermission = await CameraService.requestPermissions();
       if (!hasPermission) {
         toast({
@@ -195,15 +303,19 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       const photo = await CameraService.takePicture();
       if (photo.webPath) {
-        setReceiptUrl(photo.webPath);
+        const resp = await fetch(photo.webPath);
+        const blob = await resp.blob();
+        const file = new File([blob], `capture-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+        const uploadedFilePath = await uploadFileToSupabase(file);
+        setReceiptUrl(uploadedFilePath);
+        setLastProcessedBlob(file);
         
         toast({
           title: "Photo Captured",
           description: "Receipt photo captured successfully"
         });
 
-        // Auto-process with Gemini if it's an image
-        await processDocumentWithGemini(photo as any);
+        await processDocumentWithGemini(file);
       }
     } catch (error) {
       console.error('Error taking picture:', error);
@@ -221,18 +333,23 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const handleGalleryPick = async () => {
     try {
       setIsUploading(true);
+      setZoom(1); setRotation(0);
       
       const photo = await CameraService.pickFromGallery();
       if (photo.webPath) {
-        setReceiptUrl(photo.webPath);
+        const resp = await fetch(photo.webPath);
+        const blob = await resp.blob();
+        const file = new File([blob], `gallery-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+        const uploadedFilePath = await uploadFileToSupabase(file);
+        setReceiptUrl(uploadedFilePath);
+        setLastProcessedBlob(file);
         
         toast({
           title: "Photo Selected",
           description: "Receipt photo selected from gallery"
         });
 
-        // Auto-process with Gemini if it's an image
-        await processDocumentWithGemini(photo as any);
+        await processDocumentWithGemini(file);
       }
     } catch (error) {
       console.error('Error picking from gallery:', error);
@@ -244,6 +361,40 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // 🔁 Re-run extraction using last file or current receipt URL
+  const getCurrentReceiptFile = async (): Promise<File | null> => {
+    try {
+      if (lastProcessedBlob) {
+        return new File([lastProcessedBlob], `reprocess-${Date.now()}`);
+      }
+      if (!receiptUrl) return null;
+
+      let url = receiptUrl;
+      if (!(receiptUrl.startsWith('http') || receiptUrl.startsWith('blob:') || receiptUrl.startsWith('/'))) {
+        const { data, error } = await supabase.storage.from('receipts').createSignedUrl(receiptUrl, 60 * 5);
+        if (error) throw error;
+        url = data?.signedUrl || '';
+      }
+      if (!url) return null;
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const fileName = receiptUrl.split('/').pop() || `receipt-${Date.now()}`;
+      return new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+    } catch (e) {
+      console.error('Failed to get current receipt file', e);
+      return null;
+    }
+  };
+
+  const handleRerunExtraction = async () => {
+    const file = await getCurrentReceiptFile();
+    if (!file) {
+      toast({ title: 'No File', description: 'Please upload a receipt first.', variant: 'destructive' });
+      return;
+    }
+    await processDocumentWithGemini(file);
   };
 
   // 🔄 Remove receipt
@@ -353,18 +504,186 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
           </div>
         </div>
       ) : (
-        <div className="border rounded-md p-3">
-          <div className="aspect-[4/3] bg-muted rounded-md mb-3 overflow-hidden">
-            <ReceiptPreview filePath={receiptUrl} />
+        <div className="border rounded-md p-3 space-y-4">
+          <div className="aspect-[4/3] bg-muted rounded-md overflow-hidden relative">
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+              <Button variant="outline" size="sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={() => setRotation((r) => (r + 90) % 360)}>
+                <RotateCw className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={handleRerunExtraction} disabled={isProcessingDocument || isUploading}>
+                Re-run Extraction
+              </Button>
+            </div>
+            <ReceiptPreview filePath={receiptUrl} zoom={zoom} rotation={rotation} />
           </div>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={removeReceipt}
-            className="w-full"
-          >
-            Remove Receipt
-          </Button>
+
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit((values) => {
+                const dateStr = values.date ? values.date.toISOString().slice(0, 10) : '';
+                if (values.date && values.date > new Date()) {
+                  toast({ title: 'Future date', description: 'Selected date is in the future. You can still save.' });
+                }
+                const payload = {
+                  vendor: values.vendor.trim(),
+                  category: values.category,
+                  amount: Number(values.amount),
+                  date: dateStr,
+                  notes: values.notes || '',
+                  receiptUrl: receiptUrl,
+                  extractedValues,
+                  fieldConfidence,
+                };
+                onSave?.(payload);
+              })}
+              className="space-y-4"
+            >
+              {/* Vendor */}
+              <FormField
+                control={form.control}
+                name="vendor"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Vendor</ShadFormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Walgreens" {...field} />
+                    </FormControl>
+                    {extractedValues.vendor && (
+                      <div className="text-xs text-muted-foreground">
+                        <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.vendor || 0) * 100)}% confidence</Badge>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Category */}
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Category</ShadFormLabel>
+                    <FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPENSE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    {extractedValues.category && (
+                      <div className="text-xs text-muted-foreground">
+                        <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.category || 0) * 100)}% confidence</Badge>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Amount */}
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Amount</ShadFormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" inputMode="decimal" placeholder="0.00" {...field} />
+                    </FormControl>
+                    {extractedValues.amount && (
+                      <div className="text-xs text-muted-foreground">
+                        <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.amount || 0) * 100)}% confidence</Badge>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Date */}
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <ShadFormLabel>Date</ShadFormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !field.value && 'text-muted-foreground'
+                            )}
+                          >
+                            {field.value ? (
+                              field.value.toLocaleDateString()
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value as Date}
+                          onSelect={(d) => d && field.onChange(d)}
+                          initialFocus
+                          className={cn('p-3 pointer-events-auto')}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {extractedValues.date && (
+                      <div className="text-xs text-muted-foreground">
+                        <Badge variant="secondary">Auto-filled • {Math.round((fieldConfidence.date || 0) * 100)}% confidence</Badge>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Notes */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Notes (optional)</ShadFormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Add any details" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button type="button" variant="destructive" onClick={removeReceipt} className="w-full">
+                  Remove Receipt
+                </Button>
+                <Button type="submit" className="w-full" disabled={!onSave}>
+                  Save
+                </Button>
+              </div>
+            </form>
+          </Form>
         </div>
       )}
     </div>

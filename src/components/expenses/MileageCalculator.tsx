@@ -45,6 +45,8 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [error, setError] = useState<string | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
   const [placesReady, setPlacesReady] = useState(false);
+  const [fromIsGPS, setFromIsGPS] = useState(false);
+  const [toIsGPS, setToIsGPS] = useState(false);
 
   useEffect(() => {
     const check = () => {
@@ -58,12 +60,45 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
     return () => clearInterval(id);
   }, [apiKey]);
 
+  const buildMapsPreviewLink = (value: string) => {
+    const query = encodeURIComponent(value);
+    return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  };
+
+  const useCurrentLocation = (target: 'from' | 'to') => {
+    if (!navigator.geolocation) {
+      toast({ title: 'Location unavailable', description: 'Geolocation is not supported by your browser.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Requesting location', description: 'Please allow location access in your browser.' });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const coords = `${latitude},${longitude}`;
+        if (target === 'from') {
+          setFromAddress(coords);
+          setFromIsGPS(true);
+        } else {
+          setToAddress(coords);
+          setToIsGPS(true);
+        }
+        setResult(null);
+        toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location.` });
+      },
+      (err) => {
+        console.error('Geolocation error', err);
+        toast({ title: 'Location denied', description: 'We could not access your location. You can type the address manually.', variant: 'destructive' });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
   const calculateMileage = async () => {
     if (!fromAddress.trim() || !toAddress.trim()) {
       toast({
-        title: "Missing Information",
+        title: 'Missing Information',
         description: "Please enter both 'From' and 'To' addresses.",
-        variant: "destructive"
+        variant: 'destructive'
       });
       return;
     }
@@ -101,7 +136,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       onAmountCalculated(computedDeduction);
       
       toast({
-        title: "Mileage Calculated!",
+        title: 'Mileage Calculated!',
         description: `Distance: ${appliedMiles} miles • Total: $${computedDeduction}${isRoundTrip ? ' (round trip)' : ''}`
       });
 
@@ -114,9 +149,9 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       setError(errorMessage);
       
       toast({
-        title: "Calculation Failed",
+        title: 'Calculation Failed',
         description: errorMessage,
-        variant: "destructive"
+        variant: 'destructive'
       });
     } finally {
       setIsCalculating(false);
@@ -144,16 +179,16 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       if (error) throw error;
 
       toast({
-        title: "Mileage Log Saved!",
-        description: "Your mileage expense has been added to your records."
+        title: 'Mileage Log Saved!',
+        description: 'Your mileage expense has been added to your records.'
       });
 
     } catch (err) {
       console.error('Error saving mileage log:', err);
       toast({
-        title: "Save Failed",
-        description: "Could not save mileage log. Please try again.",
-        variant: "destructive"
+        title: 'Save Failed',
+        description: 'Could not save mileage log. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsSaving(false);
@@ -166,8 +201,10 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         <MapPin className="h-4 w-4 text-blue-600" />
         <h4 className="font-medium text-blue-900">Track Mileage</h4>
       </div>
+      <p className="text-xs text-muted-foreground">Tip: Allow location access to quickly set your current location for From/To.</p>
       
       <div className="grid grid-cols-1 gap-4">
+        {/* From Address */}
         <div className="space-y-2">
           {isConfigured && placesReady ? (
             <PlacesAutocomplete
@@ -179,6 +216,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               onPlaceSelect={(place) => {
                 const addr = place.formatted_address || place.name || '';
                 setFromAddress(addr);
+                setFromIsGPS(false);
               }}
               className="bg-white"
             />
@@ -194,8 +232,27 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               />
             </>
           )}
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => useCurrentLocation('from')}>
+              Use Current Location
+            </Button>
+            {fromAddress && (
+              <a
+                href={buildMapsPreviewLink(fromAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm underline text-blue-700"
+              >
+                Preview on Google Maps
+              </a>
+            )}
+          </div>
+          {fromIsGPS && (
+            <p className="text-xs text-muted-foreground">Using current location (GPS): {fromAddress}</p>
+          )}
         </div>
-        
+
+        {/* To Address */}
         <div className="space-y-2">
           {isConfigured && placesReady ? (
             <PlacesAutocomplete
@@ -207,6 +264,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               onPlaceSelect={(place) => {
                 const addr = place.formatted_address || place.name || '';
                 setToAddress(addr);
+                setToIsGPS(false);
               }}
               className="bg-white"
             />
@@ -221,6 +279,24 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 className="bg-white"
               />
             </>
+          )}
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => useCurrentLocation('to')}>
+              Use Current Location
+            </Button>
+            {toAddress && (
+              <a
+                href={buildMapsPreviewLink(toAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm underline text-blue-700"
+              >
+                Preview on Google Maps
+              </a>
+            )}
+          </div>
+          {toIsGPS && (
+            <p className="text-xs text-muted-foreground">Using current location (GPS): {toAddress}</p>
           )}
         </div>
       </div>

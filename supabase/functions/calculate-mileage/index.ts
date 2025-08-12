@@ -54,8 +54,8 @@ serve(async (req) => {
       })
     }
 
-    const originParam = fromPlaceId ? `place_id:${fromPlaceId}` : encodeURIComponent(from)
-    const destinationParam = toPlaceId ? `place_id:${toPlaceId}` : encodeURIComponent(to)
+    const originParam = encodeURIComponent(fromPlaceId ? `place_id:${fromPlaceId}` : from)
+    const destinationParam = encodeURIComponent(toPlaceId ? `place_id:${toPlaceId}` : to)
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originParam}&destinations=${destinationParam}&units=imperial&mode=driving&key=${apiKey}`
     console.log('Making request to Google Maps API for:', { from, to, fromPlaceId, toPlaceId, url })
 

@@ -125,14 +125,17 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         throw new Error(error.message || 'Failed to calculate mileage');
       }
 
-      // Edge function returns { miles, deduction }
+      // Edge function returns { miles, deduction, origin, destination }
       const baseMiles = typeof data?.miles === 'number' ? Math.round(data.miles * 10) / 10 : 0;
       const appliedMiles = isRoundTrip ? Math.round(baseMiles * 2 * 10) / 10 : baseMiles;
       const computedDeduction = Math.round(appliedMiles * 0.21 * 100) / 100;
 
+      const resolvedFrom = (typeof data?.origin === 'string' && data.origin) ? data.origin : fromAddress.trim();
+      const resolvedTo = (typeof data?.destination === 'string' && data.destination) ? data.destination : toAddress.trim();
+
       const resultPayload: MileageResult = {
-        from: fromAddress.trim(),
-        to: toAddress.trim(),
+        from: resolvedFrom,
+        to: resolvedTo,
         distance: { miles: appliedMiles, text: `${appliedMiles} miles` },
         estimatedDeduction: computedDeduction,
         irsRate: 0.21

@@ -44,11 +44,12 @@ const ALLOWED_CATEGORIES = [
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 function detectMimeFromBase64(b64: string): string {
-  // PNG magic base64 typically starts with "iVBORw0KGgo"; JPEG often "/9j/"
-  const head = b64.slice(0, 12);
-  if (head.startsWith("iVBORw0KGgo")) return "image/png";
-  if (head.startsWith("/9j/")) return "image/jpeg";
-  return "image/jpeg"; // default
+  // Detect common signatures
+  const head = b64.slice(0, 16);
+  if (head.startsWith("JVBERi0x")) return "application/pdf"; // PDF (%PDF)
+  if (head.startsWith("iVBORw0KGgo")) return "image/png";    // PNG
+  if (head.startsWith("/9j/")) return "image/jpeg";            // JPEG
+  return "image/jpeg"; // default fallback to image
 }
 
 function clamp01(n: unknown, fallback = 0.6): number {
@@ -184,9 +185,13 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get("GOOGLE_API_KEY");
+    const apiKey =
+      Deno.env.get("GOOGLE_API_KEY") ||
+      Deno.env.get("GEMINI_API_KEY") ||
+      Deno.env.get("GEMINI_API");
     if (!apiKey) {
-      return new Response(JSON.stringify({ success: false, error: "GOOGLE_API_KEY not set" }), {
+      console.error("Gemini OCR: Missing API key. Expected one of GOOGLE_API_KEY, GEMINI_API_KEY, GEMINI_API");
+      return new Response(JSON.stringify({ success: false, error: "Gemini API key not configured on the server" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -211,6 +216,12 @@ serve(async (req) => {
     }
 
     const mimeType = detectMimeFromBase64(imageBase64);
+    if (mimeType === "application/pdf") {
+      return new Response(
+        JSON.stringify({ success: false, error: "PDF receipts are not yet supported. Please upload a photo (JPG or PNG) or a screenshot of the receipt." }),
+        { status: 415, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
 

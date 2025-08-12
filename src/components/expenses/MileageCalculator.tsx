@@ -90,7 +90,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       });
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      let errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      // Provide a friendlier hint for common invocation errors
+      if (typeof errorMessage === 'string' && errorMessage.includes('non-2xx')) {
+        errorMessage = 'Mileage service failed. Enable "Distance Matrix API" for your Google project and ensure the GOOGLE_MAPS_API_KEY (server key) is set with API restriction to Distance Matrix only and no application restriction.';
+      }
       setError(errorMessage);
       
       toast({

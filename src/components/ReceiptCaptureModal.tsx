@@ -112,11 +112,11 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({
     
     if (error) throw error;
     
-    const { data: { publicUrl } } = supabase.storage
+    const { data: signed, error: signError } = await supabase.storage
       .from('receipts')
-      .getPublicUrl(data.path);
-    
-    return publicUrl;
+      .createSignedUrl(data.path, 60 * 60);
+    if (signError) throw signError;
+    return signed.signedUrl;
   };
 
   const handleFileSelect = async (file: File) => {
@@ -337,11 +337,15 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({
                 {receiptUrl && (
                   <Card>
                     <CardContent className="pt-4">
-                      <img 
-                        src={receiptUrl} 
-                        alt="Receipt" 
-                        className="w-full h-32 object-cover rounded"
-                      />
+                      {receiptUrl.toLowerCase().includes('.pdf') ? (
+                        <embed src={receiptUrl} type="application/pdf" className="w-full h-32 rounded" />
+                      ) : (
+                        <img 
+                          src={receiptUrl} 
+                          alt="Receipt" 
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      )}
                     </CardContent>
                   </Card>
                 )}

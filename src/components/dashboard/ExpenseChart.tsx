@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
 
-const COLORS = ['#6DAAE2', '#A0D5D8', '#7FC7D9', '#5F9EA0', '#87CEEB', '#B0C4DE'];
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
 
 interface CategoryTotal {
   name: string;
@@ -72,7 +72,7 @@ const ExpenseChart = ({ timeFrame, categoryTotals, monthlyData, filteredExpenses
                 <XAxis dataKey="name" />
                 <YAxis />
                 <RechartTooltip formatter={(value) => `$${value}`} />
-                <Bar dataKey="amount" fill="#6DAAE2" />
+                <Bar dataKey="amount" fill="hsl(var(--chart-1))" />
               </BarChart>
             </ResponsiveContainer>
           )}

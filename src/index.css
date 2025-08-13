@@ -34,6 +34,14 @@
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 222 84% 48%;
+    
+    /* Chart palette (light) */
+    --chart-1: 205 65% 60%; /* brand blue */
+    --chart-2: 185 46% 54%; /* teal */
+    --chart-3: 230 35% 60%; /* indigo */
+    --chart-4: 197 54% 64%; /* sky */
+    --chart-5: 260 35% 60%; /* violet */
+    --chart-6: 170 45% 48%; /* green */
 
     --radius: 0.75rem;
 
@@ -74,7 +82,15 @@
 
     --border: 217 33% 17%;
     --input: 217 33% 17%;
-    --ring: 213 27% 84%;
+     --ring: 213 27% 84%;
+
+    /* Chart palette (dark) */
+    --chart-1: 205 65% 55%;
+    --chart-2: 185 46% 50%;
+    --chart-3: 230 35% 55%;
+    --chart-4: 197 54% 58%;
+    --chart-5: 260 35% 55%;
+    --chart-6: 170 45% 44%;
   }
 }
 

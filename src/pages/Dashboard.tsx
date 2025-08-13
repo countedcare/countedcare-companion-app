@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import ExpenseChart from '@/components/dashboard/ExpenseChart';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -31,6 +32,13 @@ const Dashboard = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // SEO basics for this view
+  React.useEffect(() => {
+    document.title = 'Caregiving Dashboard – Expense Breakdown';
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute('content', 'See where caregiving expenses go with a category pie chart and quick actions.');
+  }, []);
 
   // Load expenses from Supabase
   const loadExpenses = async () => {
@@ -87,6 +95,27 @@ const Dashboard = () => {
   });
   
   const thisMonthTotal = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  
+  // Build category totals for current month (for pie chart)
+  const categoryTotals = Object.values(
+    thisMonthExpenses.reduce((acc, e) => {
+      const key = e.category || 'Uncategorized';
+      if (!acc[key]) acc[key] = { name: key, value: 0 };
+      acc[key].value += Number(e.amount || 0);
+      return acc;
+    }, {} as Record<string, { name: string; value: number }>)
+  ).sort((a, b) => b.value - a.value);
+
+  // Monthly totals for current year (for potential bar chart)
+  const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthlyTotals = new Array(12).fill(0);
+  expenses.forEach((e) => {
+    const d = new Date(e.date);
+    if (d.getFullYear() === currentYear) {
+      monthlyTotals[d.getMonth()] += Number(e.amount || 0);
+    }
+  });
+  const monthlyData = monthLabels.map((name, i) => ({ name, amount: Number(monthlyTotals[i].toFixed(2)) }));
   
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -289,6 +318,14 @@ const Dashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Expense Breakdown Pie Chart */}
+              <ExpenseChart
+                timeFrame="month"
+                categoryTotals={categoryTotals}
+                monthlyData={monthlyData}
+                filteredExpenses={thisMonthExpenses as unknown as any[]}
+              />
             </TabsContent>
 
             <TabsContent value="expenses">

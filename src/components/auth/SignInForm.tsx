@@ -157,17 +157,33 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
 
       if (error) {
         console.error('Password reset error:', error);
-        toast({
-          title: "Reset failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        
+        // Provide more specific error messages
+        if (error.message.includes('Email not found')) {
+          toast({
+            title: "Email not found",
+            description: "No account found with this email address. Please check your email or sign up first.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('rate limit')) {
+          toast({
+            title: "Too many requests",
+            description: "Please wait a few minutes before requesting another password reset.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Reset failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return;
       }
 
       toast({
         title: "Password reset email sent!",
-        description: "Check your email for a link to reset your password.",
+        description: "Check your email for a secure link to reset your password. The link will expire in 1 hour.",
       });
       
       setResetDialogOpen(false);

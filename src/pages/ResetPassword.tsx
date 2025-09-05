@@ -1,51 +1,77 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Card } from '@/components/ui/card'
+import { useToast } from '@/components/ui/use-toast'
+import AuthHeader from '@/components/auth/AuthHeader'
+import PasswordResetForm from '@/components/auth/PasswordResetForm'
 import { supabase } from '@/integrations/supabase/client'
 
 const ResetPassword = () => {
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const navigate = useNavigate()
+  const { toast } = useToast()
+  const [searchParams] = useSearchParams()
+  const [isValidReset, setIsValidReset] = useState(false)
 
   useEffect(() => {
-    const hash = window.location.hash
-    if (hash && hash.includes('access_token')) {
+    // Check if we have valid reset parameters
+    const accessToken = searchParams.get('access_token')
+    const refreshToken = searchParams.get('refresh_token')
+    const type = searchParams.get('type')
+    
+    console.log('Reset password params:', { type, hasAccessToken: !!accessToken })
+
+    if (type === 'recovery' && accessToken && refreshToken) {
+      setIsValidReset(true)
+      // Set up the session for password reset
       supabase.auth.setSession({
-        access_token: new URLSearchParams(hash.replace('#', '?')).get('access_token')!,
-        refresh_token: new URLSearchParams(hash.replace('#', '?')).get('refresh_token')!,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Session setup error:', error)
+          toast({
+            title: "Invalid Reset Link",
+            description: "This password reset link is invalid or expired. Please request a new one.",
+            variant: "destructive",
+          })
+          navigate('/auth')
+        }
       })
-      supabase.auth.getSession().then(console.log)
-    }
-  }, [])
-
-  const handleReset = async () => {
-    setLoading(true)
-    const { error } = await supabase.auth.updateUser({ password })
-
-    if (error) {
-      setMessage(`Error: ${error.message}`)
     } else {
-      setMessage('Password updated successfully! Redirecting...')
-      setTimeout(() => navigate('/auth'), 3000)
+      toast({
+        title: "Invalid Reset Link",
+        description: "This password reset link is invalid or expired. Please request a new one.",
+        variant: "destructive",
+      })
+      navigate('/auth')
     }
+  }, [searchParams, navigate, toast])
 
-    setLoading(false)
+  if (!isValidReset) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-neutral">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <h1>Reset Your Password</h1>
-      <input
-        type="password"
-        placeholder="Enter new password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button onClick={handleReset} disabled={loading}>
-        {loading ? 'Updating...' : 'Update Password'}
-      </button>
-      {message && <p>{message}</p>}
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">
+      <AuthHeader />
+      <Card className="w-full max-w-md">
+        <PasswordResetForm 
+          onSuccess={() => {
+            toast({
+              title: "Password Updated Successfully!",
+              description: "Your password has been updated. You are now signed in.",
+            })
+            navigate('/dashboard')
+          }}
+        />
+      </Card>
+      <div className="mt-4 text-sm text-gray-500">
+        <p>© 2025 CountedCare. All rights reserved.</p>
+      </div>
     </div>
   )
 }

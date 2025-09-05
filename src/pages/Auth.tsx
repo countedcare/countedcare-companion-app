@@ -110,7 +110,8 @@ const Auth = () => {
         <div className="p-4 bg-blue-50 border-b border-blue-200 rounded-t-lg">
           <p className="text-sm text-blue-800">
             💡 <strong>New user?</strong> Click "Sign Up" tab or use Google sign-in. 
-            <br/>🔑 <strong>Have an account?</strong> Use your email/password or Google.
+            <br/>🔑 <strong>Have an account?</strong> Use your email/password, magic link, or Google.
+            <br/>✨ <strong>No password?</strong> Enter your email and click "Send Magic Link" on Sign In tab.
           </p>
         </div>
         <Tabs defaultValue="signup" className="w-full">

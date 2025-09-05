@@ -23,6 +23,7 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -183,6 +184,55 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
     }
   };
 
+  const handleMagicLinkSignIn = async () => {
+    if (!email.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address to send a magic link.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setMagicLinkLoading(true);
+
+    try {
+      console.log('Sending magic link to:', email);
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        }
+      });
+
+      if (error) {
+        console.error('Magic link error:', error);
+        toast({
+          title: "Magic link failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Magic link sent!",
+        description: "Check your email for a secure sign-in link. No password needed!",
+      });
+      
+    } catch (error: any) {
+      console.error('Unexpected magic link error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setMagicLinkLoading(false);
+    }
+  };
+
   return (
     <>
       <CardHeader>
@@ -222,6 +272,26 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
+          </Button>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+          
+          <Button 
+            type="button"
+            variant="outline" 
+            className="w-full"
+            onClick={handleMagicLinkSignIn}
+            disabled={loading || magicLinkLoading}
+          >
+            {magicLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Send Magic Link (No Password)
           </Button>
           
           <div className="text-center space-y-2">

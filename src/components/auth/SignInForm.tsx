@@ -92,8 +92,8 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
         
         if (error.message.includes('Invalid login credentials')) {
           toast({
-            title: "Sign in failed",
-            description: "Invalid email or password. Please check your credentials and try again.",
+            title: "Account not found",
+            description: "No account found with this email/password. Try signing up first or use Google sign-in.",
             variant: "destructive",
           });
         } else if (error.message.includes('Email not confirmed')) {

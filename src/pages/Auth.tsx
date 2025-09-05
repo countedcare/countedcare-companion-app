@@ -107,7 +107,13 @@ const Auth = () => {
       <AuthHeader />
 
       <Card className="w-full max-w-md">
-        <Tabs defaultValue="signin" className="w-full">
+        <div className="p-4 bg-blue-50 border-b border-blue-200 rounded-t-lg">
+          <p className="text-sm text-blue-800">
+            💡 <strong>New user?</strong> Click "Sign Up" tab or use Google sign-in. 
+            <br/>🔑 <strong>Have an account?</strong> Use your email/password or Google.
+          </p>
+        </div>
+        <Tabs defaultValue="signup" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>

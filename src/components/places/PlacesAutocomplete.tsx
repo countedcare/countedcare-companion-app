@@ -2,7 +2,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import './places.css';
 
 interface PlacePrediction {
@@ -37,6 +38,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const { toast } = useToast();
   
   const [inputValue, setInputValue] = useState(value);
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -45,6 +47,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
     setInputValue(value || '');
@@ -82,10 +85,16 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         setLoadingError(null);
       };
       
-      script.onerror = (error) => {
-        console.error('Failed to load Google Maps API:', error);
-        setLoadingError('Failed to load Google Maps API');
-      };
+        script.onerror = (error) => {
+          console.error('Failed to load Google Maps API:', error);
+          setLoadingError('Failed to load Google Maps API');
+          setShowFallback(true);
+          toast({
+            title: "Google Maps Unavailable",
+            description: "Using manual address input. You can still enter addresses manually.",
+            variant: "destructive"
+          });
+        };
       
       document.head.appendChild(script);
     };
@@ -94,6 +103,12 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       loadGoogleMapsScript();
     } else {
       setLoadingError('API key is required');
+      setShowFallback(true);
+      toast({
+        title: "Google Maps Not Configured",
+        description: "Please configure Google Maps API or use manual address input.",
+        variant: "destructive"
+      });
     }
   }, [apiKey]);
 
@@ -139,16 +154,31 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       autocompleteServiceRef.current.getPlacePredictions(request, (predictions, status) => {
         setIsLoading(false);
         if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          if (predictions.length === 0) {
+            toast({
+              title: "No Results Found",
+              description: "No addresses found for your search. Try a different search term or enter manually.",
+              variant: "destructive"
+            });
+            setShowFallback(true);
+          }
           setPredictions(predictions.map(p => ({
             place_id: p.place_id,
             description: p.description,
             structured_formatting: p.structured_formatting
           })));
-          setShowDropdown(true);
+          setShowDropdown(predictions.length > 0);
           setSelectedIndex(-1);
         } else {
+          console.error('Places prediction failed:', status);
+          toast({
+            title: "Search Failed",
+            description: "Unable to search for addresses. You can enter the address manually.",
+            variant: "destructive"
+          });
           setPredictions([]);
           setShowDropdown(false);
+          setShowFallback(true);
         }
       });
     } catch (error) {
@@ -156,6 +186,12 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       setIsLoading(false);
       setPredictions([]);
       setShowDropdown(false);
+      toast({
+        title: "Search Error",
+        description: "An error occurred while searching. Please try again or enter manually.",
+        variant: "destructive"
+      });
+      setShowFallback(true);
     }
   }, [types]);
 
@@ -176,6 +212,12 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
           });
           setInputValue(place.formatted_address || description);
         } else {
+          console.error('Failed to get place details:', status);
+          toast({
+            title: "Location Details Unavailable",
+            description: "Using basic address information.",
+            variant: "destructive"
+          });
           // Fallback to using the description
           onPlaceSelect({
             formatted_address: description,
@@ -186,6 +228,11 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       });
     } catch (error) {
       console.error('Error getting place details:', error);
+      toast({
+        title: "Error Getting Location",
+        description: "Using basic address information.",
+        variant: "destructive"
+      });
       // Fallback to using the description
       onPlaceSelect({
         formatted_address: description,
@@ -239,71 +286,104 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     }
   };
 
+  const handleManualInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    // Reset dropdown when typing manually
+    setShowDropdown(false);
+    setPredictions([]);
+  };
+
   const handlePredictionClick = (prediction: PlacePrediction) => {
     selectPlace(prediction.place_id, prediction.description);
   };
+  const shouldShowFallback = !isLoaded || loadingError || showFallback;
 
   return (
     <div className={`space-y-2 relative ${className}`}>
       {label && <Label htmlFor="places-input">{label}</Label>}
-      <div className="relative">
-        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        {isLoading && (
-          <Loader2 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground animate-spin" />
-        )}
-        <Input
-          ref={inputRef}
-          id="places-input"
-          type="text"
-          autoComplete="off"
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => inputValue && searchPlaces(inputValue)}
-          className="pl-10 pr-10"
-          disabled={!isLoaded}
-        />
-        
-        {/* Dropdown */}
-        {showDropdown && predictions.length > 0 && (
-          <div 
-            ref={dropdownRef}
-            className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
-          >
-            {predictions.map((prediction, index) => (
-              <div
-                key={prediction.place_id}
-                className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${
-                  index === selectedIndex ? 'bg-blue-50 border-blue-200' : ''
-                }`}
-                onClick={() => handlePredictionClick(prediction)}
-                onMouseEnter={() => setSelectedIndex(index)}
-              >
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">
-                      {prediction.structured_formatting.main_text}
-                    </div>
-                    {prediction.structured_formatting.secondary_text && (
-                      <div className="text-sm text-gray-500 truncate">
-                        {prediction.structured_formatting.secondary_text}
+      
+      {shouldShowFallback ? (
+        // Fallback manual input
+        <div className="relative">
+          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-orange-500" />
+          <Input
+            ref={inputRef}
+            id="places-input"
+            type="text"
+            autoComplete="off"
+            placeholder={placeholder}
+            value={inputValue}
+            onChange={handleManualInput}
+            className="pl-10 pr-10"
+          />
+        </div>
+      ) : (
+        // Google Maps autocomplete
+        <div className="relative">
+          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          {isLoading && (
+            <Loader2 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground animate-spin" />
+          )}
+          <Input
+            ref={inputRef}
+            id="places-input"
+            type="text"
+            autoComplete="off"
+            placeholder={placeholder}
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => inputValue && searchPlaces(inputValue)}
+            className="pl-10 pr-10"
+            disabled={!isLoaded}
+          />
+          
+          {/* Dropdown */}
+          {showDropdown && predictions.length > 0 && (
+            <div 
+              ref={dropdownRef}
+              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+            >
+              {predictions.map((prediction, index) => (
+                <div
+                  key={prediction.place_id}
+                  className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${
+                    index === selectedIndex ? 'bg-blue-50 border-blue-200' : ''
+                  }`}
+                  onClick={() => handlePredictionClick(prediction)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {prediction.structured_formatting.main_text}
                       </div>
-                    )}
+                      {prediction.structured_formatting.secondary_text && (
+                        <div className="text-sm text-gray-500 truncate">
+                          {prediction.structured_formatting.secondary_text}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
+      {/* Status messages */}
       {!isLoaded && !loadingError && (
         <p className="text-xs text-muted-foreground">Loading Google Maps...</p>
       )}
-      {loadingError && (
-        <p className="text-xs text-red-500">Error: {loadingError}</p>
+      {shouldShowFallback && (
+        <p className="text-xs text-orange-600 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Manual input mode - Google Maps unavailable
+        </p>
       )}
     </div>
   );

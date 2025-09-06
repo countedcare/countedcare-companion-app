@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import useGoogleMapsAPI, { getGlobalAutocompleteService, getGlobalPlacesService, areGoogleMapsServicesReady } from '@/hooks/useGoogleMapsAPI';
 import './places.css';
 
 interface PlacePrediction {
@@ -41,6 +42,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   country,
 }) => {
   const { toast } = useToast();
+  const { isConfigured, isLoading: apiLoading } = useGoogleMapsAPI();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,9 +63,14 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     setInputValue(value || '');
   }, [value]);
 
-  // Load Google Maps JS (Places) once, robustly
+  // Check if Google Maps services are ready
   useEffect(() => {
-    if (!apiKey) {
+    console.log('PlacesAutocomplete: Checking Google Maps status');
+    console.log('API configured:', isConfigured);
+    console.log('API loading:', apiLoading);
+    console.log('Services ready:', areGoogleMapsServicesReady());
+    
+    if (!isConfigured && !apiLoading) {
       const error = 'Google Maps API key is required';
       setLoadingError(error);
       toast({
@@ -74,80 +81,11 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       return;
     }
 
-    // Already loaded?
-    if (window.google?.maps?.places) {
+    if (isConfigured && areGoogleMapsServicesReady()) {
+      console.log('PlacesAutocomplete: Google Maps services are ready');
       setIsLoaded(true);
-      return;
+      setLoadingError(null);
     }
-
-    // Existing loader?
-    const existing = document.querySelector<HTMLScriptElement>(`script[${LOAD_ATTR}="true"]`);
-    if (existing) {
-      const handleLoad = () => {
-        if (window.google?.maps?.places) {
-          setIsLoaded(true);
-        } else {
-          const error = 'Google Maps Places library did not initialize';
-          setLoadingError(error);
-          toast({
-            variant: "destructive",
-            title: "Google Maps Error",
-            description: error,
-          });
-        }
-      };
-      
-      const handleError = () => {
-        const error = 'Failed to load Google Maps API';
-        setLoadingError(error);
-        toast({
-          variant: "destructive",
-          title: "Google Maps Error",
-          description: error,
-        });
-      };
-
-      existing.addEventListener('load', handleLoad);
-      existing.addEventListener('error', handleError);
-      
-      return () => {
-        existing.removeEventListener('load', handleLoad);
-        existing.removeEventListener('error', handleError);
-      };
-    }
-
-    // Create new script
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.setAttribute(LOAD_ATTR, 'true');
-
-    script.onload = () => {
-      if (window.google?.maps?.places) {
-        setIsLoaded(true);
-      } else {
-        const error = 'Google Maps Places library did not initialize';
-        setLoadingError(error);
-        toast({
-          variant: "destructive",
-          title: "Google Maps Error",
-          description: error,
-        });
-      }
-    };
-
-    script.onerror = () => {
-      const error = 'Failed to load Google Maps API';
-      setLoadingError(error);
-      toast({
-        variant: "destructive",
-        title: "Google Maps Error",
-        description: error,
-      });
-    };
-
-    document.head.appendChild(script);
 
     return () => {
       // Cleanup timeout on unmount
@@ -155,22 +93,21 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [apiKey, toast]);
+  }, [isConfigured, apiLoading, toast]);
 
-  // Initialize services when library is ready
+  // Use global services when ready
   useEffect(() => {
-    if (!isLoaded || !window.google?.maps?.places) return;
+    if (!isLoaded || !areGoogleMapsServicesReady()) return;
 
     try {
-      if (!autocompleteServiceRef.current) {
-        autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      }
-      if (!placesServiceRef.current) {
-        const dummy = document.createElement('div');
-        placesServiceRef.current = new google.maps.places.PlacesService(dummy);
-      }
+      console.log('PlacesAutocomplete: Using global Google Maps services');
+      autocompleteServiceRef.current = getGlobalAutocompleteService();
+      placesServiceRef.current = getGlobalPlacesService();
+      
+      console.log('AutocompleteService available:', !!autocompleteServiceRef.current);
+      console.log('PlacesService available:', !!placesServiceRef.current);
     } catch (error) {
-      console.error('Failed to initialize Google Maps services:', error);
+      console.error('Failed to get global Google Maps services:', error);
       const errorMsg = 'Failed to initialize Google Maps services';
       setLoadingError(errorMsg);
       toast({

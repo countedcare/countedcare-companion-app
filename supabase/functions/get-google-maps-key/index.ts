@@ -35,7 +35,7 @@ serve(async (req) => {
     }
 
     // Get the Google Maps API key from environment
-    const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_PLATFORM_API_KEY')
     
     if (!googleMapsApiKey) {
       return new Response(

@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Global state to ensure script loads only once
 let isScriptLoading = false;
@@ -12,13 +13,38 @@ const useGoogleMapsAPI = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check if API key is stored in localStorage
-    const storedApiKey = localStorage.getItem('google-maps-api-key');
-    if (storedApiKey) {
-      setApiKey(storedApiKey);
-      loadGoogleMapsScript(storedApiKey);
-    }
+    fetchApiKey();
   }, []);
+
+  const fetchApiKey = async () => {
+    try {
+      // Check if API key is cached in localStorage first
+      const cachedApiKey = localStorage.getItem('google-maps-api-key');
+      if (cachedApiKey) {
+        setApiKey(cachedApiKey);
+        loadGoogleMapsScript(cachedApiKey);
+        return;
+      }
+
+      // Fetch from Supabase edge function
+      const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+      
+      if (error) {
+        console.error('Error fetching Google Maps API key:', error);
+        return;
+      }
+
+      if (data?.apiKey) {
+        const key = data.apiKey;
+        setApiKey(key);
+        // Cache in localStorage for subsequent uses
+        localStorage.setItem('google-maps-api-key', key);
+        loadGoogleMapsScript(key);
+      }
+    } catch (error) {
+      console.error('Error fetching Google Maps API key:', error);
+    }
+  };
 
   const loadGoogleMapsScript = async (key: string) => {
     if (!key) return;
@@ -100,12 +126,18 @@ const useGoogleMapsAPI = () => {
     setIsConfigured(false);
   };
 
+  const refreshApiKey = () => {
+    localStorage.removeItem('google-maps-api-key');
+    fetchApiKey();
+  };
+
   return {
     apiKey,
     isConfigured,
     isLoading,
     saveApiKey,
-    clearApiKey
+    clearApiKey,
+    refreshApiKey
   };
 };
 

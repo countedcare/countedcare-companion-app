@@ -1,12 +1,21 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPin } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import './places.css';
 
+interface PlacePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
 interface PlacesAutocompleteProps {
-  onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
+  onPlaceSelect: (place: { formatted_address: string; place_id: string }) => void;
   placeholder?: string;
   label?: string;
   value?: string;
@@ -25,9 +34,16 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   className = ""
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  
   const [inputValue, setInputValue] = useState(value);
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,56 +98,159 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   }, [apiKey]);
 
   useEffect(() => {
-    if (isLoaded && inputRef.current && window.google?.maps?.places) {
-      try {
-        console.log('Initializing traditional Places Autocomplete with types:', types);
-        
-        // Clean up previous autocomplete instance
-        if (autocompleteRef.current) {
-          google.maps.event.clearInstanceListeners(autocompleteRef.current);
-        }
-        
-        // Use traditional Autocomplete - this is the stable, well-supported approach
-        const autocompleteInstance = new google.maps.places.Autocomplete(inputRef.current, {
-          types: types,
-          fields: ['place_id', 'name', 'formatted_address', 'geometry', 'types', 'photos']
-        });
-
-        autocompleteInstance.addListener('place_changed', () => {
-          const place = autocompleteInstance.getPlace();
-          console.log('Place selected:', place);
-          if (place.place_id) {
-            onPlaceSelect(place);
-            setInputValue(place.formatted_address || place.name || '');
-          }
-        });
-        
-        autocompleteRef.current = autocompleteInstance;
-        console.log('Traditional Autocomplete initialized successfully');
-      } catch (error) {
-        console.error('Error initializing autocomplete:', error);
-        setLoadingError('Error initializing autocomplete: ' + error);
-      }
+    if (isLoaded && window.google?.maps?.places) {
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      
+      // Create a dummy map and places service for place details
+      const mapDiv = document.createElement('div');
+      const map = new google.maps.Map(mapDiv);
+      placesServiceRef.current = new google.maps.places.PlacesService(map);
     }
-    
-    // Cleanup function
-    return () => {
-      if (autocompleteRef.current) {
-        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+  }, [isLoaded]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+        setSelectedIndex(-1);
       }
     };
-  }, [isLoaded, onPlaceSelect, types]);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const searchPlaces = useCallback(async (query: string) => {
+    if (!autocompleteServiceRef.current || !query.trim()) {
+      setPredictions([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const request = {
+        input: query,
+        types: types,
+      };
+
+      autocompleteServiceRef.current.getPlacePredictions(request, (predictions, status) => {
+        setIsLoading(false);
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setPredictions(predictions.map(p => ({
+            place_id: p.place_id,
+            description: p.description,
+            structured_formatting: p.structured_formatting
+          })));
+          setShowDropdown(true);
+          setSelectedIndex(-1);
+        } else {
+          setPredictions([]);
+          setShowDropdown(false);
+        }
+      });
+    } catch (error) {
+      console.error('Error searching places:', error);
+      setIsLoading(false);
+      setPredictions([]);
+      setShowDropdown(false);
+    }
+  }, [types]);
+
+  const selectPlace = useCallback(async (placeId: string, description: string) => {
+    if (!placesServiceRef.current) return;
+
+    try {
+      const request = {
+        placeId: placeId,
+        fields: ['formatted_address', 'place_id']
+      };
+
+      placesServiceRef.current.getDetails(request, (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          onPlaceSelect({
+            formatted_address: place.formatted_address || description,
+            place_id: place.place_id || placeId
+          });
+          setInputValue(place.formatted_address || description);
+        } else {
+          // Fallback to using the description
+          onPlaceSelect({
+            formatted_address: description,
+            place_id: placeId
+          });
+          setInputValue(description);
+        }
+      });
+    } catch (error) {
+      console.error('Error getting place details:', error);
+      // Fallback to using the description
+      onPlaceSelect({
+        formatted_address: description,
+        place_id: placeId
+      });
+      setInputValue(description);
+    }
+
+    setShowDropdown(false);
+    setPredictions([]);
+    setSelectedIndex(-1);
+  }, [onPlaceSelect]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('Input changed:', e.target.value);
-    setInputValue(e.target.value);
+    const value = e.target.value;
+    setInputValue(value);
+    
+    // Debounce the search
+    const timeoutId = setTimeout(() => {
+      searchPlaces(value);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown || predictions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < predictions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0) {
+          const prediction = predictions[selectedIndex];
+          selectPlace(prediction.place_id, prediction.description);
+        }
+        break;
+      case 'Escape':
+        setShowDropdown(false);
+        setSelectedIndex(-1);
+        break;
+    }
+  };
+
+  const handlePredictionClick = (prediction: PlacePrediction) => {
+    selectPlace(prediction.place_id, prediction.description);
   };
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2 relative ${className}`}>
       {label && <Label htmlFor="places-input">{label}</Label>}
       <div className="relative">
         <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        {isLoading && (
+          <Loader2 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground animate-spin" />
+        )}
         <Input
           ref={inputRef}
           id="places-input"
@@ -140,18 +259,51 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
           placeholder={placeholder}
           value={inputValue}
           onChange={handleInputChange}
-          className="pl-10"
+          onKeyDown={handleKeyDown}
+          onFocus={() => inputValue && searchPlaces(inputValue)}
+          className="pl-10 pr-10"
           disabled={!isLoaded}
         />
+        
+        {/* Dropdown */}
+        {showDropdown && predictions.length > 0 && (
+          <div 
+            ref={dropdownRef}
+            className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+          >
+            {predictions.map((prediction, index) => (
+              <div
+                key={prediction.place_id}
+                className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${
+                  index === selectedIndex ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+                onClick={() => handlePredictionClick(prediction)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 truncate">
+                      {prediction.structured_formatting.main_text}
+                    </div>
+                    {prediction.structured_formatting.secondary_text && (
+                      <div className="text-sm text-gray-500 truncate">
+                        {prediction.structured_formatting.secondary_text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+      
       {!isLoaded && !loadingError && (
         <p className="text-xs text-muted-foreground">Loading Google Maps...</p>
       )}
       {loadingError && (
         <p className="text-xs text-red-500">Error: {loadingError}</p>
-      )}
-      {isLoaded && (
-        <p className="text-xs text-green-600">Ready - start typing to see suggestions!</p>
       )}
     </div>
   );

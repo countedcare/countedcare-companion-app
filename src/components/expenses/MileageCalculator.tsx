@@ -263,8 +263,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               apiKey={apiKey}
               types={['address']}
               onPlaceSelect={(place) => {
-                const addr = place.formatted_address || place.name || '';
-                setFromAddress(addr);
+                setFromAddress(place.formatted_address);
                 setFromIsGPS(false);
                 setFromPlaceId(place.place_id || null);
               }}
@@ -309,8 +308,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               apiKey={apiKey}
               types={['address']}
               onPlaceSelect={(place) => {
-                const addr = place.formatted_address || place.name || '';
-                setToAddress(addr);
+                setToAddress(place.formatted_address);
                 setToIsGPS(false);
                 setToPlaceId(place.place_id || null);
               }}

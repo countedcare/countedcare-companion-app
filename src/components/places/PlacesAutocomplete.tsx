@@ -3,7 +3,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getGlobalAutocompleteService, getGlobalPlacesService, areGoogleMapsServicesReady } from '@/hooks/useGoogleMapsAPI';
 import './places.css';
 
 interface PlacePrediction {
@@ -45,6 +44,8 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [inputValue, setInputValue] = useState(value);
@@ -60,16 +61,10 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     setInputValue(value || '');
   }, [value]);
 
-  // Simply check if Google Maps is loaded (script loading handled by useGoogleMapsAPI)
+  // Load Google Maps JS (Places) once, robustly
   useEffect(() => {
-    console.log('PlacesAutocomplete useEffect - checking Google Maps status');
-    console.log('API Key present:', !!apiKey);
-    console.log('Google Maps available:', !!(window.google?.maps?.places));
-    console.log('Global services ready:', areGoogleMapsServicesReady());
-    
     if (!apiKey) {
       const error = 'Google Maps API key is required';
-      console.error('PlacesAutocomplete Error:', error);
       setLoadingError(error);
       toast({
         variant: "destructive",
@@ -79,48 +74,83 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       return;
     }
 
-    // Check if Google Maps is already loaded
+    // Already loaded?
     if (window.google?.maps?.places) {
-      console.log('✅ Google Maps Places API is available immediately');
       setIsLoaded(true);
-      setLoadingError(null);
       return;
     }
 
-    console.log('⏳ Waiting for Google Maps Places API to load...');
-    
-    // Wait for Google Maps to be loaded by useGoogleMapsAPI hook
-    const checkInterval = setInterval(() => {
-      if (window.google?.maps?.places) {
-        console.log('✅ Google Maps Places API is now available after waiting');
-        console.log('Google Maps object:', window.google.maps);
-        console.log('Places library:', window.google.maps.places);
-        setIsLoaded(true);
-        setLoadingError(null);
-        clearInterval(checkInterval);
-      }
-    }, 100);
-
-    // Clean up interval after 15 seconds with error
-    const timeout = setTimeout(() => {
-      clearInterval(checkInterval);
-      if (!window.google?.maps?.places) {
-        const error = 'Google Maps API failed to load within timeout';
-        console.error('❌ Google Maps timeout error:', error);
-        console.log('Window.google:', window.google);
+    // Existing loader?
+    const existing = document.querySelector<HTMLScriptElement>(`script[${LOAD_ATTR}="true"]`);
+    if (existing) {
+      const handleLoad = () => {
+        if (window.google?.maps?.places) {
+          setIsLoaded(true);
+        } else {
+          const error = 'Google Maps Places library did not initialize';
+          setLoadingError(error);
+          toast({
+            variant: "destructive",
+            title: "Google Maps Error",
+            description: error,
+          });
+        }
+      };
+      
+      const handleError = () => {
+        const error = 'Failed to load Google Maps API';
         setLoadingError(error);
         toast({
           variant: "destructive",
-          title: "Google Maps Error", 
-          description: "Google Maps is taking too long to load. Please refresh the page.",
+          title: "Google Maps Error",
+          description: error,
+        });
+      };
+
+      existing.addEventListener('load', handleLoad);
+      existing.addEventListener('error', handleError);
+      
+      return () => {
+        existing.removeEventListener('load', handleLoad);
+        existing.removeEventListener('error', handleError);
+      };
+    }
+
+    // Create new script
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.setAttribute(LOAD_ATTR, 'true');
+
+    script.onload = () => {
+      if (window.google?.maps?.places) {
+        setIsLoaded(true);
+      } else {
+        const error = 'Google Maps Places library did not initialize';
+        setLoadingError(error);
+        toast({
+          variant: "destructive",
+          title: "Google Maps Error",
+          description: error,
         });
       }
-    }, 15000);
+    };
+
+    script.onerror = () => {
+      const error = 'Failed to load Google Maps API';
+      setLoadingError(error);
+      toast({
+        variant: "destructive",
+        title: "Google Maps Error",
+        description: error,
+      });
+    };
+
+    document.head.appendChild(script);
 
     return () => {
-      clearInterval(checkInterval);
-      clearTimeout(timeout);
-      // Cleanup debounce timeout on unmount
+      // Cleanup timeout on unmount
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
       }
@@ -129,49 +159,25 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
   // Initialize services when library is ready
   useEffect(() => {
-    console.log('PlacesAutocomplete services check - isLoaded:', isLoaded);
-    console.log('Google Maps places available:', !!(window.google?.maps?.places));
-    
     if (!isLoaded || !window.google?.maps?.places) return;
 
-    // Services are now initialized globally, just verify they're ready
-    if (!areGoogleMapsServicesReady()) {
-      console.log('⏳ Waiting for global Google Maps services to initialize...');
-      console.log('AutocompleteService available:', !!getGlobalAutocompleteService());
-      console.log('PlacesService available:', !!getGlobalPlacesService());
-      
-      const checkServicesInterval = setInterval(() => {
-        const autocompleteReady = !!getGlobalAutocompleteService();
-        const placesReady = !!getGlobalPlacesService();
-        console.log('Service check - Autocomplete:', autocompleteReady, 'Places:', placesReady);
-        
-        if (areGoogleMapsServicesReady()) {
-          console.log('✅ Global Google Maps services are now ready');
-          clearInterval(checkServicesInterval);
-        }
-      }, 100);
-      
-      // Clean up after 5 seconds
-      setTimeout(() => {
-        clearInterval(checkServicesInterval);
-        if (!areGoogleMapsServicesReady()) {
-          console.error('❌ Global Google Maps services failed to initialize within timeout');
-          console.log('Final service status:');
-          console.log('AutocompleteService:', !!getGlobalAutocompleteService());
-          console.log('PlacesService:', !!getGlobalPlacesService());
-          const errorMsg = 'Failed to initialize Google Maps services';
-          setLoadingError(errorMsg);
-          toast({
-            variant: "destructive",
-            title: "Google Maps Error",
-            description: errorMsg,
-          });
-        }
-      }, 5000);
-      
-      return () => clearInterval(checkServicesInterval);
-    } else {
-      console.log('✅ Global Google Maps services already ready');
+    try {
+      if (!autocompleteServiceRef.current) {
+        autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      }
+      if (!placesServiceRef.current) {
+        const dummy = document.createElement('div');
+        placesServiceRef.current = new google.maps.places.PlacesService(dummy);
+      }
+    } catch (error) {
+      console.error('Failed to initialize Google Maps services:', error);
+      const errorMsg = 'Failed to initialize Google Maps services';
+      setLoadingError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Google Maps Error",
+        description: errorMsg,
+      });
     }
   }, [isLoaded, toast]);
 
@@ -199,32 +205,20 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       clearTimeout(debounceTimeoutRef.current);
     }
 
-    console.log('🔍 Starting search for query:', query);
-    
     if (!query.trim()) {
-      console.log('Empty query, clearing predictions');
       setPredictions([]);
       setOpen(false);
       setIsSearching(false);
       return;
     }
 
-    console.log('Search conditions check:');
-    console.log('- isLoaded:', isLoaded);
-    console.log('- areGoogleMapsServicesReady():', areGoogleMapsServicesReady());
-    console.log('- loadingError:', loadingError);
-
-    if (!isLoaded || !areGoogleMapsServicesReady() || loadingError) {
-      console.log('❌ Search conditions not met, aborting search');
+    if (!isLoaded || !autocompleteServiceRef.current || loadingError) {
       return;
     }
 
-    console.log('✅ Search conditions met, proceeding with search');
     setIsSearching(true);
 
     debounceTimeoutRef.current = setTimeout(() => {
-      console.log('🚀 Executing debounced search for:', query);
-      
       const request: google.maps.places.AutocompletionRequest = {
         input: query.trim(),
         types: types as any,
@@ -234,80 +228,25 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         request.componentRestrictions = {
           country: Array.isArray(country) ? country : [country],
         } as any;
-        console.log('Added country restrictions:', country);
       }
 
-      console.log('📋 Autocomplete request:', request);
-
-      const autocompleteService = getGlobalAutocompleteService();
-      console.log('AutocompleteService instance:', !!autocompleteService);
-      
-      if (!autocompleteService) {
-        console.error('❌ AutocompleteService not available');
-        setIsSearching(false);
-        return;
-      }
-
-      console.log('📡 Calling getPlacePredictions...');
-      autocompleteService.getPlacePredictions(request, (preds, status) => {
-        // Log raw results immediately
-        console.log('🔥 RAW API RESPONSE:');
-        console.log('STATUS:', status);
-        console.log('PREDICTIONS:', preds);
-        console.log('STATUS_OK_VALUE:', google.maps.places.PlacesServiceStatus.OK);
-        console.log('STATUS_MATCHES_OK:', status === google.maps.places.PlacesServiceStatus.OK);
-        
-        // Show toast for non-OK status
-        if (status !== google.maps.places.PlacesServiceStatus.OK) {
-          const statusName = Object.keys(google.maps.places.PlacesServiceStatus)
-            .find(key => google.maps.places.PlacesServiceStatus[key as any] === status) || 'UNKNOWN';
-          
-          console.log('❌ API returned non-OK status:', statusName);
-          toast({
-            variant: "destructive",
-            title: "Google Places API Error",
-            description: `API returned status: ${statusName} (${status})`,
-          });
-        }
-        
-        // Show toast for empty predictions even with OK status
-        if (status === google.maps.places.PlacesServiceStatus.OK && (!preds || preds.length === 0)) {
-          console.log('⚠️ API returned OK status but no predictions');
-          toast({
-            title: "No Predictions",
-            description: "Google Places API returned no suggestions for your search.",
-          });
-        }
-        console.log('📥 Predictions callback received:');
-        console.log('- Status:', status);
-        console.log('- Status details:', google.maps.places.PlacesServiceStatus[status]);
-        console.log('- Predictions count:', preds?.length || 0);
-        console.log('- Raw predictions:', preds);
-        
+      autocompleteServiceRef.current!.getPlacePredictions(request, (preds, status) => {
         setIsSearching(false);
         
         if (status === google.maps.places.PlacesServiceStatus.OK && preds && preds.length > 0) {
-          console.log('✅ Predictions received successfully');
+          const formattedPredictions = preds.map((p) => ({
+            place_id: p.place_id!,
+            description: p.description!,
+            structured_formatting: {
+              main_text: p.structured_formatting?.main_text || p.description!,
+              secondary_text: p.structured_formatting?.secondary_text,
+            },
+          }));
           
-          const formattedPredictions = preds.map((p, index) => {
-            const formatted = {
-              place_id: p.place_id!,
-              description: p.description!,
-              structured_formatting: {
-                main_text: p.structured_formatting?.main_text || p.description!,
-                secondary_text: p.structured_formatting?.secondary_text,
-              },
-            };
-            console.log(`Prediction ${index + 1}:`, formatted);
-            return formatted;
-          });
-          
-          console.log('📊 Setting predictions:', formattedPredictions.length, 'items');
           setPredictions(formattedPredictions);
           setOpen(true);
           setFocusedIndex(-1);
         } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS || !preds?.length) {
-          console.log('🔍 No predictions found');
           setPredictions([]);
           setOpen(false);
           if (query.length > 2) {
@@ -317,15 +256,14 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
             });
           }
         } else {
-          console.warn('⚠️ Places prediction failed with status:', status);
-          console.warn('Status meaning:', google.maps.places.PlacesServiceStatus[status]);
+          console.warn('Places prediction failed:', status);
           setPredictions([]);
           setOpen(false);
           if (status !== google.maps.places.PlacesServiceStatus.INVALID_REQUEST) {
             toast({
               variant: "destructive",
               title: "Search Error",
-              description: `Failed to search for places: ${google.maps.places.PlacesServiceStatus[status] || status}`,
+              description: "Failed to search for places. Please try again.",
             });
           }
         }
@@ -346,11 +284,8 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
   const fetchDetails = useCallback(
     (placeId: string, description: string) => {
-      const placesService = getGlobalPlacesService();
-      
-      if (!placesService) {
+      if (!placesServiceRef.current) {
         // No details service - fall back to prediction description
-        console.log('PlacesService not available, using description fallback');
         onPlaceSelect({ formatted_address: description, place_id: placeId });
         setInputValue(description);
         setOpen(false);
@@ -358,7 +293,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         return;
       }
 
-      placesService.getDetails(
+      placesServiceRef.current.getDetails(
         {
           placeId,
           fields: ['formatted_address', 'place_id', 'name'],

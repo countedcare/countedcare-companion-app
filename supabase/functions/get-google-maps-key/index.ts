@@ -13,34 +13,46 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with proper auth handling
+    // Create a Supabase client with service role for auth verification
     const authHeader = req.headers.get('Authorization')
     console.log('Auth header received:', authHeader ? 'Present' : 'Missing')
     
-    const supabaseClient = createClient(
+    if (!authHeader) {
+      console.error('No authorization header provided')
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', details: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Use service role to verify the JWT token
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: authHeader ? { Authorization: authHeader } : {},
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Verify the user is authenticated
-    console.log('Attempting to get user...')
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    
-    console.log('Auth result:', { 
-      hasUser: !!user, 
-      userId: user?.id, 
-      error: authError?.message 
-    })
-    
-    if (authError || !user) {
-      console.error('Authentication failed:', authError)
+    // Verify the JWT token manually
+    try {
+      const jwt = authHeader.replace('Bearer ', '')
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(jwt)
+      
+      console.log('Auth verification result:', { 
+        hasUser: !!user, 
+        userId: user?.id, 
+        error: authError?.message 
+      })
+      
+      if (authError || !user) {
+        console.error('Authentication failed:', authError)
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized', details: authError?.message || 'Invalid token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    } catch (error) {
+      console.error('JWT verification error:', error)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
+        JSON.stringify({ error: 'Unauthorized', details: 'Token verification failed' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

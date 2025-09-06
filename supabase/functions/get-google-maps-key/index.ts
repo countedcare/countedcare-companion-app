@@ -13,23 +13,34 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client
+    // Create a Supabase client with proper auth handling
+    const authHeader = req.headers.get('Authorization')
+    console.log('Auth header received:', authHeader ? 'Present' : 'Missing')
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: authHeader ? { Authorization: authHeader } : {},
         },
       }
     )
 
     // Verify the user is authenticated
+    console.log('Attempting to get user...')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     
+    console.log('Auth result:', { 
+      hasUser: !!user, 
+      userId: user?.id, 
+      error: authError?.message 
+    })
+    
     if (authError || !user) {
+      console.error('Authentication failed:', authError)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

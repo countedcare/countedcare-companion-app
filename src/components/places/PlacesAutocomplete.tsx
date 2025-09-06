@@ -61,7 +61,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     setInputValue(value || '');
   }, [value]);
 
-  // Load Google Maps JS (Places) once, robustly
+  // Check if Google Maps is loaded (script should already be loaded by useGoogleMapsAPI)
   useEffect(() => {
     if (!apiKey) {
       const error = 'Google Maps API key is required';
@@ -74,82 +74,40 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       return;
     }
 
-    // Already loaded?
+    // Check if Google Maps is already loaded
     if (window.google?.maps?.places) {
+      console.log('Google Maps Places API already loaded');
       setIsLoaded(true);
       return;
     }
 
-    // Existing loader?
-    const existing = document.querySelector<HTMLScriptElement>(`script[${LOAD_ATTR}="true"]`);
-    if (existing) {
-      const handleLoad = () => {
-        if (window.google?.maps?.places) {
-          setIsLoaded(true);
-        } else {
-          const error = 'Google Maps Places library did not initialize';
-          setLoadingError(error);
-          toast({
-            variant: "destructive",
-            title: "Google Maps Error",
-            description: error,
-          });
-        }
-      };
-      
-      const handleError = () => {
-        const error = 'Failed to load Google Maps API';
-        setLoadingError(error);
-        toast({
-          variant: "destructive",
-          title: "Google Maps Error",
-          description: error,
-        });
-      };
-
-      existing.addEventListener('load', handleLoad);
-      existing.addEventListener('error', handleError);
-      
-      return () => {
-        existing.removeEventListener('load', handleLoad);
-        existing.removeEventListener('error', handleError);
-      };
-    }
-
-    // Create new script
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.setAttribute(LOAD_ATTR, 'true');
-
-    script.onload = () => {
+    // Wait for Google Maps to be loaded by useGoogleMapsAPI hook
+    const checkInterval = setInterval(() => {
       if (window.google?.maps?.places) {
+        console.log('Google Maps Places API is now available');
         setIsLoaded(true);
-      } else {
-        const error = 'Google Maps Places library did not initialize';
+        clearInterval(checkInterval);
+      }
+    }, 100);
+
+    // Clean up interval after 10 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(checkInterval);
+      if (!window.google?.maps?.places) {
+        const error = 'Google Maps API failed to load';
+        console.error('Google Maps not loaded after waiting');
         setLoadingError(error);
         toast({
           variant: "destructive",
-          title: "Google Maps Error",
+          title: "Google Maps Error", 
           description: error,
         });
       }
-    };
-
-    script.onerror = () => {
-      const error = 'Failed to load Google Maps API';
-      setLoadingError(error);
-      toast({
-        variant: "destructive",
-        title: "Google Maps Error",
-        description: error,
-      });
-    };
-
-    document.head.appendChild(script);
+    }, 10000);
 
     return () => {
+      clearInterval(checkInterval);
+      clearTimeout(timeout);
       // Cleanup timeout on unmount
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);

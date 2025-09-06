@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 /**
  * How this works:
  * - Tries to get a BROWSER key from VITE_GOOGLE_MAPS_API_KEY
- * - If not found, optionally fetches from your Supabase Edge Function:
- *     /functions/v1/get-google-maps-browser-key
+ * - If not found, fetches from your Supabase Edge Function hosted at:
+ *     https://<PROJECT_REF>.functions.supabase.co/get-google-maps-browser-key
+ *   (or VITE_SUPABASE_FUNCTIONS_URL if provided)
  * - Loads Maps JS only once with libraries=places
  * - Exposes global singletons for AutocompleteService and PlacesService
  */
@@ -30,16 +31,14 @@ function loadScript(key: string): Promise<void> {
   if (window.__GMAPS_LOADING__) {
     // already loading: wait for it
     return new Promise((resolve, reject) => {
-      const check = () => {
-        if (window.google?.maps?.places) resolve();
-        else setTimeout(check, 50);
-      };
       const timer = setTimeout(() => reject(new Error("Maps load timeout")), 20000);
       const poll = () => {
         if (window.google?.maps?.places) {
           clearTimeout(timer);
           resolve();
-        } else setTimeout(poll, 50);
+        } else {
+          setTimeout(poll, 50);
+        }
       };
       poll();
     });
@@ -102,15 +101,34 @@ export function getGlobalPlacesService(): google.maps.places.PlacesService {
   return window.__PLACES_SERVICE__;
 }
 
+// ✅ UPDATED: call the Supabase *functions subdomain* (correct public URL)
 async function fetchKeyFromFunction(): Promise<string | null> {
   try {
-    // Use the full Supabase URL for the edge function
-    const base = "https://beekrnfusoksullylvld.supabase.co/functions/v1";
-    const res = await fetch(`${base}/get-google-maps-browser-key`);
-    if (!res.ok) return null;
+    // Your Supabase project ref (the bit before .supabase.co)
+    const PROJECT_REF = "beekrnfusoksullylvld";
+
+    // Prefer env override; fallback to standard functions subdomain
+    // Example .env value:
+    //   VITE_SUPABASE_FUNCTIONS_URL=https://beekrnfusoksullylvld.functions.supabase.co
+    const base =
+      import.meta.env.VITE_SUPABASE_FUNCTIONS_URL ||
+      `https://${PROJECT_REF}.functions.supabase.co`;
+
+    const res = await fetch(`${base}/get-google-maps-browser-key`, { method: "GET" });
+
+    if (!res.ok) {
+      console.error(
+        "get-google-maps-browser-key failed:",
+        res.status,
+        await res.text().catch(() => "")
+      );
+      return null;
+    }
+
     const json = await res.json().catch(() => ({}));
     return json?.apiKey || null;
-  } catch {
+  } catch (e) {
+    console.error("fetchKeyFromFunction error:", e);
     return null;
   }
 }
@@ -129,10 +147,12 @@ export default function useGoogleMapsAPI() {
       try {
         // 1) try env
         let key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+
+        // 2) otherwise try edge function
         if (!key) {
-          // 2) try edge function
           key = (await fetchKeyFromFunction()) || undefined;
         }
+
         if (!key) {
           setError("Missing Google Maps browser API key");
           setIsConfigured(false);

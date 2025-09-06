@@ -63,20 +63,71 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
     }
     toast({ title: 'Requesting location', description: 'Please allow location access in your browser.' });
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const { latitude, longitude } = pos.coords;
         const coords = `${latitude},${longitude}`;
-        if (target === 'from') {
-          setFromAddress(coords);
-          setFromIsGPS(true);
-          setFromPlaceId(null);
+        
+        // Try to reverse geocode if Google Maps API is available
+        if (isConfigured && apiKey && window.google?.maps) {
+          try {
+            const geocoder = new window.google.maps.Geocoder();
+            const result = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+              geocoder.geocode(
+                { location: { lat: latitude, lng: longitude } },
+                (results, status) => {
+                  if (status === 'OK' && results) {
+                    resolve(results);
+                  } else {
+                    reject(new Error(`Geocoding failed: ${status}`));
+                  }
+                }
+              );
+            });
+
+            if (result && result[0]) {
+              const address = result[0].formatted_address;
+              if (target === 'from') {
+                setFromAddress(address);
+                setFromIsGPS(false); // It's now a proper address
+                setFromPlaceId(result[0].place_id || null);
+              } else {
+                setToAddress(address);
+                setToIsGPS(false);
+                setToPlaceId(result[0].place_id || null);
+              }
+              toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to: ${address}` });
+            } else {
+              throw new Error('No address found');
+            }
+          } catch (error) {
+            console.warn('Reverse geocoding failed, using coordinates:', error);
+            // Fallback to coordinates
+            if (target === 'from') {
+              setFromAddress(coords);
+              setFromIsGPS(true);
+              setFromPlaceId(null);
+            } else {
+              setToAddress(coords);
+              setToIsGPS(true);
+              setToPlaceId(null);
+            }
+            toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location (coordinates)` });
+          }
         } else {
-          setToAddress(coords);
-          setToIsGPS(true);
-          setToPlaceId(null);
+          // Fallback to coordinates when Google Maps isn't available
+          if (target === 'from') {
+            setFromAddress(coords);
+            setFromIsGPS(true);
+            setFromPlaceId(null);
+          } else {
+            setToAddress(coords);
+            setToIsGPS(true);
+            setToPlaceId(null);
+          }
+          toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location.` });
         }
+        
         setResult(null);
-        toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location.` });
       },
       (err) => {
         console.error('Geolocation error', err);
@@ -246,9 +297,6 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               </a>
             )}
           </div>
-          {fromIsGPS && (
-            <p className="text-xs text-muted-foreground">Using current location (GPS): {fromAddress}</p>
-          )}
         </div>
 
         {/* To Address */}
@@ -295,9 +343,6 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               </a>
             )}
           </div>
-          {toIsGPS && (
-            <p className="text-xs text-muted-foreground">Using current location (GPS): {toAddress}</p>
-          )}
         </div>
       </div>
 

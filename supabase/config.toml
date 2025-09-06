@@ -1,1 +1,4 @@
 project_id = "beekrnfusoksullylvld"
+
+[functions.get-google-maps-browser-key]
+verify_jwt = false

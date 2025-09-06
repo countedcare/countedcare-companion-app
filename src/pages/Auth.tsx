@@ -109,9 +109,10 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <div className="p-4 bg-blue-50 border-b border-blue-200 rounded-t-lg">
           <p className="text-sm text-blue-800">
-            💡 <strong>New user?</strong> Click "Sign Up" tab or use Google sign-in. 
+            💡 <strong>New user?</strong> Click "Sign Up" tab, then check your email to confirm your account.
             <br/>🔑 <strong>Have an account?</strong> Use your email/password, magic link, or Google.
-            <br/>✨ <strong>No password?</strong> Enter your email and click "Send Magic Link" on Sign In tab.
+            <br/>✨ <strong>Email not confirmed?</strong> Check your inbox and click the confirmation link first.
+            <br/>🚀 <strong>No password?</strong> Enter your email and click "Send Magic Link" on Sign In tab.
           </p>
         </div>
         <Tabs defaultValue="signup" className="w-full">

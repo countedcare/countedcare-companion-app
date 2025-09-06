@@ -27,6 +27,7 @@ const useGoogleMapsAPI = () => {
       }
 
       // Fetch from Supabase edge function
+      console.log('Fetching Google Maps API key from Supabase...');
       const { data, error } = await supabase.functions.invoke('get-google-maps-key');
       
       if (error) {
@@ -34,12 +35,17 @@ const useGoogleMapsAPI = () => {
         return;
       }
 
+      console.log('Google Maps API key response:', data);
+      
       if (data?.apiKey) {
         const key = data.apiKey;
+        console.log('Setting API key:', key ? 'API key received' : 'No API key');
         setApiKey(key);
         // Cache in localStorage for subsequent uses
         localStorage.setItem('google-maps-api-key', key);
         loadGoogleMapsScript(key);
+      } else {
+        console.error('No API key received from Supabase function');
       }
     } catch (error) {
       console.error('Error fetching Google Maps API key:', error);

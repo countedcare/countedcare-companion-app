@@ -250,6 +250,34 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
       console.log('📡 Calling getPlacePredictions...');
       autocompleteService.getPlacePredictions(request, (preds, status) => {
+        // Log raw results immediately
+        console.log('🔥 RAW API RESPONSE:');
+        console.log('STATUS:', status);
+        console.log('PREDICTIONS:', preds);
+        console.log('STATUS_OK_VALUE:', google.maps.places.PlacesServiceStatus.OK);
+        console.log('STATUS_MATCHES_OK:', status === google.maps.places.PlacesServiceStatus.OK);
+        
+        // Show toast for non-OK status
+        if (status !== google.maps.places.PlacesServiceStatus.OK) {
+          const statusName = Object.keys(google.maps.places.PlacesServiceStatus)
+            .find(key => google.maps.places.PlacesServiceStatus[key as any] === status) || 'UNKNOWN';
+          
+          console.log('❌ API returned non-OK status:', statusName);
+          toast({
+            variant: "destructive",
+            title: "Google Places API Error",
+            description: `API returned status: ${statusName} (${status})`,
+          });
+        }
+        
+        // Show toast for empty predictions even with OK status
+        if (status === google.maps.places.PlacesServiceStatus.OK && (!preds || preds.length === 0)) {
+          console.log('⚠️ API returned OK status but no predictions');
+          toast({
+            title: "No Predictions",
+            description: "Google Places API returned no suggestions for your search.",
+          });
+        }
         console.log('📥 Predictions callback received:');
         console.log('- Status:', status);
         console.log('- Status details:', google.maps.places.PlacesServiceStatus[status]);

@@ -2,10 +2,118 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-// Global state to ensure script loads only once
+// Global state to ensure script loads only once across all components
 let isScriptLoading = false;
 let isScriptLoaded = false;
 let loadingPromise: Promise<void> | null = null;
+let currentApiKey: string | null = null;
+
+// Global function to check if Google Maps is ready
+const isGoogleMapsReady = (): boolean => {
+  return !!(window.google?.maps?.places);
+};
+
+// Global function to load Google Maps script
+const loadGoogleMapsScriptGlobally = async (apiKey: string): Promise<void> => {
+  // If already loaded with the same key, return immediately
+  if (isScriptLoaded && currentApiKey === apiKey && isGoogleMapsReady()) {
+    console.log('Google Maps already loaded with same API key');
+    return Promise.resolve();
+  }
+
+  // If currently loading with the same key, wait for existing promise
+  if (isScriptLoading && currentApiKey === apiKey && loadingPromise) {
+    console.log('Google Maps script already loading, waiting...');
+    return loadingPromise;
+  }
+
+  // If loaded with different key or need fresh load, clean up first
+  if (currentApiKey !== apiKey || !isGoogleMapsReady()) {
+    console.log('Cleaning up existing Google Maps scripts for fresh load');
+    
+    // Reset global state
+    isScriptLoading = false;
+    isScriptLoaded = false;
+    loadingPromise = null;
+    
+    // Remove existing scripts
+    const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+    existingScripts.forEach(script => {
+      const scriptElement = script as HTMLScriptElement;
+      console.log('Removing existing Google Maps script:', scriptElement.src);
+      script.remove();
+    });
+    
+    // Clear global callback
+    if ((window as any).initGoogleMapsAPI) {
+      delete (window as any).initGoogleMapsAPI;
+    }
+    
+    // Clear Google Maps from window if it exists
+    if (window.google) {
+      delete (window as any).google;
+    }
+  }
+
+  // Start loading process
+  isScriptLoading = true;
+  currentApiKey = apiKey;
+
+  loadingPromise = new Promise((resolve, reject) => {
+    console.log('Starting to load Google Maps script with key:', apiKey ? 'present' : 'missing');
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMapsAPI&loading=async`;
+    script.async = true;
+    script.defer = true;
+    script.setAttribute('data-google-maps-script', 'true');
+
+    console.log('Loading Google Maps with URL:', script.src);
+
+    // Set up global callback
+    (window as any).initGoogleMapsAPI = () => {
+      console.log('Google Maps API loaded successfully via callback');
+      
+      if (isGoogleMapsReady()) {
+        isScriptLoaded = true;
+        isScriptLoading = false;
+        resolve();
+      } else {
+        console.error('Google Maps callback fired but places library not available');
+        isScriptLoading = false;
+        reject(new Error('Google Maps Places library not available after loading'));
+      }
+    };
+
+    // Backup check in case callback doesn't fire
+    script.onload = () => {
+      console.log('Google Maps script onload event fired');
+      
+      // Give a moment for libraries to initialize
+      setTimeout(() => {
+        if (isGoogleMapsReady() && !isScriptLoaded) {
+          console.log('Google Maps ready but callback missed, resolving manually');
+          isScriptLoaded = true;
+          isScriptLoading = false;
+          resolve();
+        }
+      }, 100);
+    };
+
+    script.onerror = (error) => {
+      console.error('Failed to load Google Maps script:', error);
+      isScriptLoading = false;
+      isScriptLoaded = false;
+      currentApiKey = null;
+      reject(new Error('Failed to load Google Maps script'));
+    };
+
+    document.head.appendChild(script);
+    console.log('Google Maps script injected into DOM');
+  });
+
+  return loadingPromise;
+};
 
 const useGoogleMapsAPI = () => {
   const [apiKey, setApiKey] = useState<string>('');
@@ -18,11 +126,8 @@ const useGoogleMapsAPI = () => {
 
   const fetchApiKey = async () => {
     try {
-      // Clear any potentially stale cached API key
-      localStorage.removeItem('google-maps-api-key');
-      
       console.log('Fetching Google Maps API key from Supabase...');
-      const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+      const { data, error } = await supabase.functions.invoke('get-google-maps-browser-key');
       
       if (error) {
         console.error('Error fetching Google Maps API key:', error);
@@ -35,8 +140,6 @@ const useGoogleMapsAPI = () => {
         const key = data.apiKey;
         console.log('Setting API key:', key ? 'API key received' : 'No API key');
         setApiKey(key);
-        // Cache in localStorage for subsequent uses
-        localStorage.setItem('google-maps-api-key', key);
         loadGoogleMapsScript(key);
       } else {
         console.error('No API key received from Supabase function');
@@ -49,92 +152,17 @@ const useGoogleMapsAPI = () => {
   const loadGoogleMapsScript = async (key: string) => {
     if (!key) return;
 
-    console.log('loadGoogleMapsScript called with key:', key ? 'API key present' : 'No API key');
-
-    // If script is already loaded, mark as configured
-    if (isScriptLoaded && window.google?.maps?.places) {
-      console.log('Google Maps already loaded and configured');
+    setIsLoading(true);
+    
+    try {
+      await loadGoogleMapsScriptGlobally(key);
+      console.log('Google Maps script loaded successfully');
       setIsConfigured(true);
-      return;
-    }
-
-    // If script is currently loading, wait for it
-    if (isScriptLoading && loadingPromise) {
-      console.log('Script already loading, waiting...');
-      setIsLoading(true);
-      try {
-        await loadingPromise;
-        setIsConfigured(true);
-      } catch (error) {
-        console.error('Google Maps script loading failed:', error);
-        setIsConfigured(false);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // Start loading the script
-    if (!isScriptLoading) {
-      console.log('Starting to load Google Maps script...');
-      isScriptLoading = true;
-      setIsLoading(true);
-
-      loadingPromise = new Promise((resolve, reject) => {
-        // Remove existing scripts to avoid conflicts
-        const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
-        console.log('Removing existing scripts:', existingScripts.length);
-        existingScripts.forEach(script => script.remove());
-
-        // Clear the global callback if it exists
-        delete (window as any).initGoogleMapsAPI;
-
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initGoogleMapsAPI&loading=async`;
-        script.async = true;
-        script.defer = true;
-
-        console.log('Loading script with URL:', script.src);
-
-        // Add global callback
-        (window as any).initGoogleMapsAPI = () => {
-          console.log('Google Maps API loaded successfully via callback');
-          isScriptLoaded = true;
-          isScriptLoading = false;
-          resolve();
-        };
-
-        script.onload = () => {
-          console.log('Script onload event fired');
-          // Sometimes the callback doesn't fire, so check manually
-          if (window.google?.maps?.places && !isScriptLoaded) {
-            console.log('Google Maps loaded but callback not fired, resolving manually');
-            isScriptLoaded = true;
-            isScriptLoading = false;
-            resolve();
-          }
-        };
-
-        script.onerror = (error) => {
-          console.error('Failed to load Google Maps API:', error);
-          isScriptLoading = false;
-          reject(error);
-        };
-
-        document.head.appendChild(script);
-        console.log('Script appended to head');
-      });
-
-      try {
-        await loadingPromise;
-        console.log('Google Maps script loaded successfully');
-        setIsConfigured(true);
-      } catch (error) {
-        console.error('Google Maps script loading failed:', error);
-        setIsConfigured(false);
-      } finally {
-        setIsLoading(false);
-      }
+    } catch (error) {
+      console.error('Failed to load Google Maps script:', error);
+      setIsConfigured(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 

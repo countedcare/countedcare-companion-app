@@ -61,7 +61,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     setInputValue(value || '');
   }, [value]);
 
-  // Check if Google Maps is loaded (script should already be loaded by useGoogleMapsAPI)
+  // Simply check if Google Maps is loaded (script loading handled by useGoogleMapsAPI)
   useEffect(() => {
     if (!apiKey) {
       const error = 'Google Maps API key is required';
@@ -76,8 +76,9 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
     // Check if Google Maps is already loaded
     if (window.google?.maps?.places) {
-      console.log('Google Maps Places API already loaded');
+      console.log('Google Maps Places API is available');
       setIsLoaded(true);
+      setLoadingError(null);
       return;
     }
 
@@ -86,29 +87,30 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       if (window.google?.maps?.places) {
         console.log('Google Maps Places API is now available');
         setIsLoaded(true);
+        setLoadingError(null);
         clearInterval(checkInterval);
       }
     }, 100);
 
-    // Clean up interval after 10 seconds
+    // Clean up interval after 15 seconds with error
     const timeout = setTimeout(() => {
       clearInterval(checkInterval);
       if (!window.google?.maps?.places) {
-        const error = 'Google Maps API failed to load';
-        console.error('Google Maps not loaded after waiting');
+        const error = 'Google Maps API failed to load within timeout';
+        console.error('Google Maps not loaded after waiting 15 seconds');
         setLoadingError(error);
         toast({
           variant: "destructive",
           title: "Google Maps Error", 
-          description: error,
+          description: "Google Maps is taking too long to load. Please refresh the page.",
         });
       }
-    }, 10000);
+    }, 15000);
 
     return () => {
       clearInterval(checkInterval);
       clearTimeout(timeout);
-      // Cleanup timeout on unmount
+      // Cleanup debounce timeout on unmount
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
       }

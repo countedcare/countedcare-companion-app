@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, X, DollarSign, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { EXPENSE_CATEGORIES } from '@/types/User';
+import { CameraService } from '@/services/cameraService';
+import { Capacitor } from '@capacitor/core';
 
 interface ReceiptCaptureModalProps {
   isOpen: boolean;
@@ -60,6 +63,7 @@ const TaxDeductibilityModal: React.FC<TaxDeductibilityModalProps> = ({ isOpen, o
 const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClose, onExpenseAdded }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +79,59 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [showTaxModal, setShowTaxModal] = useState(false);
+
+  // Auto-open camera on mobile when modal opens
+  useEffect(() => {
+    if (isOpen && isMobile && Capacitor.isNativePlatform()) {
+      // Small delay to ensure modal is fully rendered
+      const timer = setTimeout(() => {
+        handleTakePhotoWithCapacitor();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isMobile]);
+
+  // Convert Capacitor photo to File object
+  const photoToFile = async (photo: any): Promise<File> => {
+    const response = await fetch(photo.webPath!);
+    const blob = await response.blob();
+    return new File([blob], `receipt-${Date.now()}.jpg`, { type: 'image/jpeg' });
+  };
+
+  // Handle native camera capture
+  const handleTakePhotoWithCapacitor = async () => {
+    try {
+      setIsUploading(true);
+      
+      // Request camera permissions
+      const hasPermission = await CameraService.requestPermissions();
+      if (!hasPermission) {
+        toast({
+          title: 'Camera Permission Required',
+          description: 'Please allow camera access to take photos of receipts.',
+          variant: 'destructive'
+        });
+        setIsUploading(false);
+        return;
+      }
+
+      // Take photo
+      const photo = await CameraService.takePicture();
+      const file = await photoToFile(photo);
+      await handleFileSelect(file);
+      
+    } catch (error: any) {
+      console.error('Camera error:', error);
+      if (error.message !== 'User cancelled photos app') {
+        toast({
+          title: 'Camera Error',
+          description: 'Failed to take photo. You can still upload from gallery.',
+          variant: 'destructive'
+        });
+      }
+      setIsUploading(false);
+    }
+  };
 
   const uploadReceiptToStorage = async (file: File): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
@@ -211,11 +268,17 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Use camera input for mobile (capture attr), falls back to picker on desktop */}
+                  {/* Use native camera on mobile, fallback to input on web */}
                   <Button
                     variant="outline"
                     className="h-24 flex-col space-y-2"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => {
+                      if (isMobile && Capacitor.isNativePlatform()) {
+                        handleTakePhotoWithCapacitor();
+                      } else {
+                        cameraInputRef.current?.click();
+                      }
+                    }}
                     disabled={isUploading}
                   >
                     <Camera className="h-6 w-6" />
@@ -260,7 +323,9 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
                 {isUploading && (
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto" />
-                    <p className="text-sm text-muted-foreground mt-2">Uploading receipt...</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {isMobile && Capacitor.isNativePlatform() ? 'Opening camera...' : 'Uploading receipt...'}
+                    </p>
                   </div>
                 )}
               </div>

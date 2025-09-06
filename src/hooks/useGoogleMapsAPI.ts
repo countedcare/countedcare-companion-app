@@ -101,19 +101,9 @@ export function getGlobalPlacesService(): google.maps.places.PlacesService {
   return window.__PLACES_SERVICE__;
 }
 
-// ✅ UPDATED: call the Supabase *functions subdomain* (correct public URL)
 async function fetchKeyFromFunction(): Promise<string | null> {
   try {
-    // Your Supabase project ref (the bit before .supabase.co)
-    const PROJECT_REF = "beekrnfusoksullylvld";
-
-    // Prefer env override; fallback to standard functions subdomain
-    // Example .env value:
-    //   VITE_SUPABASE_FUNCTIONS_URL=https://beekrnfusoksullylvld.functions.supabase.co
-    const base =
-      import.meta.env.VITE_SUPABASE_FUNCTIONS_URL ||
-      `https://${PROJECT_REF}.functions.supabase.co`;
-
+    const base = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || "/functions/v1";
     const res = await fetch(`${base}/get-google-maps-browser-key`, { method: "GET" });
 
     if (!res.ok) {

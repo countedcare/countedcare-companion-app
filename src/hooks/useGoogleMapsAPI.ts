@@ -104,10 +104,8 @@ export function getGlobalPlacesService(): google.maps.places.PlacesService {
 
 async function fetchKeyFromFunction(): Promise<string | null> {
   try {
-    // If you set this in your env, it avoids hardcoding your project ref:
-    const base =
-      import.meta.env.VITE_SUPABASE_FUNCTIONS_URL ||
-      "/functions/v1"; // works when served behind the Supabase functions proxy
+    // Use the full Supabase URL for the edge function
+    const base = "https://beekrnfusoksullylvld.supabase.co/functions/v1";
     const res = await fetch(`${base}/get-google-maps-browser-key`);
     if (!res.ok) return null;
     const json = await res.json().catch(() => ({}));

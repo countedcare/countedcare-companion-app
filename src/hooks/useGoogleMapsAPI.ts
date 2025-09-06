@@ -168,6 +168,6 @@ export default function useGoogleMapsAPI() {
     })();
   }, []);
 
-  return { isConfigured, isLoading, error, apiKey: window.__GMAPS_KEY__ };
+  return { isConfigured, isLoading, error, apiKey: window.__GMAPS_KEY__ || "" };
 }
 

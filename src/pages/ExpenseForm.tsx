@@ -47,16 +47,8 @@ const ExpenseForm = () => {
   const [linkedAccountId, setLinkedAccountId] = useState('');
   
   // Google Maps integration
-  const { apiKey, isConfigured, saveApiKey } = useGoogleMapsAPI();
+  const { apiKey, isConfigured } = useGoogleMapsAPI();
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
-  
-  // Auto-configure API key if not set
-  useEffect(() => {
-    if (!isConfigured) {
-      const defaultApiKey = 'AIzaSyBJB3wjcuzPWnBJS9J6vvTFQEc47agM_Ak';
-      saveApiKey(defaultApiKey);
-    }
-  }, [isConfigured, saveApiKey]);
   
   // Handle pre-selected category from URL params
   useEffect(() => {
@@ -258,8 +250,12 @@ const ExpenseForm = () => {
                 )}
 
                 {/* Google Maps API Setup */}
-                {!isMileageMode && (
-                  <GoogleMapsAPIConfig onApiKeySaved={saveApiKey} currentApiKey={apiKey} />
+                {!isMileageMode && !isConfigured && (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-800">
+                      Google Maps API is not configured. Location features will be limited.
+                    </p>
+                  </div>
                 )}
 
                 {/* Location Search */}

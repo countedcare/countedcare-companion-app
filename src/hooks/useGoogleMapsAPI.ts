@@ -18,15 +18,9 @@ const useGoogleMapsAPI = () => {
 
   const fetchApiKey = async () => {
     try {
-      // Check if API key is cached in localStorage first
-      const cachedApiKey = localStorage.getItem('google-maps-api-key');
-      if (cachedApiKey) {
-        setApiKey(cachedApiKey);
-        loadGoogleMapsScript(cachedApiKey);
-        return;
-      }
-
-      // Fetch from Supabase edge function
+      // Clear any potentially stale cached API key
+      localStorage.removeItem('google-maps-api-key');
+      
       console.log('Fetching Google Maps API key from Supabase...');
       const { data, error } = await supabase.functions.invoke('get-google-maps-key');
       

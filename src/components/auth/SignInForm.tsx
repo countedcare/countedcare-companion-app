@@ -26,28 +26,36 @@ const SignInForm = ({ email, setEmail, password, setPassword, loading, setLoadin
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
+    console.log('Google sign-in button clicked');
+    console.log('Current origin:', window.location.origin);
+    
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('Attempting Google OAuth...');
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/dashboard`
         }
       });
+
+      console.log('Google OAuth response:', { data, error });
 
       if (error) {
         console.error('Google sign in error:', error);
         toast({
-          title: "Google Sign In Failed",
-          description: error.message,
+          title: "Google Sign In Failed", 
+          description: `Error: ${error.message}. Check console for details.`,
           variant: "destructive",
         });
+      } else {
+        console.log('Google OAuth initiated successfully');
       }
     } catch (error: any) {
       console.error('Unexpected Google sign in error:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred with Google sign in.",
+        description: `Unexpected error: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {

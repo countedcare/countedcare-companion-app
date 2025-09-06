@@ -28,6 +28,7 @@ interface PlacesAutocompleteProps {
 }
 
 const LOAD_ATTR = 'data-google-maps-loader';
+const DEBOUNCE_DELAY = 300;
 
 const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   onPlaceSelect,
@@ -45,40 +46,77 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [inputValue, setInputValue] = useState(value);
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
-
   const [isSearching, setIsSearching] = useState(false);
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
 
-  // keep internal input in sync with prop
-  useEffect(() => setInputValue(value || ''), [value]);
+  // Keep internal input in sync with prop
+  useEffect(() => {
+    setInputValue(value || '');
+  }, [value]);
 
-  // --- Load Google Maps JS (Places) once, robustly
+  // Load Google Maps JS (Places) once, robustly
   useEffect(() => {
     if (!apiKey) {
-      setLoadingError('API key is required');
+      const error = 'Google Maps API key is required';
+      setLoadingError(error);
+      toast({
+        variant: "destructive",
+        title: "Configuration Error",
+        description: error,
+      });
       return;
     }
 
-    // already loaded?
+    // Already loaded?
     if (window.google?.maps?.places) {
       setIsLoaded(true);
       return;
     }
 
-    // existing loader?
+    // Existing loader?
     const existing = document.querySelector<HTMLScriptElement>(`script[${LOAD_ATTR}="true"]`);
     if (existing) {
-      existing.addEventListener('load', () => setIsLoaded(true));
-      existing.addEventListener('error', () => setLoadingError('Failed to load Google Maps API'));
-      return;
+      const handleLoad = () => {
+        if (window.google?.maps?.places) {
+          setIsLoaded(true);
+        } else {
+          const error = 'Google Maps Places library did not initialize';
+          setLoadingError(error);
+          toast({
+            variant: "destructive",
+            title: "Google Maps Error",
+            description: error,
+          });
+        }
+      };
+      
+      const handleError = () => {
+        const error = 'Failed to load Google Maps API';
+        setLoadingError(error);
+        toast({
+          variant: "destructive",
+          title: "Google Maps Error",
+          description: error,
+        });
+      };
+
+      existing.addEventListener('load', handleLoad);
+      existing.addEventListener('error', handleError);
+      
+      return () => {
+        existing.removeEventListener('load', handleLoad);
+        existing.removeEventListener('error', handleError);
+      };
     }
 
+    // Create new script
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
@@ -89,103 +127,169 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       if (window.google?.maps?.places) {
         setIsLoaded(true);
       } else {
-        setLoadingError('Google Maps Places library did not initialize');
+        const error = 'Google Maps Places library did not initialize';
+        setLoadingError(error);
+        toast({
+          variant: "destructive",
+          title: "Google Maps Error",
+          description: error,
+        });
       }
     };
+
     script.onerror = () => {
-      setLoadingError('Failed to load Google Maps API');
+      const error = 'Failed to load Google Maps API';
+      setLoadingError(error);
+      toast({
+        variant: "destructive",
+        title: "Google Maps Error",
+        description: error,
+      });
     };
 
     document.head.appendChild(script);
-  }, [apiKey]);
 
-  // --- Init services when library is ready
+    return () => {
+      // Cleanup timeout on unmount
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [apiKey, toast]);
+
+  // Initialize services when library is ready
   useEffect(() => {
     if (!isLoaded || !window.google?.maps?.places) return;
 
-    if (!autocompleteServiceRef.current) {
-      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+    try {
+      if (!autocompleteServiceRef.current) {
+        autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      }
+      if (!placesServiceRef.current) {
+        const dummy = document.createElement('div');
+        placesServiceRef.current = new google.maps.places.PlacesService(dummy);
+      }
+    } catch (error) {
+      console.error('Failed to initialize Google Maps services:', error);
+      const errorMsg = 'Failed to initialize Google Maps services';
+      setLoadingError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Google Maps Error",
+        description: errorMsg,
+      });
     }
-    if (!placesServiceRef.current) {
-      const dummy = document.createElement('div');
-      placesServiceRef.current = new google.maps.places.PlacesService(dummy);
-    }
-  }, [isLoaded]);
+  }, [isLoaded, toast]);
 
-  // --- Click outside to close
+  // Click outside to close dropdown
   useEffect(() => {
-    const onDown = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent) => {
       if (!dropdownRef.current || !inputRef.current) return;
-      const t = e.target as Node;
-      if (dropdownRef.current.contains(t) || inputRef.current.contains(t)) return;
-      setOpen(false);
-      setFocusedIndex(-1);
+      const target = e.target as Node;
+      if (!dropdownRef.current.contains(target) && !inputRef.current.contains(target)) {
+        setOpen(false);
+        setFocusedIndex(-1);
+      }
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
 
-  // --- Debounced search when inputValue changes
-  useEffect(() => {
-    if (!isLoaded || !autocompleteServiceRef.current) return;
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [open]);
 
-    const q = inputValue.trim();
-    if (!q) {
+  // Debounced search function
+  const debouncedSearch = useCallback((query: string) => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    if (!query.trim()) {
       setPredictions([]);
       setOpen(false);
+      setIsSearching(false);
+      return;
+    }
+
+    if (!isLoaded || !autocompleteServiceRef.current || loadingError) {
       return;
     }
 
     setIsSearching(true);
-    const t = setTimeout(() => {
-      const req: google.maps.places.AutocompletionRequest = {
-        input: q,
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      const request: google.maps.places.AutocompletionRequest = {
+        input: query.trim(),
         types: types as any,
       };
+
       if (country) {
-        req.componentRestrictions = {
+        request.componentRestrictions = {
           country: Array.isArray(country) ? country : [country],
         } as any;
       }
 
-      autocompleteServiceRef.current!.getPlacePredictions(req, (preds, status) => {
+      autocompleteServiceRef.current!.getPlacePredictions(request, (preds, status) => {
         setIsSearching(false);
-        if (status === google.maps.places.PlacesServiceStatus.OK && preds && preds.length) {
-          setPredictions(
-            preds.map((p) => ({
-              place_id: p.place_id!,
-              description: p.description!,
-              structured_formatting: {
-                main_text: p.structured_formatting?.main_text || p.description!,
-                secondary_text: p.structured_formatting?.secondary_text,
-              },
-            }))
-          );
+        
+        if (status === google.maps.places.PlacesServiceStatus.OK && preds && preds.length > 0) {
+          const formattedPredictions = preds.map((p) => ({
+            place_id: p.place_id!,
+            description: p.description!,
+            structured_formatting: {
+              main_text: p.structured_formatting?.main_text || p.description!,
+              secondary_text: p.structured_formatting?.secondary_text,
+            },
+          }));
+          
+          setPredictions(formattedPredictions);
           setOpen(true);
           setFocusedIndex(-1);
         } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS || !preds?.length) {
-          // Do NOT force fallback on zero results — just close the menu quietly.
           setPredictions([]);
           setOpen(false);
+          if (query.length > 2) {
+            toast({
+              title: "No Results",
+              description: "No places found matching your search. Try a different address.",
+            });
+          }
         } else {
           console.warn('Places prediction failed:', status);
-          // transient errors shouldn't flip to fallback mode
           setPredictions([]);
           setOpen(false);
+          if (status !== google.maps.places.PlacesServiceStatus.INVALID_REQUEST) {
+            toast({
+              variant: "destructive",
+              title: "Search Error",
+              description: "Failed to search for places. Please try again.",
+            });
+          }
         }
       });
-    }, 250);
+    }, DEBOUNCE_DELAY);
+  }, [isLoaded, types, country, toast, loadingError]);
 
-    return () => clearTimeout(t);
-  }, [inputValue, isLoaded, types, country]);
+  // Handle input changes with debounced search
+  useEffect(() => {
+    debouncedSearch(inputValue);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [inputValue, debouncedSearch]);
 
   const fetchDetails = useCallback(
     (placeId: string, description: string) => {
       if (!placesServiceRef.current) {
-        // no details — fall back to prediction description
+        // No details service - fall back to prediction description
         onPlaceSelect({ formatted_address: description, place_id: placeId });
         setInputValue(description);
         setOpen(false);
+        setFocusedIndex(-1);
         return;
       }
 
@@ -200,36 +304,80 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
             onPlaceSelect({ formatted_address: formatted, place_id: place.place_id || placeId });
             setInputValue(formatted);
           } else {
-            console.warn('getDetails failed:', status);
+            console.warn('getDetails failed, using fallback:', status);
+            // Fall back to description if getDetails fails
             onPlaceSelect({ formatted_address: description, place_id: placeId });
             setInputValue(description);
+            
+            if (status !== google.maps.places.PlacesServiceStatus.NOT_FOUND) {
+              toast({
+                title: "Location Details",
+                description: "Used basic location info as detailed data was unavailable.",
+              });
+            }
           }
           setOpen(false);
           setFocusedIndex(-1);
         }
       );
     },
-    [onPlaceSelect]
+    [onPlaceSelect, toast]
   );
 
-  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    if (!open || predictions.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFocusedIndex((i) => Math.min(i + 1, predictions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (focusedIndex >= 0) {
-        const p = predictions[focusedIndex];
-        fetchDetails(p.place_id, p.description);
+  const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if (!open || predictions.length === 0) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        setFocusedIndex(-1);
       }
-    } else if (e.key === 'Escape') {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex((i) => (i < predictions.length - 1 ? i + 1 : 0));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex((i) => (i > 0 ? i - 1 : predictions.length - 1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < predictions.length) {
+          const prediction = predictions[focusedIndex];
+          fetchDetails(prediction.place_id, prediction.description);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setOpen(false);
+        setFocusedIndex(-1);
+        break;
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    // Clear dropdown if input is empty
+    if (!newValue.trim()) {
       setOpen(false);
+      setPredictions([]);
       setFocusedIndex(-1);
     }
+  };
+
+  const handleInputFocus = () => {
+    // Only open if we have predictions and input has content
+    if (inputValue.trim() && predictions.length > 0 && !loadingError) {
+      setOpen(true);
+    }
+  };
+
+  const handlePredictionClick = (prediction: PlacePrediction) => {
+    fetchDetails(prediction.place_id, prediction.description);
   };
 
   const shouldShowFallback = !!loadingError;
@@ -238,87 +386,76 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     <div className={`space-y-2 relative ${className}`}>
       {label && <Label htmlFor="places-input">{label}</Label>}
 
-      {shouldShowFallback ? (
-        <div className="relative">
-          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      <div className="relative">
+        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        {shouldShowFallback && (
           <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-orange-500" />
-          <Input
-            ref={inputRef}
-            id="places-input"
-            type="text"
-            autoComplete="off"
-            placeholder={placeholder}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="pl-10 pr-10"
-          />
-          <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Google Maps unavailable — manual input mode.
-          </p>
-        </div>
-      ) : (
-        <div className="relative">
-          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          {isSearching && (
-            <Loader2 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground animate-spin" />
-          )}
-          <Input
-            ref={inputRef}
-            id="places-input"
-            type="text"
-            autoComplete="off"
-            placeholder={placeholder}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onFocus={() => {
-              if (inputValue.trim() && predictions.length > 0) setOpen(true);
-            }}
-            onKeyDown={onKeyDown}
-            className="pl-10 pr-10"
-            disabled={!isLoaded}
-          />
+        )}
+        {!shouldShowFallback && isSearching && (
+          <Loader2 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground animate-spin" />
+        )}
+        
+        <Input
+          ref={inputRef}
+          id="places-input"
+          type="text"
+          autoComplete="off"
+          placeholder={placeholder}
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onKeyDown={handleKeyDown}
+          className="pl-10 pr-10"
+          disabled={!shouldShowFallback && !isLoaded}
+        />
 
-          {/* Dropdown */}
-          {open && predictions.length > 0 && (
-            <div
-              ref={dropdownRef}
-              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
-            >
-              {predictions.map((p, idx) => {
-                const active = idx === focusedIndex;
-                return (
-                  <button
-                    type="button"
-                    key={p.place_id}
-                    className={`w-full text-left p-3 border-b last:border-b-0 hover:bg-gray-50 ${
-                      active ? 'bg-blue-50' : ''
-                    }`}
-                    onMouseEnter={() => setFocusedIndex(idx)}
-                    onMouseDown={(e) => e.preventDefault()} // keep focus
-                    onClick={() => fetchDetails(p.place_id, p.description)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                      <div className="min-w-0">
-                        <div className="font-medium text-gray-900 truncate">
-                          {p.structured_formatting.main_text}
-                        </div>
-                        {p.structured_formatting.secondary_text && (
-                          <div className="text-sm text-gray-500 truncate">
-                            {p.structured_formatting.secondary_text}
-                          </div>
-                        )}
+        {/* Dropdown */}
+        {open && predictions.length > 0 && !shouldShowFallback && (
+          <div
+            ref={dropdownRef}
+            className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+          >
+            {predictions.map((prediction, idx) => {
+              const isActive = idx === focusedIndex;
+              return (
+                <button
+                  type="button"
+                  key={prediction.place_id}
+                  className={`w-full text-left p-3 border-b border-border last:border-b-0 hover:bg-accent transition-colors ${
+                    isActive ? 'bg-accent' : ''
+                  }`}
+                  onMouseEnter={() => setFocusedIndex(idx)}
+                  onMouseDown={(e) => e.preventDefault()} // Prevent losing focus
+                  onClick={() => handlePredictionClick(prediction)}
+                >
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground truncate">
+                        {prediction.structured_formatting.main_text}
                       </div>
+                      {prediction.structured_formatting.secondary_text && (
+                        <div className="text-sm text-muted-foreground truncate">
+                          {prediction.structured_formatting.secondary_text}
+                        </div>
+                      )}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
+      {/* Status messages */}
+      {shouldShowFallback && (
+        <p className="text-xs text-orange-600 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Google Maps not available. Please type the full address manually.
+        </p>
+      )}
+      
       {!isLoaded && !loadingError && (
         <p className="text-xs text-muted-foreground">Loading Google Maps…</p>
       )}

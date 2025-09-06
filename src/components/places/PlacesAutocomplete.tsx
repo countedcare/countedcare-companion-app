@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getGlobalAutocompleteService, getGlobalPlacesService, areGoogleMapsServicesReady } from '@/hooks/useGoogleMapsAPI';
 import './places.css';
 
 interface PlacePrediction {
@@ -44,8 +45,6 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [inputValue, setInputValue] = useState(value);
@@ -121,23 +120,33 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   useEffect(() => {
     if (!isLoaded || !window.google?.maps?.places) return;
 
-    try {
-      if (!autocompleteServiceRef.current) {
-        autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      }
-      if (!placesServiceRef.current) {
-        const dummy = document.createElement('div');
-        placesServiceRef.current = new google.maps.places.PlacesService(dummy);
-      }
-    } catch (error) {
-      console.error('Failed to initialize Google Maps services:', error);
-      const errorMsg = 'Failed to initialize Google Maps services';
-      setLoadingError(errorMsg);
-      toast({
-        variant: "destructive",
-        title: "Google Maps Error",
-        description: errorMsg,
-      });
+    // Services are now initialized globally, just verify they're ready
+    if (!areGoogleMapsServicesReady()) {
+      console.log('Waiting for global Google Maps services to initialize...');
+      
+      const checkServicesInterval = setInterval(() => {
+        if (areGoogleMapsServicesReady()) {
+          console.log('Global Google Maps services are now ready');
+          clearInterval(checkServicesInterval);
+        }
+      }, 100);
+      
+      // Clean up after 5 seconds
+      setTimeout(() => {
+        clearInterval(checkServicesInterval);
+        if (!areGoogleMapsServicesReady()) {
+          console.error('Global Google Maps services failed to initialize');
+          const errorMsg = 'Failed to initialize Google Maps services';
+          setLoadingError(errorMsg);
+          toast({
+            variant: "destructive",
+            title: "Google Maps Error",
+            description: errorMsg,
+          });
+        }
+      }, 5000);
+      
+      return () => clearInterval(checkServicesInterval);
     }
   }, [isLoaded, toast]);
 
@@ -172,7 +181,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       return;
     }
 
-    if (!isLoaded || !autocompleteServiceRef.current || loadingError) {
+    if (!isLoaded || !areGoogleMapsServicesReady() || loadingError) {
       return;
     }
 
@@ -190,7 +199,14 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         } as any;
       }
 
-      autocompleteServiceRef.current!.getPlacePredictions(request, (preds, status) => {
+      const autocompleteService = getGlobalAutocompleteService();
+      if (!autocompleteService) {
+        console.error('AutocompleteService not available');
+        setIsSearching(false);
+        return;
+      }
+
+      autocompleteService.getPlacePredictions(request, (preds, status) => {
         setIsSearching(false);
         
         if (status === google.maps.places.PlacesServiceStatus.OK && preds && preds.length > 0) {
@@ -244,8 +260,11 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
   const fetchDetails = useCallback(
     (placeId: string, description: string) => {
-      if (!placesServiceRef.current) {
+      const placesService = getGlobalPlacesService();
+      
+      if (!placesService) {
         // No details service - fall back to prediction description
+        console.log('PlacesService not available, using description fallback');
         onPlaceSelect({ formatted_address: description, place_id: placeId });
         setInputValue(description);
         setOpen(false);
@@ -253,7 +272,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
         return;
       }
 
-      placesServiceRef.current.getDetails(
+      placesService.getDetails(
         {
           placeId,
           fields: ['formatted_address', 'place_id', 'name'],

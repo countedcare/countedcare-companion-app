@@ -8,9 +8,61 @@ let isScriptLoaded = false;
 let loadingPromise: Promise<void> | null = null;
 let currentApiKey: string | null = null;
 
+// Global services instances
+let globalAutocompleteService: google.maps.places.AutocompleteService | null = null;
+let globalPlacesService: google.maps.places.PlacesService | null = null;
+let hiddenServiceDiv: HTMLDivElement | null = null;
+
 // Global function to check if Google Maps is ready
 const isGoogleMapsReady = (): boolean => {
   return !!(window.google?.maps?.places);
+};
+
+// Global function to initialize services after Google Maps loads
+const initializeGoogleMapsServices = (): void => {
+  try {
+    console.log('Initializing Google Maps services...');
+    
+    // Create hidden div for PlacesService if it doesn't exist
+    if (!hiddenServiceDiv) {
+      hiddenServiceDiv = document.createElement('div');
+      hiddenServiceDiv.style.display = 'none';
+      hiddenServiceDiv.setAttribute('id', 'google-maps-service-div');
+      document.body.appendChild(hiddenServiceDiv);
+      console.log('Created hidden div for PlacesService');
+    }
+    
+    // Initialize AutocompleteService
+    if (!globalAutocompleteService && window.google?.maps?.places?.AutocompleteService) {
+      globalAutocompleteService = new google.maps.places.AutocompleteService();
+      console.log('Initialized global AutocompleteService');
+    }
+    
+    // Initialize PlacesService
+    if (!globalPlacesService && window.google?.maps?.places?.PlacesService && hiddenServiceDiv) {
+      globalPlacesService = new google.maps.places.PlacesService(hiddenServiceDiv);
+      console.log('Initialized global PlacesService');
+    }
+    
+    console.log('Google Maps services initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Google Maps services:', error);
+  }
+};
+
+// Global function to get AutocompleteService instance
+export const getGlobalAutocompleteService = (): google.maps.places.AutocompleteService | null => {
+  return globalAutocompleteService;
+};
+
+// Global function to get PlacesService instance
+export const getGlobalPlacesService = (): google.maps.places.PlacesService | null => {
+  return globalPlacesService;
+};
+
+// Global function to check if services are ready
+export const areGoogleMapsServicesReady = (): boolean => {
+  return !!(globalAutocompleteService && globalPlacesService);
 };
 
 // Global function to load Google Maps script
@@ -75,6 +127,8 @@ const loadGoogleMapsScriptGlobally = async (apiKey: string): Promise<void> => {
       console.log('Google Maps API loaded successfully via callback');
       
       if (isGoogleMapsReady()) {
+        // Initialize services immediately after script loads
+        initializeGoogleMapsServices();
         isScriptLoaded = true;
         isScriptLoading = false;
         resolve();
@@ -93,6 +147,8 @@ const loadGoogleMapsScriptGlobally = async (apiKey: string): Promise<void> => {
       setTimeout(() => {
         if (isGoogleMapsReady() && !isScriptLoaded) {
           console.log('Google Maps ready but callback missed, resolving manually');
+          // Initialize services in backup path too
+          initializeGoogleMapsServices();
           isScriptLoaded = true;
           isScriptLoading = false;
           resolve();

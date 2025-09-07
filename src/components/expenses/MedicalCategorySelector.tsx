@@ -140,8 +140,8 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Search Toggle */}
-      <div className="flex items-center space-x-2">
+      {/* Search and Browse Controls */}
+      <div className="flex items-center space-x-3">
         <Button
           type="button"
           variant={showSearch ? "default" : "outline"}
@@ -152,6 +152,57 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
           <Search className="h-4 w-4" />
           <span>Search Expenses</span>
         </Button>
+        
+        <div className="flex-1">
+          <Select 
+            value="" 
+            onValueChange={handleBrowseSelection}
+            open={browseSelectOpen}
+            onOpenChange={setBrowseSelectOpen}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Browse All Categories" />
+            </SelectTrigger>
+            <SelectContent className="max-h-80 bg-background border z-50">
+              {MEDICAL_CATEGORIES.map((category) => (
+                <div key={category.id}>
+                  {/* Category Header */}
+                  <SelectItem 
+                    value={category.id} 
+                    className="font-medium py-3 bg-muted/30"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold">{category.userFriendlyLabel}</span>
+                    </div>
+                  </SelectItem>
+                  
+                  {/* Subcategories */}
+                  {category.subcategories.map((subcategory) => (
+                    <SelectItem 
+                      key={`${category.id}|${subcategory.id}`}
+                      value={`${category.id}|${subcategory.id}`}
+                      className="pl-6 py-2"
+                    >
+                      <div className="space-y-1">
+                        <div className="text-sm">{subcategory.userFriendlyLabel}</div>
+                        <div className="text-xs text-muted-foreground line-clamp-2">
+                          {subcategory.description}
+                        </div>
+                        {subcategory.examples && (
+                          <div className="text-xs text-muted-foreground">
+                            Examples: {subcategory.examples.slice(0, 2).join(', ')}
+                            {subcategory.examples.length > 2 && '...'}
+                          </div>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </div>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {selectedCategory && (
           <TooltipProvider>
             <Tooltip>
@@ -272,57 +323,6 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
         </div>
       )}
 
-      {/* Browse All Categories Dropdown */}
-      <div className="space-y-2">
-        <Label htmlFor="browse-categories">Browse All Categories</Label>
-        <Select 
-          value="" 
-          onValueChange={handleBrowseSelection}
-          open={browseSelectOpen}
-          onOpenChange={setBrowseSelectOpen}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Browse all medical categories and subcategories" />
-          </SelectTrigger>
-          <SelectContent className="max-h-80 bg-background border z-50">
-            {MEDICAL_CATEGORIES.map((category) => (
-              <div key={category.id}>
-                {/* Category Header */}
-                <SelectItem 
-                  value={category.id} 
-                  className="font-medium py-3 bg-muted/30"
-                >
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-semibold">{category.userFriendlyLabel}</span>
-                  </div>
-                </SelectItem>
-                
-                {/* Subcategories */}
-                {category.subcategories.map((subcategory) => (
-                  <SelectItem 
-                    key={`${category.id}|${subcategory.id}`}
-                    value={`${category.id}|${subcategory.id}`}
-                    className="pl-6 py-2"
-                  >
-                    <div className="space-y-1">
-                      <div className="text-sm">{subcategory.userFriendlyLabel}</div>
-                      <div className="text-xs text-muted-foreground line-clamp-2">
-                        {subcategory.description}
-                      </div>
-                      {subcategory.examples && (
-                        <div className="text-xs text-muted-foreground">
-                          Examples: {subcategory.examples.slice(0, 2).join(', ')}
-                          {subcategory.examples.length > 2 && '...'}
-                        </div>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </div>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       {/* Current Selection Display */}
       {selectedCategory && (

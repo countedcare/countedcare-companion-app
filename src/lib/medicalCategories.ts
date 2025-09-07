@@ -563,6 +563,63 @@ export const MEDICAL_CATEGORIES: MedicalCategory[] = [
     ]
   },
   {
+    id: "doctor-prescribed-only",
+    userFriendlyLabel: "Doctor-Prescribed Only (Conditional)",
+    irsReferenceTag: "conditional_deductible",
+    description: "Expenses that are only deductible when prescribed by a licensed medical professional for a specific medical condition",
+    searchTerms: ["vitamins", "supplements", "weight loss", "fitness", "gym", "health club", "alternative medicine", "herbal", "nutrition"],
+    subcategories: [
+      {
+        id: "vitamins-supplements", 
+        userFriendlyLabel: "Vitamins & Supplements",
+        irsReferenceTag: "prescribed_vitamins",
+        description: "Vitamins, minerals, and nutritional supplements (deductible only when prescribed by doctor for specific medical condition)",
+        searchTerms: ["vitamins", "supplements", "minerals", "nutritional supplement", "vitamin d", "calcium", "iron"],
+        examples: ["Prescription vitamins", "Doctor-prescribed supplements", "Medical vitamins", "Therapeutic supplements"]
+      },
+      {
+        id: "herbal-medicines",
+        userFriendlyLabel: "Herbal & Alternative Medicine", 
+        irsReferenceTag: "prescribed_herbal",
+        description: "Herbal medicines and alternative treatments (deductible only when prescribed by licensed practitioner)",
+        searchTerms: ["herbal medicine", "alternative medicine", "naturopathy", "homeopathy", "herbal supplements"],
+        examples: ["Prescribed herbal treatments", "Medical herbal medicine", "Therapeutic herbs"]
+      },
+      {
+        id: "weight-loss-programs",
+        userFriendlyLabel: "Weight-Loss Programs",
+        irsReferenceTag: "prescribed_weight_loss", 
+        description: "Weight-loss programs and diet plans (deductible only when prescribed by doctor for obesity or other diagnosed condition)",
+        searchTerms: ["weight loss", "diet program", "weight management", "obesity treatment", "bariatric"],
+        examples: ["Doctor-prescribed diet program", "Medical weight management", "Obesity treatment program"]
+      },
+      {
+        id: "fitness-programs",
+        userFriendlyLabel: "Exercise & Fitness Programs",
+        irsReferenceTag: "prescribed_fitness",
+        description: "Exercise programs, fitness training, or gym memberships (deductible only when prescribed for specific medical condition)",
+        searchTerms: ["exercise program", "fitness", "gym membership", "physical training", "rehabilitation exercise"],
+        examples: ["Prescribed physical therapy", "Medical fitness program", "Rehabilitation exercise"]
+      },
+      {
+        id: "health-club-dues",
+        userFriendlyLabel: "Health Club Memberships",
+        irsReferenceTag: "prescribed_health_club",
+        description: "Health club or gym membership fees (deductible only when prescribed by doctor for medical treatment)",
+        searchTerms: ["health club", "gym membership", "fitness center", "wellness center"],
+        examples: ["Medical gym membership", "Prescribed health club", "Therapeutic fitness center"]
+      },
+      {
+        id: "stop-smoking-programs",
+        userFriendlyLabel: "Stop-Smoking Programs",
+        irsReferenceTag: "prescribed_smoking_cessation",
+        description: "Stop-smoking programs and aids (program fees are deductible when prescribed, but over-the-counter aids are not unless prescribed)",
+        searchTerms: ["stop smoking", "smoking cessation", "quit smoking", "nicotine replacement"],
+        examples: ["Prescribed smoking cessation program", "Medical stop-smoking treatment", "Doctor-recommended quit program"]
+      }
+    ]
+  },
+  {
     id: "not-deductible",
     userFriendlyLabel: "Not Deductible",
     irsReferenceTag: "non_qualifying_expenses",

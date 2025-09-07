@@ -32,6 +32,8 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
   const { apiKey } = useGoogleMapsAPI();
   const [irsReferenceTag, setIrsReferenceTag] = useState('');
   const [irsDescription, setIrsDescription] = useState('');
+  const [isPrescribed, setIsPrescribed] = useState<boolean | null>(null);
+  const [doctorNote, setDoctorNote] = useState('');
 
   const handleCategoryChange = (value: string) => {
     setCategory(value);
@@ -51,6 +53,11 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
     setIrsDescription(description);
   };
 
+  const handleDoctorPrescriptionChange = (prescribed: boolean, note?: string) => {
+    setIsPrescribed(prescribed);
+    setDoctorNote(note || '');
+  };
+
   const isMileageMode = 
     category === 'Transportation & Travel' && 
     (subcategory?.toLowerCase().includes('mileage') || subcategory?.toLowerCase().includes('mile'));
@@ -68,6 +75,7 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
           onCategoryChange={handleCategoryChange}
           onSubcategoryChange={handleSubcategoryChange}
           onIrsDataChange={handleIrsDataChange}
+          onDoctorPrescriptionChange={handleDoctorPrescriptionChange}
         />
 
         {/* Care Recipient Selection */}

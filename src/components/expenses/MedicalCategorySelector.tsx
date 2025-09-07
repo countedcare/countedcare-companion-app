@@ -24,6 +24,7 @@ interface MedicalCategorySelectorProps {
   onCategoryChange: (category: string) => void;
   onSubcategoryChange: (subcategory: string) => void;
   onIrsDataChange?: (irsReferenceTag: string, description: string) => void;
+  onDoctorPrescriptionChange?: (isPrescribed: boolean, doctorNote?: string) => void;
 }
 
 const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
@@ -31,12 +32,15 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
   selectedSubcategory,
   onCategoryChange,
   onSubcategoryChange,
-  onIrsDataChange
+  onIrsDataChange,
+  onDoctorPrescriptionChange
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [searchResults, setSearchResults] = useState<Array<{category: MedicalCategory, subcategory?: MedicalSubcategory, relevance: number}>>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [showPrescriptionPrompt, setShowPrescriptionPrompt] = useState(false);
+  const [doctorNote, setDoctorNote] = useState('');
 
   useEffect(() => {
     if (searchTerm.trim()) {
@@ -66,6 +70,39 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
     }
     setSearchTerm('');
     setShowSearch(false);
+    
+    // Check if this is a conditional deductible category
+    if (result.category.id === 'doctor-prescribed-only') {
+      setShowPrescriptionPrompt(true);
+    }
+  };
+
+  const handleCategorySelection = (categoryLabel: string) => {
+    onCategoryChange(categoryLabel);
+    
+    // Check if this is a conditional deductible category
+    const category = MEDICAL_CATEGORIES.find(cat => cat.userFriendlyLabel === categoryLabel);
+    if (category?.id === 'doctor-prescribed-only') {
+      setShowPrescriptionPrompt(true);
+    }
+  };
+
+  const handleSubcategorySelection = (subcategoryLabel: string) => {
+    onSubcategoryChange(subcategoryLabel);
+    
+    // Check if parent category is conditional deductible
+    const category = MEDICAL_CATEGORIES.find(cat => cat.userFriendlyLabel === selectedCategory);
+    if (category?.id === 'doctor-prescribed-only') {
+      setShowPrescriptionPrompt(true);
+    }
+  };
+
+  const handlePrescriptionResponse = (isPrescribed: boolean) => {
+    if (onDoctorPrescriptionChange) {
+      onDoctorPrescriptionChange(isPrescribed, isPrescribed ? doctorNote : undefined);
+    }
+    setShowPrescriptionPrompt(false);
+    setDoctorNote('');
   };
 
   const toggleCategoryExpansion = (categoryId: string) => {
@@ -170,7 +207,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="category">Medical Expense Category *</Label>
-            <Select value={selectedCategory} onValueChange={onCategoryChange}>
+            <Select value={selectedCategory} onValueChange={handleCategorySelection}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a medical expense category" />
               </SelectTrigger>
@@ -187,7 +224,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
           {selectedCategory && availableSubcategories.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="subcategory">Specific Type</Label>
-              <Select value={selectedSubcategory || ''} onValueChange={onSubcategoryChange}>
+              <Select value={selectedSubcategory || ''} onValueChange={handleSubcategorySelection}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select specific type (optional)" />
                 </SelectTrigger>
@@ -238,8 +275,8 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
                     size="sm"
                     className="w-full justify-start text-left h-auto p-2"
                     onClick={() => {
-                      onCategoryChange(category.userFriendlyLabel);
-                      onSubcategoryChange(subcategory.userFriendlyLabel);
+                      handleCategorySelection(category.userFriendlyLabel);
+                      handleSubcategorySelection(subcategory.userFriendlyLabel);
                     }}
                   >
                     <div>
@@ -279,6 +316,56 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
                   const data = getCategoryData(selectedCategory, selectedSubcategory);
                   return data?.subcategory?.description || data?.category.description;
                 })()}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Doctor Prescription Prompt */}
+      {showPrescriptionPrompt && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-4">
+            <div className="space-y-4">
+              <div className="flex items-start space-x-2">
+                <Info className="h-5 w-5 text-orange-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-orange-900">Doctor Prescription Required</h4>
+                  <p className="text-sm text-orange-700 mt-1">
+                    This expense is deductible only if prescribed by a doctor. Did a doctor prescribe this for a specific medical condition?
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="doctor-note" className="text-sm">Doctor's Note or Prescription Details (optional)</Label>
+                  <textarea
+                    id="doctor-note"
+                    className="w-full p-2 border rounded-md text-sm"
+                    placeholder="Enter doctor's prescription details, diagnosis, or notes..."
+                    value={doctorNote}
+                    onChange={(e) => setDoctorNote(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handlePrescriptionResponse(true)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Yes, Doctor Prescribed
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handlePrescriptionResponse(false)}
+                  >
+                    No, Not Prescribed
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>

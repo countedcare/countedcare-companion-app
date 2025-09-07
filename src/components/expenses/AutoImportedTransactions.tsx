@@ -31,7 +31,7 @@ const AutoImportedTransactions: React.FC<AutoImportedTransactionsProps> = ({
     setEditValues({
       description: transaction.description,
       category: transaction.category || '',
-      is_tax_deductible: transaction.is_tax_deductible || false,
+      is_tax_deductible: transaction.is_tax_deductible ?? true,
       amount: Math.abs(transaction.amount) // Show as positive for editing
     });
   };
@@ -48,7 +48,7 @@ const AutoImportedTransactions: React.FC<AutoImportedTransactionsProps> = ({
       description: transaction.description,
       date: transaction.date,
       category: transaction.category || 'Other',
-      is_tax_deductible: transaction.is_tax_deductible || false,
+      is_tax_deductible: transaction.is_tax_deductible ?? true,
       synced_transaction_id: transaction.id,
       careRecipientId: 'self' // Default to self, user can change later
     };
@@ -147,7 +147,7 @@ const AutoImportedTransactions: React.FC<AutoImportedTransactionsProps> = ({
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id={`tax-${transaction.id}`}
-                        checked={editValues.is_tax_deductible || false}
+                        checked={editValues.is_tax_deductible ?? true}
                         onCheckedChange={(checked) => setEditValues(prev => ({ ...prev, is_tax_deductible: checked }))}
                       />
                       <label htmlFor={`tax-${transaction.id}`} className="text-sm">

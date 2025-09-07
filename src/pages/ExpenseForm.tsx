@@ -42,7 +42,7 @@ const ExpenseForm = () => {
   
   // Enhanced tracking fields
   const [expenseTags, setExpenseTags] = useState<string[]>([]);
-  const [isTaxDeductible, setIsTaxDeductible] = useState(false);
+  const [isTaxDeductible, setIsTaxDeductible] = useState(true);
   const [reimbursementSource, setReimbursementSource] = useState('');
   const [linkedAccountId, setLinkedAccountId] = useState('');
   

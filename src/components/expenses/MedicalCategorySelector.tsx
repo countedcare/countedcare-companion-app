@@ -41,6 +41,8 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showPrescriptionPrompt, setShowPrescriptionPrompt] = useState(false);
   const [doctorNote, setDoctorNote] = useState('');
+  const [categorySelectOpen, setCategorySelectOpen] = useState(false);
+  const [subcategorySelectOpen, setSubcategorySelectOpen] = useState(false);
 
   useEffect(() => {
     if (searchTerm.trim()) {
@@ -79,6 +81,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
 
   const handleCategorySelection = (categoryLabel: string) => {
     onCategoryChange(categoryLabel);
+    setCategorySelectOpen(false); // Close dropdown
     
     // Check if this is a conditional deductible category
     const category = MEDICAL_CATEGORIES.find(cat => cat.userFriendlyLabel === categoryLabel);
@@ -89,6 +92,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
 
   const handleSubcategorySelection = (subcategoryLabel: string) => {
     onSubcategoryChange(subcategoryLabel);
+    setSubcategorySelectOpen(false); // Close dropdown
     
     // Check if parent category is conditional deductible
     const category = MEDICAL_CATEGORIES.find(cat => cat.userFriendlyLabel === selectedCategory);
@@ -207,11 +211,16 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="category">Medical Expense Category *</Label>
-            <Select value={selectedCategory} onValueChange={handleCategorySelection}>
+            <Select 
+              value={selectedCategory} 
+              onValueChange={handleCategorySelection}
+              open={categorySelectOpen}
+              onOpenChange={setCategorySelectOpen}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a medical expense category" />
               </SelectTrigger>
-              <SelectContent className="max-h-60">
+              <SelectContent className="max-h-60 bg-background border z-50">
                 {getMedicalCategoryLabels().map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
@@ -224,11 +233,16 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
           {selectedCategory && availableSubcategories.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="subcategory">Specific Type</Label>
-              <Select value={selectedSubcategory || ''} onValueChange={handleSubcategorySelection}>
+              <Select 
+                value={selectedSubcategory || ''} 
+                onValueChange={handleSubcategorySelection}
+                open={subcategorySelectOpen}
+                onOpenChange={setSubcategorySelectOpen}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select specific type (optional)" />
                 </SelectTrigger>
-                <SelectContent className="max-h-60">
+                <SelectContent className="max-h-60 bg-background border z-50">
                   {availableSubcategories.map((subcategory) => (
                     <SelectItem key={subcategory} value={subcategory}>
                       {subcategory}

@@ -1,9 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CareRecipient, EXPENSE_CATEGORIES, EXPENSE_SUBCATEGORIES } from '@/types/User';
+import { CareRecipient } from '@/types/User';
 import MileageCalculator from './MileageCalculator';
+import MedicalCategorySelector from './MedicalCategorySelector';
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 interface ExpenseCategorySectionProps {
@@ -28,7 +30,9 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
   onMileageAmountCalculated
 }) => {
   const { apiKey } = useGoogleMapsAPI();
-  
+  const [irsReferenceTag, setIrsReferenceTag] = useState('');
+  const [irsDescription, setIrsDescription] = useState('');
+
   const handleCategoryChange = (value: string) => {
     setCategory(value);
     setSubcategory(''); // Reset subcategory when category changes
@@ -42,70 +46,57 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
     setCareRecipientId(value);
   };
 
+  const handleIrsDataChange = (tag: string, description: string) => {
+    setIrsReferenceTag(tag);
+    setIrsDescription(description);
+  };
+
+  const isMileageMode = 
+    category === 'Transportation & Travel' && 
+    (subcategory?.toLowerCase().includes('mileage') || subcategory?.toLowerCase().includes('mile'));
+
   return (
-    <div className="space-y-4">
-      {/* Category Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="category">Category*</Label>
-        <Select onValueChange={handleCategoryChange} value={category}>
-          <SelectTrigger id="category">
-            <SelectValue placeholder="Select a category" />
-          </SelectTrigger>
-          <SelectContent>
-            {EXPENSE_CATEGORIES.map((cat) => (
-              <SelectItem key={cat} value={cat}>
-                {cat}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {/* Subcategory Selection */}
-      {category && (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Expense Category & Details</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Medical Category Selector */}
+        <MedicalCategorySelector
+          selectedCategory={category}
+          selectedSubcategory={subcategory}
+          onCategoryChange={handleCategoryChange}
+          onSubcategoryChange={handleSubcategoryChange}
+          onIrsDataChange={handleIrsDataChange}
+        />
+
+        {/* Care Recipient Selection */}
         <div className="space-y-2">
-          <Label htmlFor="subcategory">Subcategory</Label>
-          <Select onValueChange={handleSubcategoryChange} value={subcategory}>
-            <SelectTrigger id="subcategory">
-              <SelectValue placeholder="Select a subcategory (optional)" />
+          <Label htmlFor="care-recipient">Care Recipient</Label>
+          <Select value={careRecipientId} onValueChange={handleCareRecipientChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Who is this expense for?" />
             </SelectTrigger>
             <SelectContent>
-              {(EXPENSE_SUBCATEGORIES[category] || []).map((subcat) => (
-                <SelectItem key={subcat} value={subcat}>
-                  {subcat}
+              <SelectItem value="self">Myself</SelectItem>
+              {recipients.map((recipient) => (
+                <SelectItem key={recipient.id} value={recipient.id}>
+                  {recipient.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-      )}
-      
-      {/* Mileage Calculator - Trigger when mileage subcategory selected */}
-      {category === '🚘 Transportation & Travel for Medical Care' && 
-       (subcategory?.toLowerCase().includes('mileage')) && (
-        <MileageCalculator 
-          onAmountCalculated={onMileageAmountCalculated}
-          apiKey={apiKey}
-        />
-      )}
 
-      {/* Care Recipient Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="careRecipient">For Whom?</Label>
-        <Select onValueChange={handleCareRecipientChange} defaultValue={careRecipientId}>
-          <SelectTrigger id="careRecipient">
-            <SelectValue placeholder="Select a care recipient (optional)" />
-          </SelectTrigger>
-          <SelectContent>
-            {recipients.map((recipient) => (
-              <SelectItem key={recipient.id} value={recipient.id}>
-                {recipient.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+        {/* Mileage Calculator for Transportation */}
+        {isMileageMode && (
+          <MileageCalculator 
+            onAmountCalculated={onMileageAmountCalculated}
+            apiKey={apiKey}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

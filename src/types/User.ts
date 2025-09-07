@@ -112,81 +112,91 @@ export const US_STATES = [
 ];
 
 export const EXPENSE_CATEGORIES = [
-  "🧑‍⚕️ Medical Services & Treatment",
-  "🦷 Dental & Vision Care", 
-  "💊 Prescriptions & Equipment",
-  "🧍‍♀️ Supportive Services & Nursing Care",
-  "🚘 Transportation & Travel for Medical Care",
-  "🏠 Home & Living Modifications",
-  "🏥 Hospital & Long-Term Care",
-  "📄 Health Insurance Premiums",
-  "🧳 Special Situations"
+  "Doctor & Medical Services",
+  "Hospital, Nursing & Long-Term Care", 
+  "Dental & Vision",
+  "Prescriptions & Medical Supplies",
+  "Medical Equipment & Aids",
+  "Home & Vehicle Modifications",
+  "Insurance & Premiums",
+  "Transportation & Travel",
+  "Special Treatments & Programs"
 ];
 
 export const EXPENSE_SUBCATEGORIES: Record<string, string[]> = {
-  '🏥 Medical & Healthcare Services': [
-    'Doctor visits and consultations',
-    'Specialist appointments',
-    'Hospital stays and emergency care',
-    'Physical therapy and rehabilitation',
-    'Mental health counseling',
-    'Alternative medicine treatments'
+  'Doctor & Medical Services': [
+    'Doctor Visits',
+    'Specialist Care',
+    'Therapy Services',
+    'Tests & Diagnostics',
+    'Annual Physicals',
+    'Surgery & Operations',
+    'Legal Fees (Medical)'
   ],
-  '💊 Medications & Medical Supplies': [
-    'Prescription medications',
-    'Over-the-counter medications',
-    'Medical equipment and devices',
-    'Mobility aids (wheelchair, walker, etc.)',
-    'Wound care supplies',
-    'Diabetic supplies and monitoring equipment'
+  'Hospital, Nursing & Long-Term Care': [
+    'Hospital Stays',
+    'Nursing Home Care',
+    'Nursing Services',
+    'Long-Term Care Services',
+    'Assisted Living'
   ],
-  '🚘 Transportation & Travel for Medical Care': [
-    'Mileage for car travel (21 cents/mile in 2024)',
-    'Public transportation fares',
-    'Taxi or rideshare services',
-    'Parking fees at medical facilities',
-    'Lodging for out-of-town medical care',
-    'Meals during medical travel'
+  'Dental & Vision': [
+    'Dental Care',
+    'Glasses & Contacts',
+    'Eye Surgery',
+    'Vision Aids'
   ],
-  '🏠 Home Modifications & Safety Equipment': [
-    'Wheelchair ramps and accessibility modifications',
-    'Bathroom safety equipment (grab bars, shower seats)',
-    'Stairlifts and mobility equipment',
-    'Medical alert systems',
-    'Home safety modifications',
-    'Adaptive furniture and equipment'
+  'Prescriptions & Medical Supplies': [
+    'Prescription Medications',
+    'Birth Control (Prescribed)',
+    'Medical Supplies',
+    'Pregnancy Test Kits'
   ],
-  '👨‍⚕️ Professional Care Services': [
-    'Home health aide services',
-    'Nursing care',
-    'Respite care services',
-    'Adult day care programs',
-    'Companion care services',
-    'Specialized therapy services'
+  'Medical Equipment & Aids': [
+    'Wheelchairs',
+    'Prosthetics',
+    'Mobility Aids',
+    'Oxygen Equipment',
+    'Hearing Aids',
+    'Breast Pumps & Lactation',
+    'Medical Wigs',
+    'Service Animals',
+    'Disability Equipment'
   ],
-  '🍽️ Nutrition & Special Diet Requirements': [
-    'Special dietary foods and supplements',
-    'Meal delivery services',
-    'Nutrition counseling',
-    'Feeding equipment and supplies',
-    'Weight management programs',
-    'Dietary consultation fees'
+  'Home & Vehicle Modifications': [
+    'Home Accessibility',
+    'Room Modifications',
+    'Lifts & Equipment',
+    'Warning Systems',
+    'Ground Access',
+    'Vehicle Modifications',
+    'Lead Paint Removal'
   ],
-  '📋 Administrative & Legal Services': [
-    'Legal consultation and document preparation',
-    'Care coordination services',
-    'Medical record management',
-    'Insurance claim assistance',
-    'Financial planning for care',
-    'Estate planning related to care needs'
+  'Insurance & Premiums': [
+    'Health Insurance Premiums',
+    'HMO Premiums',
+    'Medicare Premiums',
+    'Long-Term Care Insurance',
+    'Prepaid Insurance',
+    'Lifetime Care Contracts',
+    'Sick Leave Premiums'
   ],
-  '🛡️ Insurance & Benefits Management': [
-    'Long-term care insurance premiums',
-    'Medicare supplement insurance',
-    'Health insurance premiums',
-    'Disability insurance premiums',
-    'Insurance deductibles and co-payments',
-    'Benefits coordination services'
+  'Transportation & Travel': [
+    'Ambulance Services',
+    'Public Transportation',
+    'Mileage & Parking',
+    'Caregiver Travel',
+    'Medical Lodging',
+    'Medical Conferences'
+  ],
+  'Special Treatments & Programs': [
+    'Addiction Treatment',
+    'Fertility Treatments',
+    'Sterilization Procedures',
+    'Stop-Smoking Programs',
+    'Weight-Loss Programs',
+    'Special Education',
+    'Transplants & Organ Donation'
   ]
 };
 

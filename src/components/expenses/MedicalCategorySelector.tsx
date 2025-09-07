@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, ChevronRight, Info, FileText } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   MEDICAL_CATEGORIES, 
@@ -43,6 +42,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
   const [doctorNote, setDoctorNote] = useState('');
   const [categorySelectOpen, setCategorySelectOpen] = useState(false);
   const [subcategorySelectOpen, setSubcategorySelectOpen] = useState(false);
+  const [browseSelectOpen, setBrowseSelectOpen] = useState(false);
 
   useEffect(() => {
     if (searchTerm.trim()) {
@@ -117,6 +117,23 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
       newExpanded.add(categoryId);
     }
     setExpandedCategories(newExpanded);
+  };
+
+  const handleBrowseSelection = (value: string) => {
+    const [categoryId, subcategoryId] = value.split('|');
+    const category = MEDICAL_CATEGORIES.find(cat => cat.id === categoryId);
+    
+    if (category) {
+      handleCategorySelection(category.userFriendlyLabel);
+      
+      if (subcategoryId) {
+        const subcategory = category.subcategories.find(sub => sub.id === subcategoryId);
+        if (subcategory) {
+          handleSubcategorySelection(subcategory.userFriendlyLabel);
+        }
+      }
+    }
+    setBrowseSelectOpen(false);
   };
 
   const availableSubcategories = getMedicalSubcategories(selectedCategory);
@@ -255,61 +272,57 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
         </div>
       )}
 
-      {/* Browse All Categories */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Browse All Categories</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {MEDICAL_CATEGORIES.map((category) => (
-            <Collapsible 
-              key={category.id}
-              open={expandedCategories.has(category.id)}
-              onOpenChange={() => toggleCategoryExpansion(category.id)}
-            >
-              <CollapsibleTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-between p-2 h-auto text-left"
+      {/* Browse All Categories Dropdown */}
+      <div className="space-y-2">
+        <Label htmlFor="browse-categories">Browse All Categories</Label>
+        <Select 
+          value="" 
+          onValueChange={handleBrowseSelection}
+          open={browseSelectOpen}
+          onOpenChange={setBrowseSelectOpen}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Browse all medical categories and subcategories" />
+          </SelectTrigger>
+          <SelectContent className="max-h-80 bg-background border z-50">
+            {MEDICAL_CATEGORIES.map((category) => (
+              <div key={category.id}>
+                {/* Category Header */}
+                <SelectItem 
+                  value={category.id} 
+                  className="font-medium py-3 bg-muted/30"
                 >
-                  <div>
-                    <div className="font-medium text-sm">{category.userFriendlyLabel}</div>
-                    <div className="text-xs text-muted-foreground">{category.description}</div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-semibold">{category.userFriendlyLabel}</span>
                   </div>
-                  <ChevronRight className={`h-4 w-4 transition-transform ${
-                    expandedCategories.has(category.id) ? 'rotate-90' : ''
-                  }`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1 pl-4">
+                </SelectItem>
+                
+                {/* Subcategories */}
                 {category.subcategories.map((subcategory) => (
-                  <Button
-                    key={subcategory.id}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-left h-auto p-2"
-                    onClick={() => {
-                      handleCategorySelection(category.userFriendlyLabel);
-                      handleSubcategorySelection(subcategory.userFriendlyLabel);
-                    }}
+                  <SelectItem 
+                    key={`${category.id}|${subcategory.id}`}
+                    value={`${category.id}|${subcategory.id}`}
+                    className="pl-6 py-2"
                   >
-                    <div>
+                    <div className="space-y-1">
                       <div className="text-sm">{subcategory.userFriendlyLabel}</div>
-                      <div className="text-xs text-muted-foreground">{subcategory.description}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        {subcategory.description}
+                      </div>
                       {subcategory.examples && (
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="text-xs text-muted-foreground">
                           Examples: {subcategory.examples.slice(0, 2).join(', ')}
                           {subcategory.examples.length > 2 && '...'}
                         </div>
                       )}
                     </div>
-                  </Button>
+                  </SelectItem>
                 ))}
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Current Selection Display */}
       {selectedCategory && (

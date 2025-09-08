@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, X, DollarSign, Calendar as CalendarIcon } from 'lucide-react';
+import { Camera, Upload, X, DollarSign, Calendar as CalendarIcon, PenTool } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,7 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -312,8 +314,16 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
                 />
 
                 <div className="text-center">
-                  <Button variant="link" onClick={() => setStep('details')} className="text-sm">
-                    Skip and enter manually
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      navigate('/expenses/new');
+                      onClose();
+                    }} 
+                    className="flex items-center gap-2"
+                  >
+                    <PenTool className="h-4 w-4" />
+                    Add expense (manual entry form)
                   </Button>
                 </div>
 

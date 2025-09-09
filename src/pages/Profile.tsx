@@ -12,6 +12,7 @@ import Layout from '@/components/Layout';
 import { Expense } from '@/types/User';
 import LinkedAccountsSection from '@/components/profile/LinkedAccountsSection';
 import ComprehensiveProfileForm from '@/components/profile/ComprehensiveProfileForm';
+import MFASettings from '@/components/auth/MFASettings';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
 import { useSupabasePreferences } from '@/hooks/useSupabasePreferences';
@@ -349,6 +350,9 @@ const Profile = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Security Section */}
+          <MFASettings />
           
           {/* Data & Privacy Section */}
           <Card>

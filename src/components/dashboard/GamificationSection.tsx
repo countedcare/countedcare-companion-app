@@ -57,8 +57,8 @@ const GamificationSection = ({ expenses }: GamificationSectionProps) => {
         {/* Streak Tracker */}
         <StreakTracker
           currentStreak={userProgress.currentStreak}
-          longestStreak={userProgress.longestStreak}
-          lastActivity={userProgress.lastActivity}
+              longestStreak={userProgress.longestStreak}
+              lastActivity={userProgress.lastActivity}
         />
 
         {/* Progress Tracker */}

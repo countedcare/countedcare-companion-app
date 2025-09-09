@@ -1,23 +1,53 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PlusCircle, User, ArrowUpRight } from 'lucide-react';
 import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { CareRecipient, Expense } from '@/types/User';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const CareRecipients = () => {
   const navigate = useNavigate();
-  const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
+  const { user } = useAuth();
+  const { recipients } = useSupabaseCareRecipients();
+  const [expenseTotals, setExpenseTotals] = useState<Record<string, number>>({});
+  
+  // Load expense totals for each recipient
+  useEffect(() => {
+    const loadExpenseTotals = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: expenses, error } = await supabase
+          .from('expenses')
+          .select('care_recipient_id, amount')
+          .eq('user_id', user.id)
+          .not('care_recipient_id', 'is', null);
+        
+        if (error) throw error;
+        
+        const totals: Record<string, number> = {};
+        expenses?.forEach(expense => {
+          if (expense.care_recipient_id) {
+            totals[expense.care_recipient_id] = (totals[expense.care_recipient_id] || 0) + expense.amount;
+          }
+        });
+        
+        setExpenseTotals(totals);
+      } catch (error) {
+        console.error('Error loading expense totals:', error);
+      }
+    };
+    
+    loadExpenseTotals();
+  }, [user]);
   
   // Get expense totals for each recipient
   const getRecipientTotal = (recipientId: string): number => {
-    return expenses
-      .filter(expense => expense.careRecipientId === recipientId)
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    return expenseTotals[recipientId] || 0;
   };
 
   return (

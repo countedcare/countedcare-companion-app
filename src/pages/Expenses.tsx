@@ -10,8 +10,8 @@ import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { Expense, CareRecipient } from '@/types/User';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
+import { Expense } from '@/types/User';
 import { SyncedTransaction } from '@/types/FinancialAccount';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import ExpenseInsights from '@/components/expenses/ExpenseInsights';
@@ -28,7 +28,7 @@ const Expenses = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
+  const { recipients } = useSupabaseCareRecipients();
   const [loading, setLoading] = useState(true);
   const { transactions: syncedTransactions, updateTransaction, deleteTransaction } = useSyncedTransactions();
   

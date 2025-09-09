@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { CareRecipient, Expense } from '@/types/User';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { CareRecipient } from '@/types/User';
 
 // Common relationships
 const relationships = [
@@ -37,8 +39,8 @@ const CareRecipientForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [recipients, setRecipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
+  const { user } = useAuth();
+  const { recipients, addRecipient, updateRecipient, deleteRecipient } = useSupabaseCareRecipients();
   
   const [name, setName] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -52,13 +54,22 @@ const CareRecipientForm = () => {
       if (recipientToEdit) {
         setName(recipientToEdit.name);
         setRelationship(recipientToEdit.relationship);
-        setSelectedConditions(recipientToEdit.conditions || []);
-        setInsuranceInfo(recipientToEdit.insuranceInfo || '');
+        // Parse conditions and insurance from notes field
+        const notes = recipientToEdit.notes || '';
+        const conditionsMatch = notes.match(/Conditions: ([^\\n]*)/);
+        const insuranceMatch = notes.match(/Insurance: ([^\\n]*)/);
+        
+        if (conditionsMatch) {
+          setSelectedConditions(conditionsMatch[1].split(', '));
+        }
+        if (insuranceMatch) {
+          setInsuranceInfo(insuranceMatch[1]);
+        }
       }
     }
   }, [id, recipients]);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate required fields
@@ -71,55 +82,73 @@ const CareRecipientForm = () => {
       return;
     }
     
-    const recipientData: CareRecipient = {
-      id: id || `recipient-${Date.now()}`,
+    const recipientData = {
       name,
       relationship,
-      conditions: selectedConditions,
-      insuranceInfo
+      notes: selectedConditions.length > 0 ? `Conditions: ${selectedConditions.join(', ')}${insuranceInfo ? `\nInsurance: ${insuranceInfo}` : ''}` : insuranceInfo
     };
     
-    if (id) {
-      // Update existing recipient
-      setRecipients(recipients.map(recipient => 
-        recipient.id === id ? recipientData : recipient
-      ));
-      toast({
-        title: "Care Recipient Updated",
-        description: "Care recipient information has been updated successfully."
-      });
-    } else {
-      // Add new recipient
-      setRecipients([...recipients, recipientData]);
-      toast({
-        title: "Care Recipient Added",
-        description: "Care recipient has been added successfully."
-      });
-    }
-    
-    navigate('/care-recipients');
-  };
-  
-  const handleDelete = () => {
-    if (id) {
-      // Check if any expenses are linked to this recipient
-      const linkedExpenses = expenses.filter(expense => expense.careRecipientId === id);
-      
-      if (linkedExpenses.length > 0) {
+    try {
+      if (id) {
+        // Update existing recipient
+        await updateRecipient(id, recipientData);
         toast({
-          title: "Cannot Delete",
-          description: `This care recipient has ${linkedExpenses.length} expenses linked to them. Please delete or reassign these expenses first.`,
-          variant: "destructive",
+          title: "Care Recipient Updated",
+          description: "Care recipient information has been updated successfully."
         });
-        return;
+      } else {
+        // Add new recipient
+        await addRecipient(recipientData);
+        toast({
+          title: "Care Recipient Added",
+          description: "Care recipient has been added successfully."
+        });
       }
       
-      setRecipients(recipients.filter(recipient => recipient.id !== id));
-      toast({
-        title: "Care Recipient Deleted",
-        description: "Care recipient has been deleted successfully."
-      });
       navigate('/care-recipients');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save care recipient. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (id && user) {
+      try {
+        // Check if any expenses are linked to this recipient
+        const { data: linkedExpenses, error } = await supabase
+          .from('expenses')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('care_recipient_id', id);
+        
+        if (error) throw error;
+        
+        if (linkedExpenses && linkedExpenses.length > 0) {
+          toast({
+            title: "Cannot Delete",
+            description: `This care recipient has ${linkedExpenses.length} expenses linked to them. Please delete or reassign these expenses first.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        await deleteRecipient(id);
+        toast({
+          title: "Care Recipient Deleted",
+          description: "Care recipient has been deleted successfully."
+        });
+        navigate('/care-recipients');
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete care recipient. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
   

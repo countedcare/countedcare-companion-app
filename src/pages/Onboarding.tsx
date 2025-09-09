@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { User } from '@/types/User';
+import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 import WelcomeStep from '@/components/onboarding/WelcomeStep';
 import UserInfoStep from '@/components/onboarding/UserInfoStep';
@@ -21,14 +20,14 @@ const Onboarding = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
-  const [localUser, setLocalUser] = useLocalStorage<User>('countedcare-user', {
+  const { profile, updateProfile, loading: profileLoading } = useSupabaseProfile();
+  const [tempProfileData, setTempProfileData] = useState({
     name: '',
     email: '',
-    isCaregiver: true,
-    caregivingFor: [],
-    onboardingComplete: false,
-    zipCode: '',
-    householdAGI: undefined
+    is_caregiver: true,
+    caregiving_for: [] as string[],
+    zip_code: '',
+    household_agi: undefined as number | undefined
   });
   
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
@@ -45,16 +44,16 @@ const Onboarding = () => {
     }
     
     // User is authenticated, check if they completed onboarding
-    if (localUser.onboardingComplete) {
+    if (profile?.onboarding_complete) {
       navigate('/dashboard');
     }
-  }, [user, authLoading, localUser.onboardingComplete, navigate]);
+  }, [user, authLoading, profile?.onboarding_complete, navigate]);
 
-  const handleNext = () => {
-    // Validate step 1 (User Info) - check both local user and auth user for name/email
+  const handleNext = async () => {
+    // Validate step 1 (User Info) - check profile data
     if (step === 1) {
-      const hasName = localUser.name || user?.user_metadata?.name || user?.user_metadata?.full_name;
-      const hasEmail = localUser.email || user?.email;
+      const hasName = tempProfileData.name || user?.user_metadata?.name || user?.user_metadata?.full_name;
+      const hasEmail = tempProfileData.email || user?.email;
       
       if (!hasName || !hasEmail) {
         toast({
@@ -67,53 +66,40 @@ const Onboarding = () => {
     }
     
     if (step === 2) {
-      const updatedUser = {
-        ...localUser,
-        caregiverRole: localUser.caregiverRole || [],
-        householdAGI: localUser.householdAGI,
-        state: localUser.state,
-        zipCode: localUser.zipCode,
-        county: localUser.county,
-        employmentStatus: localUser.employmentStatus,
-        taxFilingStatus: localUser.taxFilingStatus,
-        numberOfDependents: localUser.numberOfDependents,
-        caregivingFor: localUser.caregivingFor || []
+      const updatedData = {
+        ...tempProfileData,
+        caregiving_for: tempProfileData.caregiving_for || []
       };
       
-      if (selectedRelationship && !updatedUser.caregivingFor.includes(selectedRelationship)) {
-        updatedUser.caregivingFor = [...updatedUser.caregivingFor, selectedRelationship];
+      if (selectedRelationship && !updatedData.caregiving_for.includes(selectedRelationship)) {
+        updatedData.caregiving_for = [...updatedData.caregiving_for, selectedRelationship];
       }
       
-      setLocalUser(updatedUser);
+      setTempProfileData(updatedData);
       setSelectedRelationship("");
     }
     
     if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
-      const finalUser = {
-        ...localUser,
-        onboardingComplete: true,
-        state: localUser.state,
-        county: localUser.county,
-        zipCode: localUser.zipCode,
-        householdAGI: localUser.householdAGI,
-        caregiverRole: localUser.caregiverRole,
-        numberOfDependents: localUser.numberOfDependents,
-        employmentStatus: localUser.employmentStatus,
-        taxFilingStatus: localUser.taxFilingStatus,
-        healthCoverageType: localUser.healthCoverageType,
-        primaryCaregivingExpenses: localUser.primaryCaregivingExpenses,
-        preferredNotificationMethod: localUser.preferredNotificationMethod
-      };
-      
-      setLocalUser(finalUser);
-      
-      toast({
-        title: "Welcome to CountedCare! 🎉",
-        description: "Your profile is set up and ready to help you track expenses and find resources.",
-      });
-      navigate('/dashboard');
+      try {
+        await updateProfile({
+          ...tempProfileData,
+          onboarding_complete: true
+        });
+        
+        toast({
+          title: "Welcome to CountedCare! 🎉",
+          description: "Your profile is set up and ready to help you track expenses and find resources.",
+        });
+        navigate('/dashboard');
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to complete onboarding. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -122,20 +108,20 @@ const Onboarding = () => {
       case 0:
         return <WelcomeStep />;
       case 1:
-        return <UserInfoStep user={localUser} setUser={setLocalUser} />;
+        return <UserInfoStep user={tempProfileData as any} setUser={setTempProfileData as any} />;
       case 2:
         return (
           <CaregiverRoleStep 
-            user={localUser} 
-            setUser={setLocalUser}
+            user={tempProfileData as any} 
+            setUser={setTempProfileData as any}
             selectedRelationship={selectedRelationship}
             setSelectedRelationship={setSelectedRelationship}
           />
         );
       case 3:
-        return <TrackingGoalsStep user={localUser} setUser={setLocalUser} />;
+        return <TrackingGoalsStep user={tempProfileData as any} setUser={setTempProfileData as any} />;
       case 4:
-        return <CompletionStep userName={localUser.name} />;
+        return <CompletionStep userName={tempProfileData.name} />;
       default:
         return <WelcomeStep />;
     }
@@ -152,7 +138,7 @@ const Onboarding = () => {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

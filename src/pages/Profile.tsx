@@ -211,7 +211,7 @@ const Profile = () => {
               ← Back to Profile Overview
             </Button>
           </div>
-          <ComprehensiveProfileForm user={profile} onSave={handleSaveProfile} />
+          <ComprehensiveProfileForm user={profile ? { ...profile, isCaregiver: profile.is_caregiver || false } : null} onSave={handleSaveProfile} />
         </div>
       </Layout>
     );

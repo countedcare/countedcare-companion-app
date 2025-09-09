@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import useLocalStorage from '@/hooks/useLocalStorage';
+import { useSupabasePreferences } from '@/hooks/useSupabasePreferences';
 
 interface QuickAddModalProps {
   isOpen: boolean;
@@ -19,7 +19,8 @@ interface QuickAddModalProps {
 
 const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const [lastUsedAction, setLastUsedAction] = useLocalStorage<string>('countedcare-last-quick-action', '');
+  const { preferences, setPreference } = useSupabasePreferences();
+  const lastUsedAction = preferences.preferences?.lastQuickAction || '';
   
   const quickActions = [
     {
@@ -28,7 +29,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
       description: 'Capture or upload receipt photo',
       icon: Camera,
       action: () => {
-        setLastUsedAction('scan-receipt');
+        setPreference('lastQuickAction', 'scan-receipt');
         navigate('/expenses/new');
         onClose();
       }
@@ -39,7 +40,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
       description: 'Track car travel expenses',
       icon: Car,
       action: () => {
-        setLastUsedAction('enter-mileage');
+        setPreference('lastQuickAction', 'enter-mileage');
         // Navigate to expense form with mileage category pre-selected
         navigate('/expenses/new?category=transportation&subcategory=mileage');
         onClose();
@@ -51,7 +52,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
       description: 'Manual entry form',
       icon: PenTool,
       action: () => {
-        setLastUsedAction('manual-expense');
+        setPreference('lastQuickAction', 'manual-expense');
         navigate('/expenses/new');
         onClose();
       }

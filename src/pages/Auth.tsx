@@ -77,7 +77,7 @@ const Auth = () => {
     }
 
     return () => subscription.unsubscribe();
-  }, [navigate, searchParams, toast, isPasswordRecovery]);
+  }, [navigate, searchParams, toast]);
 
   if (isPasswordRecovery) {
     return (

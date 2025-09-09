@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
@@ -8,7 +8,8 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading, mfaRequired } = useAuth();
+  const { user, loading, mfaState } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -19,12 +20,16 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth" replace state={{ from: location }} />;
   }
 
-  // Redirect to MFA setup if required
-  if (mfaRequired) {
-    return <Navigate to="/mfa-setup" replace />;
+  // Handle MFA state redirects
+  if (mfaState === "verify" && location.pathname !== "/mfa-verify") {
+    return <Navigate to="/mfa-verify" replace state={{ from: location }} />;
+  }
+
+  if (mfaState === "enroll" && location.pathname !== "/mfa-setup") {
+    return <Navigate to="/mfa-setup" replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

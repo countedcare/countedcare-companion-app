@@ -3,13 +3,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+type MFAState = "none" | "verify" | "enroll";
+
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   loading: boolean;
-  mfaRequired: boolean;
-  hasMFA: boolean;
-  signOut: () => Promise<void>;
+  mfaState: MFAState;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,46 +27,52 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mfaRequired, setMfaRequired] = useState(false);
-  const [hasMFA, setHasMFA] = useState(false);
+  const [mfaState, setMfaState] = useState<MFAState>("none");
 
-  // Check MFA status when user changes
-  useEffect(() => {
-    const checkMFAStatus = async () => {
-      if (!user) {
-        setMfaRequired(false);
-        setHasMFA(false);
-        return;
+  const checkMFAState = async (currentUser: User | null) => {
+    if (!currentUser) {
+      setMfaState("none");
+      return;
+    }
+
+    try {
+      // Get current AAL level
+      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError) throw aalError;
+
+      const currentLevel = aalData?.currentLevel;
+
+      // Check enrolled factors
+      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+
+      const enrolledFactors = factorsData?.totp?.filter(factor => factor.status === 'verified') || [];
+
+      // Apply the rules from the spec
+      if (currentLevel === "aal2") {
+        setMfaState("none");
+      } else if (enrolledFactors.length > 0) {
+        setMfaState("verify");
+      } else {
+        setMfaState("enroll");
       }
-
-      try {
-        const { data, error } = await supabase.auth.mfa.listFactors();
-        if (error) throw error;
-        
-        const hasEnabledMFA = data?.totp?.some(factor => factor.status === 'verified') || false;
-        setHasMFA(hasEnabledMFA);
-        setMfaRequired(!hasEnabledMFA); // Require MFA if not enabled
-      } catch (error) {
-        console.error('Error checking MFA status:', error);
-        setMfaRequired(true); // Default to requiring MFA on error
-        setHasMFA(false);
-      }
-    };
-
-    checkMFAStatus();
-  }, [user]);
+    } catch (error) {
+      console.error('Error checking MFA state:', error);
+      setMfaState("enroll"); // Default to enroll on error
+    }
+  };
 
   useEffect(() => {
-    console.log('AuthProvider: Setting up auth state listener');
-    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email || 'no user');
-        setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        
+        // Check MFA state after setting user
+        await checkMFAState(currentUser);
         setLoading(false);
       }
     );
@@ -80,8 +85,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           console.error('Error getting initial session:', error);
         } else {
           console.log('Initial session check:', session?.user?.email || 'no session');
-          setSession(session);
-          setUser(session?.user ?? null);
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          await checkMFAState(currentUser);
         }
       } catch (error) {
         console.error('Unexpected error getting session:', error);
@@ -93,40 +99,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     getInitialSession();
 
     return () => {
-      console.log('AuthProvider: Cleaning up auth state listener');
       subscription.unsubscribe();
     };
   }, []);
 
-  const signOut = async () => {
-    try {
-      console.log('Signing out user');
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Error signing out:', error);
-      } else {
-        console.log('User signed out successfully');
-      }
-    } catch (error) {
-      console.error('Unexpected error signing out:', error);
-    }
-  };
-
   const value = {
     user,
-    session,
     loading,
-    mfaRequired,
-    hasMFA,
-    signOut
+    mfaState
   };
 
   console.log('AuthProvider render:', { 
     hasUser: !!user, 
-    hasSession: !!session, 
     loading,
-    mfaRequired,
-    hasMFA
+    mfaState
   });
 
   return (

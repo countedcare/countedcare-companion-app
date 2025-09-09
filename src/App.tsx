@@ -17,7 +17,8 @@ import Resources from "./pages/Resources";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
-import MFASetupPage from "./pages/MFASetupPage";
+import MFASetup from "./pages/MFASetup";
+import MFAVerify from "./pages/MFAVerify";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
@@ -35,7 +36,16 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/mfa-setup" element={<MFASetupPage />} />
+            <Route path="/mfa-setup" element={
+              <ProtectedRoute>
+                <MFASetup />
+              </ProtectedRoute>
+            } />
+            <Route path="/mfa-verify" element={
+              <ProtectedRoute>
+                <MFAVerify />
+              </ProtectedRoute>
+            } />
             <Route path="/onboarding" element={
               <ProtectedRoute>
                 <Onboarding />

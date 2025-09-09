@@ -141,14 +141,16 @@ const MFASettings = () => {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">Disabled</Badge>
+              <Badge variant="secondary" className="bg-red-100 text-red-800">
+                Required
+              </Badge>
               <span className="text-sm text-muted-foreground">
-                Your account is not protected with 2FA
+                MFA is required for all accounts
               </span>
             </div>
             
             <p className="text-sm text-muted-foreground">
-              Two-factor authentication adds an extra layer of security by requiring a verification code from your authenticator app when signing in.
+              Two-factor authentication is required for all CountedCare accounts to protect your sensitive financial data.
             </p>
             
             <Dialog open={showSetup} onOpenChange={setShowSetup}>

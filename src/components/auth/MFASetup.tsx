@@ -9,10 +9,9 @@ import { Copy, CheckCircle, Loader2 } from 'lucide-react';
 
 interface MFASetupProps {
   onComplete: () => void;
-  onSkip?: () => void;
 }
 
-const MFASetup = ({ onComplete, onSkip }: MFASetupProps) => {
+const MFASetup = ({ onComplete }: MFASetupProps) => {
   const [step, setStep] = useState<'generate' | 'verify'>('generate');
   const [qrCode, setQrCode] = useState('');
   const [secret, setSecret] = useState('');
@@ -64,6 +63,8 @@ const MFASetup = ({ onComplete, onSkip }: MFASetupProps) => {
         description: "Your account is now secured with two-factor authentication.",
       });
       
+      // Force a refresh of auth context
+      window.location.reload();
       onComplete();
     } catch (error: any) {
       toast({
@@ -97,7 +98,7 @@ const MFASetup = ({ onComplete, onSkip }: MFASetupProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Two-factor authentication adds an extra layer of security by requiring a verification code from your authenticator app.
+            Two-factor authentication is required for all CountedCare accounts to keep your financial data secure.
           </p>
           <Button 
             onClick={generateMFASecret} 
@@ -107,15 +108,6 @@ const MFASetup = ({ onComplete, onSkip }: MFASetupProps) => {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Set Up MFA
           </Button>
-          {onSkip && (
-            <Button 
-              variant="ghost" 
-              onClick={onSkip}
-              className="w-full"
-            >
-              Skip for Now
-            </Button>
-          )}
         </CardContent>
       </Card>
     );

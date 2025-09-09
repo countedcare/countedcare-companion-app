@@ -10,14 +10,10 @@ const MFASetupPage = () => {
     navigate('/dashboard');
   };
 
-  const handleSkip = () => {
-    navigate('/dashboard');
-  };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral">
       <AuthHeader />
-      <MFASetup onComplete={handleComplete} onSkip={handleSkip} />
+      <MFASetup onComplete={handleComplete} />
       <div className="mt-4 text-sm text-gray-500">
         <p>© 2025 CountedCare. All rights reserved.</p>
       </div>

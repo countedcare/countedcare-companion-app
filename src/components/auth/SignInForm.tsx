@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import MFAVerification from "./MFAVerification";
 
 interface SignInFormProps {
   email: string;
@@ -42,6 +43,7 @@ const SignInForm = ({
   const [resetLoading, setResetLoading] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [mfaChallenge, setMfaChallenge] = useState<{challengeId: string; factorId: string} | null>(null);
 
   // --- GOOGLE OAUTH (manual redirect for reliability) ---
   const handleGoogleSignIn = async () => {
@@ -159,6 +161,38 @@ const SignInForm = ({
       if (data.user && data.session) {
         console.log("User signed in successfully:", data.user.email);
         console.log("Session created:", data.session);
+        
+        // Check if user has MFA enabled
+        try {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const mfaFactor = factors?.totp?.find(factor => factor.status === 'verified');
+          
+          if (mfaFactor) {
+            // User has MFA enabled, need to challenge
+            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+              factorId: mfaFactor.id
+            });
+            
+            if (challengeError) {
+              throw challengeError;
+            }
+            
+            setMfaChallenge({
+              challengeId: challengeData.id,
+              factorId: mfaFactor.id
+            });
+            
+            toast({
+              title: "MFA Required",
+              description: "Please enter your authenticator code to complete sign-in.",
+            });
+            return;
+          }
+        } catch (mfaError) {
+          console.error('MFA check error:', mfaError);
+          // Continue with normal sign-in if MFA check fails
+        }
+        
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in to CountedCare.",
@@ -296,6 +330,22 @@ const SignInForm = ({
       setMagicLinkLoading(false);
     }
   };
+
+  if (mfaChallenge) {
+    return (
+      <MFAVerification 
+        challengeId={mfaChallenge.challengeId}
+        onSuccess={() => {
+          setMfaChallenge(null);
+          toast({
+            title: "Welcome Back!",
+            description: "You have been signed in successfully.",
+          });
+        }}
+        onBack={() => setMfaChallenge(null)}
+      />
+    );
+  }
 
   return (
     <>

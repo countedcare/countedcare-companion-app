@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading, mfaRequired } = useAuth();
 
   if (loading) {
     return (
@@ -20,6 +20,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Redirect to MFA setup if required
+  if (mfaRequired) {
+    return <Navigate to="/mfa-setup" replace />;
   }
 
   return <>{children}</>;

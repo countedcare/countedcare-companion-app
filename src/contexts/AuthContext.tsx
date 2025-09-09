@@ -7,6 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  mfaRequired: boolean;
+  hasMFA: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -28,6 +30,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [hasMFA, setHasMFA] = useState(false);
+
+  // Check MFA status when user changes
+  useEffect(() => {
+    const checkMFAStatus = async () => {
+      if (!user) {
+        setMfaRequired(false);
+        setHasMFA(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.auth.mfa.listFactors();
+        if (error) throw error;
+        
+        const hasEnabledMFA = data?.totp?.some(factor => factor.status === 'verified') || false;
+        setHasMFA(hasEnabledMFA);
+        setMfaRequired(!hasEnabledMFA); // Require MFA if not enabled
+      } catch (error) {
+        console.error('Error checking MFA status:', error);
+        setMfaRequired(true); // Default to requiring MFA on error
+        setHasMFA(false);
+      }
+    };
+
+    checkMFAStatus();
+  }, [user]);
 
   useEffect(() => {
     console.log('AuthProvider: Setting up auth state listener');
@@ -86,13 +116,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     loading,
+    mfaRequired,
+    hasMFA,
     signOut
   };
 
   console.log('AuthProvider render:', { 
     hasUser: !!user, 
     hasSession: !!session, 
-    loading 
+    loading,
+    mfaRequired,
+    hasMFA
   });
 
   return (

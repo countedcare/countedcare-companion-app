@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Receipt, FileText, DollarSign, Calendar, Calculator, Hash, Star, Flame, Camera, Car, PenTool } from 'lucide-react';
 import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { User, Expense } from '@/types/User';
+import { Expense } from '@/types/User';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,16 +10,12 @@ import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import ExpenseChart from '@/components/dashboard/ExpenseChart';
+import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
-  const [user] = useLocalStorage<User>('countedcare-user', {
-    name: '',
-    email: '',
-    isCaregiver: true,
-    onboardingComplete: false
-  });
+  const { profile } = useSupabaseProfile();
   
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -28,10 +23,10 @@ const Dashboard = () => {
   
   // Redirect to onboarding if not completed
   React.useEffect(() => {
-    if (!user.onboardingComplete) {
+    if (!profile?.onboarding_complete) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   // SEO basics for this view
   React.useEffect(() => {
@@ -121,7 +116,7 @@ const Dashboard = () => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <Layout>
         <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">

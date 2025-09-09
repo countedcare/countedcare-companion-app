@@ -6,10 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { Expense, CareRecipient, EXPENSE_CATEGORIES } from '@/types/User';
+import { Expense, EXPENSE_CATEGORIES } from '@/types/User';
 import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
 
 // Import the new components
 import ExpenseBasicFields from '@/components/expenses/ExpenseBasicFields';
@@ -24,9 +26,11 @@ const ExpenseForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const { user: authUser } = useAuth();
+  const { recipients } = useSupabaseCareRecipients();
   
-  const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
-  const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [title, setTitle] = useState('');
   const [vendor, setVendor] = useState('');
@@ -49,6 +53,42 @@ const ExpenseForm = () => {
   // Google Maps integration
   const { apiKey, isConfigured } = useGoogleMapsAPI();
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
+  
+  // Load expenses from Supabase
+  const loadExpenses = async () => {
+    if (!authUser) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transform database format to local format
+      const transformedExpenses: Expense[] = (data || []).map(expense => ({
+        ...expense,
+        careRecipientId: expense.care_recipient_id || '',
+        receiptUrl: expense.receipt_url,
+        description: expense.description || expense.notes || '',
+      }));
+      
+      setExpenses(transformedExpenses);
+    } catch (error) {
+      console.error('Error loading expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadExpenses();
+  }, [authUser]);
   
   // Handle pre-selected category from URL params
   useEffect(() => {
@@ -140,8 +180,17 @@ const ExpenseForm = () => {
     });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!authUser) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save expenses",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // Validate required fields
     if (!amount || !category) {
@@ -153,52 +202,85 @@ const ExpenseForm = () => {
       return;
     }
     
-    const expenseData: Expense = {
-      id: id || `exp-${Date.now()}`,
-      amount: parseFloat(amount),
-      date: date.toISOString(),
-      category,
-      subcategory: subcategory || undefined,
-      description: title || description,
-      vendor: vendor || undefined,
-      careRecipientId,
-      careRecipientName: recipients.find(r => r.id === careRecipientId)?.name,
-      receiptUrl,
-      expense_tags: expenseTags.length > 0 ? expenseTags : undefined,
-      is_tax_deductible: isTaxDeductible,
-      reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : undefined,
-      synced_transaction_id: linkedAccountId && linkedAccountId !== 'none' ? linkedAccountId : undefined
-    };
-    
-    if (id) {
-      // Update existing expense
-      setExpenses(expenses.map(expense => 
-        expense.id === id ? expenseData : expense
-      ));
+    try {
+      const expenseData = {
+        amount: parseFloat(amount),
+        date: date.toISOString().split('T')[0], // Convert to date string
+        category,
+        description: title || description,
+        vendor: vendor || null,
+        user_id: authUser.id,
+        care_recipient_id: careRecipientId || null,
+        receipt_url: receiptUrl || null,
+        is_tax_deductible: isTaxDeductible,
+        reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : null,
+        notes: description || null
+      };
+
+      if (id) {
+        // Update existing expense
+        const { error } = await supabase
+          .from('expenses')
+          .update(expenseData)
+          .eq('id', id)
+          .eq('user_id', authUser.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Expense Updated",
+          description: "Your expense has been updated successfully."
+        });
+      } else {
+        // Create new expense
+        const { error } = await supabase
+          .from('expenses')
+          .insert([expenseData]);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Expense Added!",
+          description: "Your expense has been saved successfully."
+        });
+      }
+
+      navigate('/expenses');
+    } catch (error) {
+      console.error('Error saving expense:', error);
       toast({
-        title: "Expense Updated",
-        description: "Your expense has been updated successfully."
-      });
-    } else {
-      // Add new expense
-      setExpenses([...expenses, expenseData]);
-      toast({
-        title: "Expense Added!",
-        description: "Your expense has been saved successfully."
+        title: "Error",
+        description: "Failed to save expense. Please try again.",
+        variant: "destructive"
       });
     }
-    
-    navigate('/expenses');
   };
   
-  const handleDelete = () => {
-    if (id) {
-      setExpenses(expenses.filter(expense => expense.id !== id));
+  const handleDelete = async () => {
+    if (!id || !authUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', authUser.id);
+
+      if (error) throw error;
+      
       toast({
         title: "Expense Deleted",
         description: "Your expense has been deleted successfully."
       });
+      
       navigate('/expenses');
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete expense. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -210,6 +292,16 @@ const ExpenseForm = () => {
     category === '🚘 Transportation & Travel for Medical Care' &&
     (subcategory?.toLowerCase().includes('mileage') || subcategory?.toLowerCase().includes('mile'));
 
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

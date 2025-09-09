@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -9,51 +9,90 @@ import { useToast } from '@/components/ui/use-toast';
 import { LogOut, User, Download, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { User as UserType, CareRecipient, Expense } from '@/types/User';
+import { Expense } from '@/types/User';
 import LinkedAccountsSection from '@/components/profile/LinkedAccountsSection';
 import ComprehensiveProfileForm from '@/components/profile/ComprehensiveProfileForm';
+import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
+import { useSupabasePreferences } from '@/hooks/useSupabasePreferences';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, signOut } = useAuth();
-  const [localUser, setLocalUser] = useLocalStorage<UserType>('countedcare-user', {
-    id: '',
-    name: '',
-    email: '',
-    isCaregiver: true,
-    onboardingComplete: false
-  });
-  const [careRecipients, setCareRecipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
-  const [expenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
+  const { profile, updateProfile, loading: profileLoading } = useSupabaseProfile();
+  const { recipients, deleteRecipient } = useSupabaseCareRecipients();
+  const { preferences, setPreference } = useSupabasePreferences();
+  
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(true);
   
   // UI state
   const [showComprehensiveForm, setShowComprehensiveForm] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  
-  const handleSaveProfile = (updatedUser: UserType) => {
-    setLocalUser(updatedUser);
-    setShowComprehensiveForm(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(preferences.preferences?.notifications ?? true);
+
+  // Load expenses from Supabase
+  const loadExpenses = async () => {
+    if (!user) {
+      setExpensesLoading(false);
+      return;
+    }
     
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved successfully."
-    });
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transform database format to local format
+      const transformedExpenses: Expense[] = (data || []).map(expense => ({
+        ...expense,
+        careRecipientId: expense.care_recipient_id || '',
+        receiptUrl: expense.receipt_url,
+        description: expense.description || expense.notes || '',
+      }));
+      
+      setExpenses(transformedExpenses);
+    } catch (error) {
+      console.error('Error loading expenses:', error);
+    } finally {
+      setExpensesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadExpenses();
+  }, [user]);
+
+  useEffect(() => {
+    setNotificationsEnabled(preferences.preferences?.notifications ?? true);
+  }, [preferences]);
+  
+  const handleSaveProfile = async (updatedProfile: any) => {
+    try {
+      await updateProfile(updatedProfile);
+      setShowComprehensiveForm(false);
+      
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been saved successfully."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleSignOut = async () => {
     try {
       await signOut();
-      // Clear local storage
-      setLocalUser({
-        id: '',
-        name: '',
-        email: '',
-        isCaregiver: true,
-        onboardingComplete: false
-      });
-      
       navigate('/');
     } catch (error) {
       toast({
@@ -64,7 +103,7 @@ const Profile = () => {
     }
   };
 
-  const handleDeleteCareRecipient = (id: string) => {
+  const handleDeleteCareRecipient = async (id: string) => {
     // Check if there are any expenses linked to this care recipient
     const linkedExpenses = expenses.filter(expense => expense.careRecipientId === id);
     
@@ -77,20 +116,28 @@ const Profile = () => {
       return;
     }
 
-    // If no linked expenses, proceed with deletion
-    setCareRecipients(careRecipients.filter(recipient => recipient.id !== id));
-    
-    toast({
-      title: "Person Removed",
-      description: "The care recipient has been removed from your profile."
-    });
+    try {
+      await deleteRecipient(id);
+      
+      toast({
+        title: "Person Removed",
+        description: "The care recipient has been removed from your profile."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete care recipient. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   const exportData = () => {
     // Create a data export object with user info and expenses
     const exportData = {
-      userProfile: localUser,
-      expenses
+      userProfile: profile,
+      expenses,
+      careRecipients: recipients
     };
     
     // Create downloadable JSON file
@@ -112,17 +159,14 @@ const Profile = () => {
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = () => {
+    if (!profile) return 0;
+    
     const fields = [
-      localUser.name,
-      localUser.email,
-      localUser.state,
-      localUser.zipCode,
-      localUser.householdAGI,
-      localUser.employmentStatus,
-      localUser.taxFilingStatus,
-      localUser.caregiverRole?.length,
-      localUser.primaryCaregivingExpenses?.length,
-      localUser.healthCoverageType?.length
+      profile.name,
+      profile.email,
+      profile.zip_code,
+      profile.household_agi,
+      profile.caregiving_for?.length
     ];
     
     const filledFields = fields.filter(field => 
@@ -134,6 +178,25 @@ const Profile = () => {
   };
 
   const profileCompletion = calculateProfileCompletion();
+
+  const handleNotificationToggle = async (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
+    try {
+      await setPreference('notifications', enabled);
+    } catch (error) {
+      console.error('Error saving notification preference:', error);
+    }
+  };
+  
+  if (profileLoading || expensesLoading) {
+    return (
+      <Layout>
+        <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
   
   if (showComprehensiveForm) {
     return (
@@ -148,7 +211,7 @@ const Profile = () => {
               ← Back to Profile Overview
             </Button>
           </div>
-          <ComprehensiveProfileForm user={localUser} onSave={handleSaveProfile} />
+          <ComprehensiveProfileForm user={profile} onSave={handleSaveProfile} />
         </div>
       </Layout>
     );
@@ -184,14 +247,14 @@ const Profile = () => {
                 
                 <div className="grid grid-cols-1 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div className="space-y-1 sm:space-y-2">
-                    <p><strong>Name:</strong> {localUser.name || 'Not provided'}</p>
-                    <p><strong>Email:</strong> {localUser.email || 'Not provided'}</p>
-                    <p><strong>Location:</strong> {localUser.state && localUser.zipCode ? `${localUser.state}, ${localUser.zipCode}` : 'Not provided'}</p>
+                    <p><strong>Name:</strong> {profile?.name || 'Not provided'}</p>
+                    <p><strong>Email:</strong> {profile?.email || 'Not provided'}</p>
+                    <p><strong>ZIP Code:</strong> {profile?.zip_code || 'Not provided'}</p>
                   </div>
                   <div className="space-y-1 sm:space-y-2">
-                    <p><strong>Caregiver Role:</strong> {localUser.caregiverRole?.length ? `${localUser.caregiverRole.length} role(s)` : 'Not specified'}</p>
-                    <p><strong>Employment:</strong> {localUser.employmentStatus || 'Not specified'}</p>
-                    <p><strong>Tax Status:</strong> {localUser.taxFilingStatus || 'Not specified'}</p>
+                    <p><strong>Caregiver:</strong> {profile?.is_caregiver ? 'Yes' : 'No'}</p>
+                    <p><strong>Care Recipients:</strong> {recipients.length} person(s)</p>
+                    <p><strong>Household AGI:</strong> {profile?.household_agi ? `$${profile.household_agi.toLocaleString()}` : 'Not specified'}</p>
                   </div>
                 </div>
                 
@@ -216,9 +279,9 @@ const Profile = () => {
               <CardDescription className="text-xs sm:text-sm">Manage profiles of people you are caring for</CardDescription>
             </CardHeader>
             <CardContent className="mobile-card-padding pt-0">
-              {careRecipients.length > 0 ? (
+              {recipients.length > 0 ? (
                 <div className="space-y-3 sm:space-y-4">
-                  {careRecipients.map((recipient) => (
+                  {recipients.map((recipient) => (
                     <div 
                       key={recipient.id} 
                       className="flex items-center justify-between border rounded-md p-3"
@@ -281,7 +344,7 @@ const Profile = () => {
                 <Switch
                   id="notifications"
                   checked={notificationsEnabled}
-                  onCheckedChange={setNotificationsEnabled}
+                  onCheckedChange={handleNotificationToggle}
                 />
               </div>
             </CardContent>

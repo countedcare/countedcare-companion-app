@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,11 +21,15 @@ import AutoImportedTransactions from '@/components/expenses/AutoImportedTransact
 import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
 import EnhancedSmartFilters from '@/components/expenses/EnhancedSmartFilters';
 import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Expenses = () => {
   const navigate = useNavigate();
-  const [expenses, setExpenses] = useLocalStorage<Expense[]>('countedcare-expenses', []);
+  const { user: authUser } = useAuth();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [recipients] = useLocalStorage<CareRecipient[]>('countedcare-recipients', []);
+  const [loading, setLoading] = useState(true);
   const { transactions: syncedTransactions, updateTransaction, deleteTransaction } = useSyncedTransactions();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +38,39 @@ const Expenses = () => {
   const [filterDeductible, setFilterDeductible] = useState('');
   const [filterSource, setFilterSource] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Load expenses from Supabase (same as Dashboard)
+  const loadExpenses = async () => {
+    if (!authUser) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transform database format to local format
+      const transformedExpenses: Expense[] = (data || []).map(expense => ({
+        ...expense,
+        careRecipientId: expense.care_recipient_id || '',
+        receiptUrl: expense.receipt_url,
+        description: expense.description || expense.notes || '',
+      }));
+      
+      setExpenses(transformedExpenses);
+    } catch (error) {
+      console.error('Error loading expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadExpenses();
+  }, [authUser]);
   
   // Filter only unconfirmed potential medical transactions for the review section
   const unconfirmedTransactions = syncedTransactions.filter(
@@ -86,20 +123,37 @@ const Expenses = () => {
     setSearchTerm('');
   };
 
-  const handleConfirmTransaction = (transactionId: string, expenseData: any) => {
-    const newExpense: Expense = {
-      id: `exp-${Date.now()}`,
-      ...expenseData,
-      synced_transaction_id: transactionId
-    };
+  const handleConfirmTransaction = async (transactionId: string, expenseData: any) => {
+    if (!authUser) return;
     
-    setExpenses(prev => [...prev, newExpense]);
-    
-    // Mark transaction as confirmed medical
-    updateTransaction(transactionId, { 
-      is_confirmed_medical: true, 
-      expense_id: newExpense.id 
-    });
+    try {
+      // Save to Supabase instead of localStorage
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert([{
+          ...expenseData,
+          user_id: authUser.id,
+          synced_transaction_id: transactionId,
+          care_recipient_id: expenseData.careRecipientId || null,
+          receipt_url: expenseData.receiptUrl || null,
+          description: expenseData.description || expenseData.notes || null,
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Mark transaction as confirmed medical
+      updateTransaction(transactionId, { 
+        is_confirmed_medical: true, 
+        expense_id: data.id 
+      });
+      
+      // Reload expenses to get updated data
+      loadExpenses();
+    } catch (error) {
+      console.error('Error saving expense:', error);
+    }
   };
 
   const handleExcludeTransaction = (transactionId: string) => {
@@ -110,6 +164,16 @@ const Expenses = () => {
     updateTransaction(transactionId, updates);
   };
   
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="container-padding py-3 sm:py-6">

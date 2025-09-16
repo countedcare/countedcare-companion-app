@@ -81,6 +81,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     let subscription: any = null;
+    let isInitialized = false;
     
     // Set up auth state listener first
     const setupAuthListener = () => {
@@ -90,9 +91,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           const currentUser = session?.user ?? null;
           setUser(currentUser);
           
-          // Check MFA state after setting user, then set loading to false
+          // Check MFA state after setting user
           await checkMFAState(currentUser);
-          setLoading(false);
+          
+          // Always ensure loading is false after auth state change
+          if (isInitialized) {
+            setLoading(false);
+          }
         }
       );
       subscription = authSubscription;
@@ -113,8 +118,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } catch (error) {
         console.error('Unexpected error getting session:', error);
       } finally {
-        // Always set loading to false after initial session check
+        // Mark as initialized and set loading to false
+        isInitialized = true;
         setLoading(false);
+        console.log('AuthProvider initialization complete');
       }
     };
 

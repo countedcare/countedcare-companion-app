@@ -34,20 +34,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const checkMFAState = async (currentUser: User | null) => {
     if (!currentUser) {
       setMfaState("none");
-      setLoading(false);
       return;
     }
 
     try {
+      // Feature detection: check if MFA is available
+      if (!supabase.auth.mfa || typeof supabase.auth.mfa.getAuthenticatorAssuranceLevel !== 'function') {
+        console.log('MFA not available in this Supabase instance, defaulting to none');
+        setMfaState("none");
+        return;
+      }
+
       // Get current AAL level
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aalError) throw aalError;
+      if (aalError) {
+        console.warn('MFA AAL check failed, assuming MFA not enabled:', aalError.message);
+        setMfaState("none");
+        return;
+      }
 
       const currentLevel = aalData?.currentLevel;
 
       // Check enrolled factors
       const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
+      if (factorsError) {
+        console.warn('MFA factors check failed, assuming MFA not enabled:', factorsError.message);
+        setMfaState("none");
+        return;
+      }
 
       const enrolledFactors = factorsData?.totp?.filter(factor => factor.status === 'verified') || [];
 
@@ -60,25 +74,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setMfaState("enroll");
       }
     } catch (error) {
-      console.error('Error checking MFA state:', error);
-      setMfaState("enroll"); // Default to enroll on error
-    } finally {
-      setLoading(false);
+      console.warn('MFA feature detection failed, defaulting to none:', error);
+      setMfaState("none");
     }
   };
 
   useEffect(() => {
+    let subscription: any = null;
+    
     // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email || 'no user');
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        
-        // Check MFA state after setting user
-        await checkMFAState(currentUser);
-      }
-    );
+    const setupAuthListener = () => {
+      const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('Auth state changed:', event, session?.user?.email || 'no user');
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          
+          // Check MFA state after setting user, then set loading to false
+          await checkMFAState(currentUser);
+          setLoading(false);
+        }
+      );
+      subscription = authSubscription;
+    };
 
     // Then check for existing session
     const getInitialSession = async () => {
@@ -86,7 +104,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting initial session:', error);
-          setLoading(false);
         } else {
           console.log('Initial session check:', session?.user?.email || 'no session');
           const currentUser = session?.user ?? null;
@@ -95,14 +112,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       } catch (error) {
         console.error('Unexpected error getting session:', error);
+      } finally {
+        // Always set loading to false after initial session check
         setLoading(false);
       }
     };
 
+    setupAuthListener();
     getInitialSession();
 
     return () => {
-      subscription.unsubscribe();
+      try {
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+          subscription.unsubscribe();
+        }
+      } catch (error) {
+        console.warn('Error cleaning up auth subscription:', error);
+      }
     };
   }, []);
 

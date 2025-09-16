@@ -31,7 +31,7 @@ const Auth = () => {
     
     checkUser();
 
-    // Check URL parameters for password recovery
+    // Check URL parameters for password recovery (only once on mount)
     const type = searchParams.get('type');
     
     console.log('URL params:', { type, hasAccessToken: !!searchParams.get('access_token') });
@@ -42,6 +42,19 @@ const Auth = () => {
       toast({
         title: "Password Reset",
         description: "Please enter your new password below.",
+      });
+    }
+
+    // Check for auth errors (only once on mount)
+    const error = searchParams.get('error');
+    const error_description = searchParams.get('error_description');
+    
+    if (error) {
+      console.error('Auth error from URL:', error, error_description);
+      toast({
+        title: "Authentication Error",
+        description: error_description || error,
+        variant: "destructive",
       });
     }
 
@@ -63,21 +76,8 @@ const Auth = () => {
       }
     });
 
-    // Check for auth errors
-    const error = searchParams.get('error');
-    const error_description = searchParams.get('error_description');
-    
-    if (error) {
-      console.error('Auth error from URL:', error, error_description);
-      toast({
-        title: "Authentication Error",
-        description: error_description || error,
-        variant: "destructive",
-      });
-    }
-
     return () => subscription.unsubscribe();
-  }, [navigate, searchParams, toast]);
+  }, [navigate, toast]); // Removed searchParams to prevent infinite loop
 
   if (isPasswordRecovery) {
     return (

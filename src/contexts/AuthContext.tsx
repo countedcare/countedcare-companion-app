@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const checkMFAState = async (currentUser: User | null) => {
     if (!currentUser) {
       setMfaState("none");
+      setLoading(false);
       return;
     }
 
@@ -61,6 +62,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error('Error checking MFA state:', error);
       setMfaState("enroll"); // Default to enroll on error
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,7 +77,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         // Check MFA state after setting user
         await checkMFAState(currentUser);
-        setLoading(false);
       }
     );
 
@@ -84,6 +86,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting initial session:', error);
+          setLoading(false);
         } else {
           console.log('Initial session check:', session?.user?.email || 'no session');
           const currentUser = session?.user ?? null;
@@ -92,7 +95,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       } catch (error) {
         console.error('Unexpected error getting session:', error);
-      } finally {
         setLoading(false);
       }
     };

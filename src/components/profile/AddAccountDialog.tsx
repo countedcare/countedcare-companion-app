@@ -61,7 +61,13 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
 
   const initializePlaidHandler = (linkToken: string) => {
     try {
-      console.log('Creating Plaid handler with token');
+      console.log('Creating Plaid handler with token, Plaid SDK available:', !!(window as any).Plaid);
+      
+      if (!(window as any).Plaid) {
+        throw new Error('Plaid SDK not available on window object');
+      }
+      
+      console.log('Calling Plaid.create with configuration...');
       const handler = (window as any).Plaid.create({
         token: linkToken,
         onSuccess: async (public_token: string, metadata: any) => {
@@ -130,7 +136,10 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   };
 
   const handlePlaidConnect = async () => {
+    console.log('Plaid connect button clicked!');
+    
     if (!user) {
+      console.error('No user found for Plaid connection');
       toast({
         title: "Error",
         description: "You must be logged in to connect bank accounts",
@@ -139,7 +148,9 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       return;
     }
 
+    console.log('User authenticated, starting Plaid flow for user:', user.id);
     setPlaidLoading(true);
+    
     try {
       console.log('Creating Plaid link token...');
       
@@ -162,31 +173,60 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       }
 
       if (data?.link_token) {
-        console.log('Link token received:', data.link_token);
+        console.log('Link token received successfully:', data.link_token.substring(0, 20) + '...');
         
         // Check if Plaid is already loaded
-        if ((window as any).Plaid) {
-          console.log('Plaid already loaded, creating handler');
+        if (typeof window !== 'undefined' && (window as any).Plaid) {
+          console.log('Plaid SDK already loaded, creating handler directly');
           initializePlaidHandler(data.link_token);
         } else {
-          console.log('Loading Plaid script');
+          console.log('Loading Plaid SDK script...');
+          
+          // Remove any existing Plaid scripts first
+          const existingScripts = document.querySelectorAll('script[src*="plaid.com"]');
+          existingScripts.forEach(script => script.remove());
+          
           // Load Plaid Link dynamically
           const script = document.createElement('script');
           script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+          script.async = true;
+          
           script.onload = () => {
-            console.log('Plaid script loaded successfully');
-            initializePlaidHandler(data.link_token);
+            console.log('Plaid SDK script loaded successfully');
+            
+            // Double check Plaid is available
+            if ((window as any).Plaid) {
+              console.log('Plaid SDK confirmed available, initializing handler');
+              initializePlaidHandler(data.link_token);
+            } else {
+              console.error('Plaid SDK loaded but not available on window');
+              toast({
+                title: "Error",
+                description: "Failed to initialize bank connection service",
+                variant: "destructive"
+              });
+            }
           };
+          
           script.onerror = (error) => {
-            console.error('Failed to load Plaid script:', error);
+            console.error('Failed to load Plaid SDK script:', error);
             toast({
-              title: "Error",
-              description: "Failed to load bank connection service",
+              title: "Error", 
+              description: "Failed to load bank connection service. Please check your internet connection.",
               variant: "destructive"
             });
           };
+          
+          console.log('Appending Plaid script to document head');
           document.head.appendChild(script);
         }
+      } else {
+        console.error('No link token received from backend');
+        toast({
+          title: "Error",
+          description: "Failed to get connection token from server",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error connecting to Plaid:', error);

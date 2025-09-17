@@ -20,6 +20,11 @@ interface PlaidSyncTransactionsRequest {
   user_id: string;
 }
 
+interface PlaidSandboxTokenRequest {
+  institution_id: string;
+  initial_products: string[];
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -57,6 +62,8 @@ serve(async (req) => {
     switch (action) {
       case 'create_link_token':
         return await handleCreateLinkToken(body as PlaidLinkTokenRequest, user)
+      case 'create_sandbox_token':
+        return await handleCreateSandboxToken(body as PlaidSandboxTokenRequest, user.id, supabaseClient)
       case 'exchange_public_token':
         return await handleExchangePublicToken(body as PlaidExchangeTokenRequest, user.id, supabaseClient)
       case 'sync_transactions':
@@ -119,6 +126,114 @@ async function handleCreateLinkToken(body: PlaidLinkTokenRequest, user: any) {
   }
 
   return new Response(JSON.stringify(data), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+async function handleCreateSandboxToken(body: PlaidSandboxTokenRequest, userId: string, supabaseClient: any) {
+  console.log('Creating Plaid sandbox public token');
+  
+  const plaidClientId = Deno.env.get('PLAID_CLIENT_ID')
+  const plaidSecret = Deno.env.get('PLAID_SECRET')
+  
+  if (!plaidClientId || !plaidSecret) {
+    throw new Error('Plaid credentials not configured')
+  }
+
+  // Create sandbox public token
+  const publicTokenResponse = await fetch('https://sandbox.plaid.com/sandbox/public_token/create', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: plaidClientId,
+      secret: plaidSecret,
+      institution_id: body.institution_id,
+      initial_products: body.initial_products,
+    }),
+  });
+
+  const publicTokenData = await publicTokenResponse.json();
+  console.log('Sandbox public token response:', publicTokenResponse.status);
+  
+  if (!publicTokenResponse.ok) {
+    console.error('Plaid sandbox API error:', publicTokenData);
+    throw new Error(`Plaid sandbox API error: ${publicTokenData.error?.error_message || 'Unknown error'}`)
+  }
+
+  // Automatically exchange the public token for access token
+  const exchangeResponse = await fetch('https://sandbox.plaid.com/item/public_token/exchange', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: plaidClientId,
+      secret: plaidSecret,
+      public_token: publicTokenData.public_token,
+    }),
+  });
+
+  const exchangeData = await exchangeResponse.json();
+  
+  if (!exchangeResponse.ok) {
+    console.error('Token exchange error:', exchangeData);
+    throw new Error(`Token exchange failed: ${exchangeData.error?.error_message || 'Unknown error'}`)
+  }
+
+  // Get account information
+  const accountsResponse = await fetch('https://sandbox.plaid.com/accounts/get', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: plaidClientId,
+      secret: plaidSecret,
+      access_token: exchangeData.access_token,
+    }),
+  });
+
+  const accountsData = await accountsResponse.json();
+  
+  if (!accountsResponse.ok) {
+    console.error('Accounts fetch error:', accountsData);
+    throw new Error(`Failed to fetch accounts: ${accountsData.error?.error_message || 'Unknown error'}`)
+  }
+
+  // Store each account in our database
+  const accounts = [];
+  for (const account of accountsData.accounts) {
+    const { data, error } = await supabaseClient
+      .from('linked_accounts')
+      .insert({
+        user_id: userId,
+        account_name: `${body.institution_id} ${account.name}`,
+        account_type: account.subtype === 'checking' || account.subtype === 'savings' ? 'bank' : 'credit_card',
+        institution_name: body.institution_id,
+        plaid_access_token: exchangeData.access_token,
+        plaid_account_id: account.account_id,
+        is_active: true,
+        last_sync_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to save account: ${error.message}`)
+    }
+
+    accounts.push(data);
+  }
+
+  return new Response(JSON.stringify({ 
+    success: true, 
+    public_token: publicTokenData.public_token,
+    access_token: exchangeData.access_token,
+    accounts 
+  }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }

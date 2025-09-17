@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,67 +16,27 @@ interface AddAccountDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Key improvements:
- * - Load Plaid script once (per app session) and memoize readiness
- * - Create handler once per link_token; guard against double-open
- * - Cache link_token for the current open cycle so multiple clicks don't re-create
- * - Cleanup handler on unmount; remove dangling listeners
- * - Prevent closing dialog while Plaid flow is in-flight
- */
 const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange }) => {
-  const { addAccount /*, refresh */ } = useLinkedAccounts(); // if your hook exposes `refresh`, prefer it over reload
+  const { addAccount } = useLinkedAccounts();
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Manual form
+  // Manual form state
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("");
   const [institutionName, setInstitutionName] = useState("");
-
-  // UI state
   const [loading, setLoading] = useState(false);
+  
+  // Plaid state
+  const [plaidReady, setPlaidReady] = useState(false);
   const [plaidLoading, setPlaidLoading] = useState(false);
 
-  // Plaid
-  const [plaidReady, setPlaidReady] = useState(false);
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-
-  // Refs to prevent duplicate actions
-  const handlerRef = useRef<any>(null);
-  const openingRef = useRef(false); // avoid calling handler.open() multiple times per token
-  const mountedRef = useRef(false);
-
-  // Mount guard
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      try {
-        // Close and cleanup Plaid handler on unmount
-        if (handlerRef.current?.destroy) handlerRef.current.destroy();
-      } catch {
-        /* no-op */
-      }
-      handlerRef.current = null;
-    };
-  }, []);
-
-  // Load Plaid script once globally
+  // Load Plaid script
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // already present?
     if ((window as any).Plaid) {
       setPlaidReady(true);
-      return;
-    }
-
-    // check existing tag
-    const existing = document.querySelector('script[src*="cdn.plaid.com/link/v2/stable/link-initialize.js"]');
-    if (existing) {
-      existing.addEventListener("load", () => setPlaidReady(true), { once: true });
-      existing.addEventListener("error", () => setPlaidReady(false), { once: true });
       return;
     }
 
@@ -87,71 +47,35 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
     script.onerror = () => {
       setPlaidReady(false);
       toast({
-        title: "Couldn’t load Plaid",
-        description: "Check your internet connection and try again.",
+        title: "Error loading Plaid",
+        description: "Please try again later.",
         variant: "destructive",
       });
     };
     document.head.appendChild(script);
   }, [toast]);
 
-  // When dialog opens: fetch a link_token (once per open cycle)
-  useEffect(() => {
-    if (!open) {
-      // reset open-cycle state
-      setLinkToken(null);
-      openingRef.current = false;
-      return;
-    }
-    if (!user) return;
-
-    let cancelled = false;
-
-    const getLinkToken = async () => {
-      try {
-        setPlaidLoading(true);
-        const { data, error } = await supabase.functions.invoke("plaid-financial-connections", {
-          body: { action: "create_link_token", user_id: user.id },
-        });
-        if (error) throw error;
-        if (!data?.link_token) throw new Error("No link_token returned");
-        if (!cancelled) setLinkToken(data.link_token);
-      } catch (e: any) {
-        console.error("create_link_token error:", e);
-        toast({
-          title: "Error",
-          description: e?.message || "Failed to initialize bank connection.",
-          variant: "destructive",
-        });
-      } finally {
-        if (mountedRef.current) setPlaidLoading(false);
-      }
-    };
-
-    getLinkToken();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, user, toast]);
-
-  // Create Plaid handler when both script & token are ready
-  useEffect(() => {
-    if (!plaidReady || !linkToken) return;
+  const handlePlaidConnect = async () => {
+    if (!user || !plaidReady) return;
 
     try {
-      if (!(window as any).Plaid) throw new Error("Plaid SDK not found on window.");
-      // Destroy prior handler if any (defensive)
-      if (handlerRef.current?.destroy) handlerRef.current.destroy();
+      setPlaidLoading(true);
+      
+      // Get link token
+      const { data, error } = await supabase.functions.invoke("plaid-financial-connections", {
+        body: { action: "create_link_token", user_id: user.id },
+      });
 
-      handlerRef.current = (window as any).Plaid.create({
-        token: linkToken,
+      if (error || !data?.link_token) {
+        throw new Error("Failed to create link token");
+      }
+
+      // Create and open Plaid handler
+      const handler = (window as any).Plaid.create({
+        token: data.link_token,
         onSuccess: async (public_token: string, metadata: any) => {
           try {
-            toast({ title: "Processing connection…", description: "Exchanging tokens…" });
-
-            // Exchange public_token → access_token on your edge function
-            const { error } = await supabase.functions.invoke("plaid-financial-connections", {
+            const { error: exchangeError } = await supabase.functions.invoke("plaid-financial-connections", {
               body: {
                 action: "exchange_public_token",
                 public_token,
@@ -159,58 +83,48 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
               },
             });
 
-            if (error) throw error;
+            if (exchangeError) throw exchangeError;
 
-            toast({ title: "Bank connected", description: "Your account is linked successfully." });
-
-            // If your accounts hook exposes a refresh function, prefer that:
-            // await refresh?.();
-            // Otherwise fall back to a lightweight reload:
-            try {
-              onOpenChange(false);
-            } finally {
-              // As a last resort:
-              if (typeof window !== "undefined" && !process.env.NODE_ENV?.includes("test")) {
-                window.location.reload();
-              }
-            }
+            toast({ 
+              title: "Account connected", 
+              description: "Your bank account has been linked successfully." 
+            });
+            
+            onOpenChange(false);
+            window.location.reload();
           } catch (err) {
-            console.error("onSuccess/exchange error:", err);
+            console.error("Exchange error:", err);
             toast({
-              title: "Connection error",
-              description: "Failed to complete bank connection.",
+              title: "Connection failed",
+              description: "Failed to complete account connection.",
               variant: "destructive",
             });
-          } finally {
-            openingRef.current = false;
           }
         },
-        onExit: (err: any, metadata: any) => {
-          // User closed or error occurred
+        onExit: (err: any) => {
           if (err) {
-            console.error("Plaid onExit error:", err, metadata);
+            console.error("Plaid exit error:", err);
             toast({
               title: "Connection cancelled",
-              description: "Bank connection was cancelled or failed.",
+              description: "Account connection was cancelled.",
               variant: "destructive",
             });
           }
-          openingRef.current = false;
-        },
-        onEvent: (eventName: string, metadata: any) => {
-          // Useful for debugging
-          // console.log("Plaid event:", eventName, metadata);
+          setPlaidLoading(false);
         },
       });
-    } catch (e) {
-      console.error("Plaid.create error:", e);
+
+      handler.open();
+    } catch (error) {
+      console.error("Plaid connect error:", error);
       toast({
-        title: "Error",
-        description: "Failed to initialize bank connection.",
+        title: "Connection failed",
+        description: "Failed to start account connection.",
         variant: "destructive",
       });
+      setPlaidLoading(false);
     }
-  }, [plaidReady, linkToken, onOpenChange, toast]);
+  };
 
   const handleSubmitManual = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,57 +164,8 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
     }
   };
 
-  const openPlaid = useCallback(() => {
-    if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "You must be logged in to connect bank accounts.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!plaidReady) {
-      toast({ title: "Please wait", description: "Loading bank connection service…" });
-      return;
-    }
-    if (!linkToken) {
-      toast({ title: "Please wait", description: "Preparing a secure connection…" });
-      return;
-    }
-    if (!handlerRef.current) {
-      toast({
-        title: "Initialization error",
-        description: "Bank connection is not ready yet. Try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (openingRef.current) return; // guard
-    openingRef.current = true;
-    try {
-      handlerRef.current.open();
-    } catch (e) {
-      openingRef.current = false;
-      console.error("handler.open error:", e);
-      toast({
-        title: "Error",
-        description: "Failed to open bank connection window.",
-        variant: "destructive",
-      });
-    }
-  }, [user, plaidReady, linkToken, toast]);
-
-  // Prevent closing while plaid flow is in flight (optional but safer UX)
-  const handleDialogChange = (nextOpen: boolean) => {
-    if (!nextOpen && (plaidLoading || openingRef.current)) {
-      // ignore close while connecting
-      return;
-    }
-    onOpenChange(nextOpen);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleDialogChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Link Financial Account</DialogTitle>
@@ -317,12 +182,12 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
             <p className="text-sm text-muted-foreground">
               Securely connect your bank account to automatically import and categorize transactions.
             </p>
-            <Button onClick={openPlaid} disabled={plaidLoading || !plaidReady} className="w-full">
-              {plaidLoading ? "Preparing…" : "Connect with Plaid"}
+            <Button onClick={handlePlaidConnect} disabled={plaidLoading || !plaidReady} className="w-full">
+              {plaidLoading ? "Connecting..." : "Connect with Plaid"}
             </Button>
             {!plaidReady && (
               <p className="text-xs text-muted-foreground text-center">
-                Loading Plaid… this only takes a moment.
+                Loading Plaid service...
               </p>
             )}
           </div>
@@ -381,7 +246,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
                 Cancel
               </Button>
               <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? "Adding…" : "Add Account"}
+                {loading ? "Adding..." : "Add Account"}
               </Button>
             </div>
           </form>

@@ -30,6 +30,17 @@ interface PlaidFireWebhookRequest {
   webhook_code: string;
 }
 
+interface PlaidCreateTransactionsRequest {
+  access_token: string;
+  transactions: Array<{
+    amount: number;
+    date_posted: string;
+    date_transacted: string;
+    description: string;
+    iso_currency_code?: string;
+  }>;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -75,6 +86,8 @@ serve(async (req) => {
         return await handleSyncTransactions(body as PlaidSyncTransactionsRequest, user.id, supabaseClient)
       case 'fire_test_webhook':
         return await handleFireTestWebhook(body as PlaidFireWebhookRequest)
+      case 'create_sandbox_transactions':
+        return await handleCreateSandboxTransactions(body as PlaidCreateTransactionsRequest)
       default:
         console.log('Invalid action:', action);
         return new Response(JSON.stringify({ error: 'Invalid action' }), {
@@ -467,6 +480,50 @@ async function handleFireTestWebhook(body: PlaidFireWebhookRequest) {
   }
 
   return new Response(JSON.stringify({ success: true, webhook_fired: true, data }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+async function handleCreateSandboxTransactions(body: PlaidCreateTransactionsRequest) {
+  console.log('Creating sandbox transactions for testing');
+  
+  const plaidClientId = Deno.env.get('PLAID_CLIENT_ID')
+  const plaidSecret = Deno.env.get('PLAID_SECRET')
+  
+  if (!plaidClientId || !plaidSecret) {
+    throw new Error('Plaid credentials not configured')
+  }
+
+  if (!body.access_token || !body.transactions || body.transactions.length === 0) {
+    throw new Error('Access token and transactions array are required')
+  }
+
+  const response = await fetch('https://sandbox.plaid.com/sandbox/transactions/create', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: plaidClientId,
+      secret: plaidSecret,
+      access_token: body.access_token,
+      transactions: body.transactions,
+    }),
+  });
+
+  const data = await response.json();
+  console.log('Sandbox transactions create response:', response.status);
+  
+  if (!response.ok) {
+    console.error('Plaid sandbox transactions error:', data);
+    throw new Error(`Failed to create sandbox transactions: ${data.error?.error_message || 'Unknown error'}`)
+  }
+
+  return new Response(JSON.stringify({ 
+    success: true, 
+    transactions_created: body.transactions.length,
+    data 
+  }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }

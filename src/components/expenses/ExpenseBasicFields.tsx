@@ -89,7 +89,7 @@ const ExpenseBasicFields: React.FC<ExpenseBasicFieldsProps> = ({
                 </SelectItem>
               ))
             ) : (
-              <SelectItem value="" disabled>
+              <SelectItem value="no-accounts" disabled>
                 <span className="text-muted-foreground">No linked accounts found</span>
               </SelectItem>
             )}

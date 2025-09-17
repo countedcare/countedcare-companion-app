@@ -217,6 +217,7 @@ export interface Expense {
   is_potentially_deductible?: boolean | null;
   reimbursement_source?: string;
   synced_transaction_id?: string;
+  source_account_id?: string;
   created_at?: string;
   updated_at?: string;
   user_id?: string;

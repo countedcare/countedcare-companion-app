@@ -12,6 +12,7 @@ import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
+import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 
 // Import the new components
 import ExpenseBasicFields from '@/components/expenses/ExpenseBasicFields';
@@ -28,6 +29,7 @@ const ExpenseForm = () => {
   const [searchParams] = useSearchParams();
   const { user: authUser } = useAuth();
   const { recipients } = useSupabaseCareRecipients();
+  const { accounts: linkedAccounts } = useLinkedAccounts();
   
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ const ExpenseForm = () => {
   const [title, setTitle] = useState('');
   const [vendor, setVendor] = useState('');
   const [amount, setAmount] = useState('');
+  const [sourceAccountId, setSourceAccountId] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
@@ -109,6 +112,7 @@ const ExpenseForm = () => {
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
         setReceiptUrl(expenseToEdit.receiptUrl);
+        setSourceAccountId(expenseToEdit.source_account_id || '');
       }
     }
   }, [id, expenses]);
@@ -194,7 +198,8 @@ const ExpenseForm = () => {
         user_id: authUser.id,
         care_recipient_id: careRecipientId || null,
         receipt_url: receiptUrl || null,
-        notes: description || null
+        notes: description || null,
+        source_account_id: sourceAccountId || null,
       };
 
       if (id) {
@@ -302,6 +307,9 @@ const ExpenseForm = () => {
                   setTitle={setTitle}
                   amount={amount}
                   setAmount={setAmount}
+                  sourceAccountId={sourceAccountId}
+                  setSourceAccountId={setSourceAccountId}
+                  linkedAccounts={linkedAccounts}
                   date={date}
                   setDate={setDate}
                   amountReadOnly={isMileageMode}

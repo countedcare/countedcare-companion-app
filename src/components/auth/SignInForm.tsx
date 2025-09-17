@@ -118,6 +118,7 @@ const SignInForm = ({
     }
 
     setLoading(true);
+    console.log("Starting sign-in process for:", email);
 
     try {
       console.log("Attempting to sign in with:", email);
@@ -127,7 +128,18 @@ const SignInForm = ({
         password,
       });
 
-      console.log("Sign in response:", { data, error });
+      console.log("Sign in response:", { 
+        success: !error, 
+        hasData: !!data, 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session,
+        error: error?.message 
+      });
+
+      if (error) {
+        console.error("Sign in failed:", error.message);
+        throw error;
+      }
 
       if (error) {
         console.error("Sign in error:", error);

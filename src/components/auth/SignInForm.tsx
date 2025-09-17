@@ -136,11 +136,6 @@ const SignInForm = ({
       });
 
       if (error) {
-        console.error("Sign in failed:", error.message);
-        throw error;
-      }
-
-      if (error) {
         console.error("Sign in error:", error);
 
         if (error.message.includes("Invalid login credentials")) {

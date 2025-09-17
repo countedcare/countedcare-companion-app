@@ -119,22 +119,24 @@ async function handleCreateLinkToken(body: PlaidLinkTokenRequest, user: any) {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      client_id: plaidClientId,
-      secret: plaidSecret,
-      client_name: "Medical Expense Tracker",
-      country_codes: ['US'],
-      language: 'en',
-      user: {
-        client_user_id: user.id
-      },
-      products: ['transactions'],
-      account_filters: {
-        depository: {
-          account_subtypes: ['checking', 'savings']
-        }
-      }
-    }),
+      body: JSON.stringify({
+        client_id: plaidClientId,
+        secret: plaidSecret,
+        client_name: "Medical Expense Tracker",
+        country_codes: ['US'],
+        language: 'en',
+        user: {
+          client_user_id: user.id
+        },
+        products: ['transactions'],
+        account_filters: {
+          depository: {
+            account_subtypes: ['checking', 'savings']
+          }
+        },
+        redirect_uri: 'https://beekrnfusoksullylvld.supabase.co/functions/v1/plaid-financial-connections',
+        webhook: 'https://beekrnfusoksullylvld.supabase.co/functions/v1/plaid-webhooks'
+      }),
   });
 
   const data = await response.json();

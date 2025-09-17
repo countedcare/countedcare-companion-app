@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -60,6 +59,76 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
     }
   };
 
+  const initializePlaidHandler = (linkToken: string) => {
+    try {
+      console.log('Creating Plaid handler with token');
+      const handler = (window as any).Plaid.create({
+        token: linkToken,
+        onSuccess: async (public_token: string, metadata: any) => {
+          console.log('Plaid onSuccess triggered:', { public_token, metadata });
+          try {
+            toast({
+              title: "Processing Connection",
+              description: "Exchanging tokens..."
+            });
+
+            // Exchange public token for access token
+            const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('plaid-financial-connections', {
+              body: {
+                action: 'exchange_public_token',
+                public_token: public_token,
+                account_name: metadata.institution?.name || 'Connected Account'
+              }
+            });
+
+            if (exchangeError) {
+              throw new Error(exchangeError.message);
+            }
+
+            toast({
+              title: "Bank Connected",
+              description: "Your bank account has been connected successfully"
+            });
+            onOpenChange(false);
+            // Refresh the accounts list
+            window.location.reload();
+          } catch (error) {
+            console.error('Error exchanging token:', error);
+            toast({
+              title: "Connection Error",
+              description: "Failed to complete bank connection",
+              variant: "destructive"
+            });
+          }
+        },
+        onExit: (err: any, metadata: any) => {
+          console.log('Plaid onExit triggered:', { err, metadata });
+          if (err) {
+            console.error('Plaid Link exit error:', err);
+            toast({
+              title: "Connection Cancelled",
+              description: "Bank connection was cancelled or failed",
+              variant: "destructive"
+            });
+          }
+        },
+        onEvent: (eventName: string, metadata: any) => {
+          console.log('Plaid event:', eventName, metadata);
+        }
+      });
+      
+      console.log('Opening Plaid handler');
+      handler.open();
+    } catch (error) {
+      console.error('Error creating Plaid handler:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initialize bank connection",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handlePlaidConnect = async () => {
     if (!user) {
       toast({
@@ -72,6 +141,8 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
 
     setPlaidLoading(true);
     try {
+      console.log('Creating Plaid link token...');
+      
       // First, get the link token from our backend
       const { data, error } = await supabase.functions.invoke('plaid-financial-connections', {
         body: {
@@ -91,58 +162,31 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       }
 
       if (data?.link_token) {
-        // Load Plaid Link dynamically
-        const script = document.createElement('script');
-        script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
-        script.onload = () => {
-          const handler = (window as any).Plaid.create({
-            token: data.link_token,
-            onSuccess: async (public_token: string, metadata: any) => {
-              try {
-                // Exchange public token for access token
-                const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('plaid-financial-connections', {
-                  body: {
-                    action: 'exchange_public_token',
-                    public_token: public_token,
-                    account_name: metadata.institution?.name || 'Connected Account'
-                  }
-                });
-
-                if (exchangeError) {
-                  throw new Error(exchangeError.message);
-                }
-
-                toast({
-                  title: "Bank Connected",
-                  description: "Your bank account has been connected successfully"
-                });
-                onOpenChange(false);
-                // Refresh the accounts list
-                window.location.reload();
-              } catch (error) {
-                console.error('Error exchanging token:', error);
-                toast({
-                  title: "Connection Error",
-                  description: "Failed to complete bank connection",
-                  variant: "destructive"
-                });
-              }
-            },
-            onExit: (err: any, metadata: any) => {
-              if (err) {
-                console.error('Plaid Link exit error:', err);
-                toast({
-                  title: "Connection Cancelled",
-                  description: "Bank connection was cancelled",
-                  variant: "destructive"
-                });
-              }
-            }
-          });
-          
-          handler.open();
-        };
-        document.head.appendChild(script);
+        console.log('Link token received:', data.link_token);
+        
+        // Check if Plaid is already loaded
+        if ((window as any).Plaid) {
+          console.log('Plaid already loaded, creating handler');
+          initializePlaidHandler(data.link_token);
+        } else {
+          console.log('Loading Plaid script');
+          // Load Plaid Link dynamically
+          const script = document.createElement('script');
+          script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+          script.onload = () => {
+            console.log('Plaid script loaded successfully');
+            initializePlaidHandler(data.link_token);
+          };
+          script.onerror = (error) => {
+            console.error('Failed to load Plaid script:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load bank connection service",
+              variant: "destructive"
+            });
+          };
+          document.head.appendChild(script);
+        }
       }
     } catch (error) {
       console.error('Error connecting to Plaid:', error);
@@ -155,6 +199,19 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       setPlaidLoading(false);
     }
   };
+
+  // Effect to clean up any existing Plaid scripts
+  useEffect(() => {
+    return () => {
+      // Cleanup: remove any existing Plaid scripts when component unmounts
+      const existingScripts = document.querySelectorAll('script[src*="plaid.com"]');
+      existingScripts.forEach(script => {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      });
+    };
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

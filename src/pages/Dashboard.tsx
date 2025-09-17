@@ -10,6 +10,9 @@ import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import ExpenseChart from '@/components/dashboard/ExpenseChart';
+import { SpendingSummaryHeader } from '@/components/dashboard/SpendingSummaryHeader';
+import { AccountsOverview } from '@/components/dashboard/AccountsOverview';
+import { PaydayCountdown } from '@/components/dashboard/PaydayCountdown';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 
 const Dashboard = () => {
@@ -20,6 +23,7 @@ const Dashboard = () => {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [timeFrame, setTimeFrame] = useState<'month' | 'year'>('month');
   
   // Redirect to onboarding if not completed
   React.useEffect(() => {
@@ -91,6 +95,25 @@ const Dashboard = () => {
   
   const thisMonthTotal = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   
+  // Calculate display values based on timeFrame
+  const displayExpenses = timeFrame === 'month' ? thisMonthExpenses : expenses;
+  const displayTotal = timeFrame === 'month' ? thisMonthTotal : totalExpenses;
+  const budgetAmount = 2500; // Could be from user profile/settings
+  
+  // Mock account data - in real app, this would come from linked accounts
+  const mockAccounts = [
+    { id: '1', type: 'checking' as const, name: 'Checking', balance: 5848 },
+    { id: '2', type: 'card_balance' as const, name: 'Card Balance', balance: 2001 },
+    { id: '3', type: 'net_cash' as const, name: 'Net Cash', balance: 3847 },
+    { id: '4', type: 'savings' as const, name: 'Savings', balance: 267 },
+    { id: '5', type: 'investments' as const, name: 'Investments', balance: 0 },
+  ];
+  
+  // Calculate days until next payday (mock - every 2 weeks)
+  const today = new Date();
+  const daysSinceEpoch = Math.floor(today.getTime() / (1000 * 60 * 60 * 24));
+  const daysUntilPayday = 14 - (daysSinceEpoch % 14);
+  
   // Build category totals for current month (for pie chart)
   const categoryTotals = Object.values(
     thisMonthExpenses.reduce((acc, e) => {
@@ -129,23 +152,20 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        {/* Total Expenses Header */}
-        <div className="bg-white rounded-2xl mx-4 mt-4 p-6 shadow-sm border border-gray-100">
-          <div className="text-center">
-            <h1 className="text-lg font-medium text-gray-600 mb-2">Total Expenses</h1>
-            <div className="text-4xl font-bold text-gray-900 mb-4">
-              {formatCurrency(totalExpenses)}
-            </div>
-            <div className="flex justify-center gap-2">
-              <Button variant="default" size="sm" className="bg-blue-100 text-blue-700 hover:bg-blue-200">
-                This Month
-              </Button>
-              <Button variant="outline" size="sm" className="text-gray-600">
-                Last Month
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* Spending Summary Header */}
+        <SpendingSummaryHeader
+          currentSpend={displayTotal}
+          budgetAmount={budgetAmount}
+          timeFrame={timeFrame}
+          onTimeFrameChange={setTimeFrame}
+          formatCurrency={formatCurrency}
+        />
+        
+        {/* Payday Countdown */}
+        <PaydayCountdown daysUntilPayday={daysUntilPayday} />
+        
+        {/* Accounts Overview */}
+        <AccountsOverview accounts={mockAccounts} formatCurrency={formatCurrency} />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4">
@@ -314,12 +334,12 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Expense Breakdown Pie Chart */}
+              {/* Expense Breakdown Chart */}
               <ExpenseChart
-                timeFrame="month"
+                timeFrame={timeFrame}
                 categoryTotals={categoryTotals}
                 monthlyData={monthlyData}
-                filteredExpenses={thisMonthExpenses as unknown as any[]}
+                filteredExpenses={displayExpenses as unknown as any[]}
               />
             </TabsContent>
 

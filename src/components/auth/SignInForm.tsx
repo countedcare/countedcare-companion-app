@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   CardContent,
@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 interface SignInFormProps {
   email: string;
@@ -29,6 +29,9 @@ interface SignInFormProps {
   setLoading: (loading: boolean) => void;
 }
 
+const isValidEmail = (v: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
 const SignInForm = ({
   email,
   setEmail,
@@ -38,75 +41,64 @@ const SignInForm = ({
   setLoading,
 }: SignInFormProps) => {
   const { toast } = useToast();
+  const mountedRef = useRef(true);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Reset dialog state
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   // --- GOOGLE OAUTH (manual redirect for reliability) ---
   const handleGoogleSignIn = async () => {
-    console.log("Google sign-in button clicked");
-    console.log("Current origin:", window.location.origin);
-
+    if (loading) return;
     setLoading(true);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`; // dedicated callback route
-
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
-          // Make Google always show account chooser & return refresh tokens
-          queryParams: {
-            prompt: "consent",
-            access_type: "offline",
-          },
-          // Return the URL so we can redirect ourselves
-          skipBrowserRedirect: true,
+          queryParams: { prompt: "consent", access_type: "offline" },
+          skipBrowserRedirect: true, // we will redirect ourselves
         },
       });
 
-      console.log("Google OAuth response:", { data, error });
-
       if (error) {
-        console.error("Google sign in error:", error);
-        toast({
-          title: "Google Sign In Failed",
-          description: `Error: ${error.message}. Check console for details.`,
-          variant: "destructive",
-        });
-        return;
+        throw error;
       }
-
-      if (data?.url) {
-        window.location.assign(data.url);
-      } else {
+      if (!data?.url) {
         throw new Error("No redirect URL returned from Supabase.");
       }
-    } catch (error: any) {
-      console.error("Unexpected Google sign in error:", error);
+
+      // Navigate away (this page will unload)
+      window.location.assign(data.url);
+      // Do not setLoading(false) here—navigation is in progress.
+    } catch (err: any) {
+      console.error("Google sign-in error:", err);
       toast({
-        title: "Error",
-        description: `Unexpected error: ${error.message || "Unknown error"}`,
+        title: "Google sign in failed",
+        description: err?.message || "Please try again.",
         variant: "destructive",
       });
-    } finally {
-      // If we navigated away this won't run, but safe if something failed
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
       toast({
-        title: "Email required",
-        description: "Please enter your email address.",
+        title: "Valid email required",
+        description: "Please enter a valid email address.",
         variant: "destructive",
       });
       return;
     }
-
     if (!password.trim()) {
       toast({
         title: "Password required",
@@ -117,35 +109,23 @@ const SignInForm = ({
     }
 
     setLoading(true);
-    console.log("Starting sign-in process for:", email);
 
     try {
-      console.log("Attempting to sign in with:", email);
-
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: trimmedEmail,
         password,
       });
 
-      console.log("Sign in response:", { 
-        success: !error, 
-        hasData: !!data, 
-        hasUser: !!data?.user, 
-        hasSession: !!data?.session,
-        error: error?.message 
-      });
-
       if (error) {
-        console.error("Sign in error:", error);
-
-        if (error.message.includes("Invalid login credentials")) {
+        const msg = error.message || "Sign in failed.";
+        if (/Invalid login credentials/i.test(msg)) {
           toast({
-            title: "Account not found",
+            title: "Check your credentials",
             description:
-              "No account found with this email/password. Try signing up first or use Google sign-in.",
+              "We couldn’t find an account with that email/password. Try again, sign up, or use Google.",
             variant: "destructive",
           });
-        } else if (error.message.includes("Email not confirmed")) {
+        } else if (/Email not confirmed/i.test(msg)) {
           toast({
             title: "Email not confirmed",
             description:
@@ -153,97 +133,80 @@ const SignInForm = ({
             variant: "destructive",
           });
         } else {
-          toast({
-            title: "Sign in failed",
-            description: error.message,
-            variant: "destructive",
-          });
+          toast({ title: "Sign in failed", description: msg, variant: "destructive" });
         }
         return;
       }
 
-      if (data.user && data.session) {
-        console.log("User signed in successfully:", data.user.email);
-        console.log("Session created:", data.session);
+      if (data?.user && data?.session) {
         toast({
           title: "Welcome back!",
-          description: "You've successfully signed in to CountedCare.",
+          description: "You’ve signed in to CountedCare.",
         });
-        // Navigation handled by an auth state listener elsewhere
+        // Navigation handled by your global auth listener
       }
-    } catch (error: any) {
-      console.error("Unexpected sign in error:", error);
+    } catch (err) {
+      console.error("Unexpected sign in error:", err);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (resetLoading) return;
 
-    if (!resetEmail.trim()) {
+    const trimmed = resetEmail.trim();
+    if (!trimmed || !isValidEmail(trimmed)) {
       toast({
-        title: "Email required",
-        description: "Please enter your email address.",
+        title: "Valid email required",
+        description: "Please enter the email associated with your account.",
         variant: "destructive",
       });
       return;
     }
 
     setResetLoading(true);
-
     try {
-      console.log("Sending password reset email to:", resetEmail);
-
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        resetEmail.trim(),
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
-        }
-      );
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
 
       if (error) {
-        console.error("Password reset error:", error);
-
-        if (error.message.includes("Email not found")) {
+        const msg = error.message || "Reset failed.";
+        if (/Email not found/i.test(msg)) {
           toast({
             title: "Email not found",
             description:
-              "No account found with this email address. Please check your email or sign up first.",
+              "We couldn’t find an account with that email. Check the address or sign up.",
             variant: "destructive",
           });
-        } else if (error.message.includes("rate limit")) {
+        } else if (/rate limit/i.test(msg)) {
           toast({
             title: "Too many requests",
-            description:
-              "Please wait a few minutes before requesting another password reset.",
+            description: "Please wait a few minutes before trying again.",
             variant: "destructive",
           });
         } else {
-          toast({
-            title: "Reset failed",
-            description: error.message,
-            variant: "destructive",
-          });
+          toast({ title: "Reset failed", description: msg, variant: "destructive" });
         }
         return;
       }
 
       toast({
-        title: "Password reset email sent!",
+        title: "Password reset sent",
         description:
-          "Check your email for a secure link to reset your password. The link will expire in 1 hour.",
+          "Check your inbox for a secure link to reset your password (expires in 1 hour).",
       });
-
       setResetDialogOpen(false);
       setResetEmail("");
-    } catch (error: any) {
-      console.error("Unexpected reset error:", error);
+    } catch (err) {
+      console.error("Unexpected reset error:", err);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -254,15 +217,13 @@ const SignInForm = ({
     }
   };
 
-
   return (
     <>
       <CardHeader>
         <CardTitle>Sign In</CardTitle>
-        <CardDescription>
-          Enter your credentials to access your account
-        </CardDescription>
+        <CardDescription>Enter your credentials to access your account</CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSignIn} className="space-y-4">
           <div className="space-y-2">
@@ -270,26 +231,40 @@ const SignInForm = ({
             <Input
               id="signin-email"
               type="email"
-              placeholder="your@email.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
               autoComplete="email"
+              inputMode="email"
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="signin-password">Password</Label>
-            <Input
-              id="signin-password"
-              type="password"
-              placeholder="Your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <Input
+                id="signin-password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                autoComplete="current-password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-0 px-3 grid place-items-center text-muted-foreground hover:text-foreground"
+                onClick={() => setShowPassword((s) => !s)}
+                disabled={loading}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
@@ -297,37 +272,33 @@ const SignInForm = ({
             Sign In
           </Button>
 
-
           <div className="text-center space-y-2">
             <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
               <DialogTrigger asChild>
-                <Button
-                  variant="link"
-                  className="text-sm text-primary"
-                  disabled={loading}
-                >
+                <Button variant="link" className="text-sm text-primary" disabled={loading}>
                   Forgot your password?
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Reset Your Password</DialogTitle>
+                  <DialogTitle>Reset your password</DialogTitle>
                   <DialogDescription>
-                    Enter your email address and we'll send you a secure link to
-                    reset your password.
+                    Enter your email address and we’ll send you a secure link to reset your password.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email">Email Address</Label>
+                    <Label htmlFor="reset-email">Email address</Label>
                     <Input
                       id="reset-email"
                       type="email"
-                      placeholder="your@email.com"
+                      placeholder="you@example.com"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       required
                       disabled={resetLoading}
+                      inputMode="email"
+                      autoComplete="email"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -340,15 +311,9 @@ const SignInForm = ({
                     >
                       Cancel
                     </Button>
-                    <Button
-                      type="submit"
-                      className="flex-1"
-                      disabled={resetLoading}
-                    >
-                      {resetLoading && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Send Reset Link
+                    <Button type="submit" className="flex-1" disabled={resetLoading}>
+                      {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send reset link
                     </Button>
                   </div>
                 </form>
@@ -361,7 +326,7 @@ const SignInForm = ({
               onClick={handleGoogleSignIn}
               disabled={loading}
             >
-              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -389,3 +354,4 @@ const SignInForm = ({
 };
 
 export default SignInForm;
+

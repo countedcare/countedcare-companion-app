@@ -25,6 +25,11 @@ interface PlaidSandboxTokenRequest {
   initial_products: string[];
 }
 
+interface PlaidFireWebhookRequest {
+  access_token: string;
+  webhook_code: string;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -68,6 +73,8 @@ serve(async (req) => {
         return await handleExchangePublicToken(body as PlaidExchangeTokenRequest, user.id, supabaseClient)
       case 'sync_transactions':
         return await handleSyncTransactions(body as PlaidSyncTransactionsRequest, user.id, supabaseClient)
+      case 'fire_test_webhook':
+        return await handleFireTestWebhook(body as PlaidFireWebhookRequest)
       default:
         console.log('Invalid action:', action);
         return new Response(JSON.stringify({ error: 'Invalid action' }), {
@@ -420,6 +427,46 @@ async function handleSyncTransactions(body: PlaidSyncTransactionsRequest, userId
     .eq('id', body.account_id);
 
   return new Response(JSON.stringify({ success: true, synced_count: syncedCount }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+async function handleFireTestWebhook(body: PlaidFireWebhookRequest) {
+  console.log('Firing test webhook with code:', body.webhook_code);
+  
+  const plaidClientId = Deno.env.get('PLAID_CLIENT_ID')
+  const plaidSecret = Deno.env.get('PLAID_SECRET')
+  
+  if (!plaidClientId || !plaidSecret) {
+    throw new Error('Plaid credentials not configured')
+  }
+
+  if (!body.access_token || !body.webhook_code) {
+    throw new Error('Access token and webhook code are required')
+  }
+
+  const response = await fetch('https://sandbox.plaid.com/sandbox/item/fire_webhook', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: plaidClientId,
+      secret: plaidSecret,
+      access_token: body.access_token,
+      webhook_code: body.webhook_code,
+    }),
+  });
+
+  const data = await response.json();
+  console.log('Webhook fire response:', response.status);
+  
+  if (!response.ok) {
+    console.error('Plaid webhook fire error:', data);
+    throw new Error(`Failed to fire webhook: ${data.error?.error_message || 'Unknown error'}`)
+  }
+
+  return new Response(JSON.stringify({ success: true, webhook_fired: true, data }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }

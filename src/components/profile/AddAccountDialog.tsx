@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   const [accountType, setAccountType] = useState('');
   const [institutionName, setInstitutionName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [stripeLoading, setStripeLoading] = useState(false);
+  const [plaidLoading, setPlaidLoading] = useState(false);
   
   const { addAccount } = useLinkedAccounts();
   const { toast } = useToast();
@@ -60,7 +60,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
     }
   };
 
-  const handleStripeConnect = async () => {
+  const handlePlaidConnect = async () => {
     if (!user) {
       toast({
         title: "Error",
@@ -70,17 +70,18 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       return;
     }
 
-    setStripeLoading(true);
+    setPlaidLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('stripe-financial-connections', {
+      // First, get the link token from our backend
+      const { data, error } = await supabase.functions.invoke('plaid-financial-connections', {
         body: {
-          action: 'create_session',
+          action: 'create_link_token',
           user_id: user.id
         }
       });
 
       if (error) {
-        console.error('Error creating Stripe session:', error);
+        console.error('Error creating Plaid link token:', error);
         toast({
           title: "Error",
           description: "Failed to initialize bank connection",
@@ -89,45 +90,69 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         return;
       }
 
-      if (data?.client_secret) {
-        // Load Stripe.js dynamically
+      if (data?.link_token) {
+        // Load Plaid Link dynamically
         const script = document.createElement('script');
-        script.src = 'https://js.stripe.com/v3/';
+        script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
         script.onload = () => {
-          const stripe = (window as any).Stripe('pk_test_51RNLZ48VcuR0IJ7tUosY2de4yhpHLK6h3KC27wIlBPWrCm1N2XK1D9BKcLNE3vWBCkvv0amHgUbqZe3WyKnsO8CK00CVcxqJPx');
-          
-          stripe.collectFinancialConnectionsAccounts({
-            clientSecret: data.client_secret,
-          }).then((result: any) => {
-            if (result.error) {
-              console.error('Stripe error:', result.error);
-              toast({
-                title: "Connection Error",
-                description: result.error.message,
-                variant: "destructive"
-              });
-            } else {
-              toast({
-                title: "Bank Connected",
-                description: "Your bank account has been connected successfully"
-              });
-              onOpenChange(false);
-              // Refresh the accounts list
-              window.location.reload();
+          const handler = (window as any).Plaid.create({
+            token: data.link_token,
+            onSuccess: async (public_token: string, metadata: any) => {
+              try {
+                // Exchange public token for access token
+                const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('plaid-financial-connections', {
+                  body: {
+                    action: 'exchange_public_token',
+                    public_token: public_token,
+                    account_name: metadata.institution?.name || 'Connected Account'
+                  }
+                });
+
+                if (exchangeError) {
+                  throw new Error(exchangeError.message);
+                }
+
+                toast({
+                  title: "Bank Connected",
+                  description: "Your bank account has been connected successfully"
+                });
+                onOpenChange(false);
+                // Refresh the accounts list
+                window.location.reload();
+              } catch (error) {
+                console.error('Error exchanging token:', error);
+                toast({
+                  title: "Connection Error",
+                  description: "Failed to complete bank connection",
+                  variant: "destructive"
+                });
+              }
+            },
+            onExit: (err: any, metadata: any) => {
+              if (err) {
+                console.error('Plaid Link exit error:', err);
+                toast({
+                  title: "Connection Cancelled",
+                  description: "Bank connection was cancelled",
+                  variant: "destructive"
+                });
+              }
             }
           });
+          
+          handler.open();
         };
         document.head.appendChild(script);
       }
     } catch (error) {
-      console.error('Error connecting to Stripe:', error);
+      console.error('Error connecting to Plaid:', error);
       toast({
         title: "Error",
         description: "Failed to connect to bank account service",
         variant: "destructive"
       });
     } finally {
-      setStripeLoading(false);
+      setPlaidLoading(false);
     }
   };
 
@@ -142,7 +167,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Stripe Connect Option */}
+          {/* Plaid Connect Option */}
           <div className="border rounded-lg p-4 space-y-3">
             <div className="flex items-center space-x-2">
               <CreditCard className="h-5 w-5 text-primary" />
@@ -152,11 +177,11 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
               Securely connect your bank account to automatically import and categorize transactions.
             </p>
             <Button 
-              onClick={handleStripeConnect} 
-              disabled={stripeLoading}
+              onClick={handlePlaidConnect} 
+              disabled={plaidLoading}
               className="w-full"
             >
-              {stripeLoading ? 'Connecting...' : 'Connect with Stripe'}
+              {plaidLoading ? 'Connecting...' : 'Connect with Plaid'}
             </Button>
           </div>
 

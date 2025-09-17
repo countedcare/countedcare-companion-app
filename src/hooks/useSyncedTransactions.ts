@@ -65,7 +65,7 @@ export const useSyncedTransactions = () => {
         description: "Fetching your latest transactions..."
       });
 
-      const { data, error } = await supabase.functions.invoke('stripe-financial-connections', {
+      const { data, error } = await supabase.functions.invoke('plaid-financial-connections', {
         body: {
           action: 'sync_transactions',
           account_id: accountId,

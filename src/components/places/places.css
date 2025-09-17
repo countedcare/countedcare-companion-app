@@ -1,6 +1,6 @@
 /* Google Places Autocomplete dropdown styling */
 .pac-container {
-  z-index: 9999 !important;
+  z-index: 1000 !important;
   background-color: hsl(var(--background)) !important;
   border: 1px solid hsl(var(--border));
   box-shadow: var(--shadow-elegant, 0 8px 24px hsl(var(--foreground) / 0.12));

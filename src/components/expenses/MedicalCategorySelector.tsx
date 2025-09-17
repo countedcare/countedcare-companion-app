@@ -164,7 +164,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
               <SelectValue placeholder="Browse All Categories" />
             </SelectTrigger>
             <SelectContent className="max-h-80 bg-background border z-50">
-              {MEDICAL_CATEGORIES.map((category) => (
+               {MEDICAL_CATEGORIES.filter(category => category.id?.trim()).map((category) => (
                 <div key={category.id}>
                   {/* Category Header */}
                   <SelectItem 
@@ -177,7 +177,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
                   </SelectItem>
                   
                   {/* Subcategories */}
-                  {category.subcategories.map((subcategory) => (
+                  {category.subcategories.filter(subcategory => subcategory.id?.trim()).map((subcategory) => (
                     <SelectItem 
                       key={`${category.id}|${subcategory.id}`}
                       value={`${category.id}|${subcategory.id}`}
@@ -289,7 +289,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
                 <SelectValue placeholder="Select a medical expense category" />
               </SelectTrigger>
               <SelectContent className="max-h-60 bg-background border z-50">
-                {getMedicalCategoryLabels().map((category) => (
+                {getMedicalCategoryLabels().filter(category => category?.trim()).map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
@@ -311,7 +311,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
                   <SelectValue placeholder="Select specific type (optional)" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60 bg-background border z-50">
-                  {availableSubcategories.map((subcategory) => (
+                  {availableSubcategories.filter(subcategory => subcategory?.trim()).map((subcategory) => (
                     <SelectItem key={subcategory} value={subcategory}>
                       {subcategory}
                     </SelectItem>

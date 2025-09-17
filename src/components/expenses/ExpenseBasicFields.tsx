@@ -74,21 +74,36 @@ const ExpenseBasicFields: React.FC<ExpenseBasicFieldsProps> = ({
         <Label htmlFor="source-account">Bank Account</Label>
         <Select value={sourceAccountId} onValueChange={setSourceAccountId}>
           <SelectTrigger className="w-full bg-background">
-            <SelectValue placeholder="Select account" />
+            <SelectValue placeholder={linkedAccounts.length > 0 ? "Select account" : "No accounts linked"} />
           </SelectTrigger>
           <SelectContent className="bg-background border shadow-lg z-50">
-            {linkedAccounts.map((account) => (
-              <SelectItem key={account.id} value={account.id}>
-                <div className="flex flex-col">
-                  <span className="font-medium">{account.account_name}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {account.account_type.toUpperCase()}{account.institution_name ? ` • ${account.institution_name}` : ''}
-                  </span>
-                </div>
+            {linkedAccounts.length > 0 ? (
+              linkedAccounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{account.account_name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {account.account_type.toUpperCase()}{account.institution_name ? ` • ${account.institution_name}` : ''}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="" disabled>
+                <span className="text-muted-foreground">No linked accounts found</span>
               </SelectItem>
-            ))}
+            )}
           </SelectContent>
         </Select>
+        {linkedAccounts.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Add linked accounts in your{' '}
+            <a href="/profile" className="text-primary hover:underline">
+              Profile page
+            </a>{' '}
+            to track expenses by account.
+          </p>
+        )}
       </div>
       
       <div className="space-y-2">

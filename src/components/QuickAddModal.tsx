@@ -25,7 +25,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
   const quickActions = [
     {
       id: 'scan-receipt',
-      title: 'Scan a Receipt',
+      title: 'Scan/Upload Receipt',
       description: 'Capture or upload receipt photo',
       icon: Camera,
       action: () => {

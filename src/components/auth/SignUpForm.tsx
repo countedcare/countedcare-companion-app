@@ -23,31 +23,36 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
   const { toast } = useToast();
 
   const handleGoogleSignUp = async () => {
+    if (loading) return;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/`
-        }
+          redirectTo,
+          queryParams: { prompt: "consent", access_type: "offline" },
+          skipBrowserRedirect: true, // we will redirect ourselves
+        },
       });
 
       if (error) {
-        console.error('Google sign up error:', error);
-        toast({
-          title: "Google Sign Up Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        throw error;
       }
-    } catch (error: any) {
-      console.error('Unexpected Google sign up error:', error);
+      if (!data?.url) {
+        throw new Error("No redirect URL returned from Supabase.");
+      }
+
+      // Navigate away (this page will unload)
+      window.location.assign(data.url);
+      // Do not setLoading(false) here—navigation is in progress.
+    } catch (err: any) {
+      console.error("Google sign-up error:", err);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred with Google sign up.",
+        title: "Google sign up failed",
+        description: err?.message || "Please try again.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };

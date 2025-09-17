@@ -131,4 +131,43 @@ const Auth = () => {
 
   // Default Auth (Sign in / Sign up)
   return (
-    <div className="min-h-screen flex
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral-50">
+      <AuthHeader />
+      <Card className="w-full max-w-md">
+        <Tabs value={tab} onValueChange={(value) => setTab(value as "signin" | "signup")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="signin">Sign In</TabsTrigger>
+            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          </TabsList>
+          <TabsContent value="signin">
+            <SignInForm
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              loading={loading}
+              setLoading={setLoading}
+            />
+          </TabsContent>
+          <TabsContent value="signup">
+            <SignUpForm
+              name={name}
+              setName={setName}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              loading={loading}
+              setLoading={setLoading}
+            />
+          </TabsContent>
+        </Tabs>
+      </Card>
+      <div className="mt-4 text-sm text-gray-500">
+        <p>© 2025 CountedCare. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
+export default Auth;

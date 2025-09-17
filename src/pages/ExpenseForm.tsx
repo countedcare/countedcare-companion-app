@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import Layout from '@/components/Layout';
 import { Expense, EXPENSE_CATEGORIES } from '@/types/User';
-import EnhancedExpenseFields from '@/components/expenses/EnhancedExpenseFields';
+
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,11 +44,6 @@ const ExpenseForm = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingDocument, setIsProcessingDocument] = useState(false);
   
-  // Enhanced tracking fields
-  const [expenseTags, setExpenseTags] = useState<string[]>([]);
-  const [isTaxDeductible, setIsTaxDeductible] = useState(true);
-  const [reimbursementSource, setReimbursementSource] = useState('');
-  const [linkedAccountId, setLinkedAccountId] = useState('');
   
   // Google Maps integration
   const { apiKey, isConfigured } = useGoogleMapsAPI();
@@ -114,10 +109,6 @@ const ExpenseForm = () => {
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
         setReceiptUrl(expenseToEdit.receiptUrl);
-        setExpenseTags(expenseToEdit.expense_tags || []);
-        setIsTaxDeductible(expenseToEdit.is_tax_deductible || false);
-        setReimbursementSource(expenseToEdit.reimbursement_source || '');
-        setLinkedAccountId(expenseToEdit.synced_transaction_id || '');
       }
     }
   }, [id, expenses]);
@@ -165,15 +156,6 @@ const ExpenseForm = () => {
       setDescription(extractedData.description);
     }
     
-    // Set as potentially tax deductible for medical expenses
-    if (extractedData.category && (
-      extractedData.category.toLowerCase().includes('medical') ||
-      extractedData.category.toLowerCase().includes('pharmacy') ||
-      extractedData.category.toLowerCase().includes('dental')
-    )) {
-      setIsTaxDeductible(true);
-    }
-    
     toast({
       title: "Form Auto-Populated!",
       description: "Please review and adjust the extracted information as needed.",
@@ -212,8 +194,6 @@ const ExpenseForm = () => {
         user_id: authUser.id,
         care_recipient_id: careRecipientId || null,
         receipt_url: receiptUrl || null,
-        is_tax_deductible: isTaxDeductible,
-        reimbursement_source: reimbursementSource && reimbursementSource !== 'none' ? reimbursementSource : null,
         notes: description || null
       };
 
@@ -398,17 +378,6 @@ const ExpenseForm = () => {
                   />
                 </div>
                 
-                {/* Enhanced Expense Fields */}
-                <EnhancedExpenseFields
-                  expenseTags={expenseTags}
-                  setExpenseTags={setExpenseTags}
-                  isTaxDeductible={isTaxDeductible}
-                  setIsTaxDeductible={setIsTaxDeductible}
-                  reimbursementSource={reimbursementSource}
-                  setReimbursementSource={setReimbursementSource}
-                  linkedAccountId={linkedAccountId}
-                  setLinkedAccountId={setLinkedAccountId}
-                />
               </div>
               
               {/* Form Actions */}

@@ -181,6 +181,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
   }, [plaidReady, linkToken, onOpenChange, toast]);
 
   const openPlaid = useCallback(() => {
+    // Guard checks
     if (!user) {
       toast({
         title: "Sign in required",
@@ -198,21 +199,29 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
       return;
     }
     if (openingRef.current) return;
+    
     openingRef.current = true;
     setPlaidLoading(true);
-    try {
-      handlerRef.current.open();
-    } catch (e) {
-      openingRef.current = false;
-      setPlaidLoading(false);
-      console.error("handler.open error:", e);
-      toast({
-        title: "Open failed",
-        description: "Could not open the bank connection window.",
-        variant: "destructive",
-      });
-    }
-  }, [user, plaidReady, linkToken, toast]);
+    
+    // Close the Radix dialog before opening Plaid
+    onOpenChange(false);
+    
+    // Open Plaid on the next frame to ensure dialog is closed
+    requestAnimationFrame(() => {
+      try {
+        handlerRef.current.open();
+      } catch (e) {
+        openingRef.current = false;
+        setPlaidLoading(false);
+        console.error("handler.open error:", e);
+        toast({
+          title: "Open failed",
+          description: "Could not open the bank connection window.",
+          variant: "destructive",
+        });
+      }
+    });
+  }, [user, plaidReady, linkToken, onOpenChange, toast]);
 
   // Prevent closing while Plaid is in-flight (optional)
   const handleDialogChange = (nextOpen: boolean) => {

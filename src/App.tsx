@@ -8,7 +8,9 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import ResetPassword from "./pages/ResetPassword";
+import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
+import Deductions from "./pages/Deductions";
 import Expenses from "./pages/Expenses";
 import ExpenseForm from "./pages/ExpenseForm";
 import CareRecipients from "./pages/CareRecipients";
@@ -39,9 +41,24 @@ const App = () => (
                 <Onboarding />
               </ProtectedRoute>
             } />
+            <Route path="/home" element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            } />
+            <Route path="/home/transactions" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/deductions" element={
+              <ProtectedRoute>
+                <Deductions />
               </ProtectedRoute>
             } />
             <Route path="/expenses" element={

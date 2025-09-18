@@ -17,9 +17,9 @@ const Index = () => {
       return
     }
 
-    // If user is already logged in, redirect to dashboard
+    // If user is already logged in, redirect to home
     if (!loading && user) {
-      navigate('/dashboard')
+      navigate('/home')
     }
   }, [user, loading, navigate])
 

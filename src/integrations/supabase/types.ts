@@ -301,8 +301,10 @@ export type Database = {
           is_reimbursed: boolean | null
           is_tax_deductible: boolean | null
           linked_account_id: string | null
+          matched_expense_id: string | null
           merchant_name: string | null
           reimbursement_source: string | null
+          review_status: string | null
           transaction_id: string
           updated_at: string
           user_id: string
@@ -320,8 +322,10 @@ export type Database = {
           is_reimbursed?: boolean | null
           is_tax_deductible?: boolean | null
           linked_account_id?: string | null
+          matched_expense_id?: string | null
           merchant_name?: string | null
           reimbursement_source?: string | null
+          review_status?: string | null
           transaction_id: string
           updated_at?: string
           user_id: string
@@ -339,8 +343,10 @@ export type Database = {
           is_reimbursed?: boolean | null
           is_tax_deductible?: boolean | null
           linked_account_id?: string | null
+          matched_expense_id?: string | null
           merchant_name?: string | null
           reimbursement_source?: string | null
+          review_status?: string | null
           transaction_id?: string
           updated_at?: string
           user_id?: string
@@ -358,6 +364,13 @@ export type Database = {
             columns: ["linked_account_id"]
             isOneToOne: false
             referencedRelation: "linked_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "synced_transactions_matched_expense_id_fkey"
+            columns: ["matched_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
             referencedColumns: ["id"]
           },
         ]

@@ -14,6 +14,7 @@ import { SpendingSummaryHeader } from '@/components/dashboard/SpendingSummaryHea
 import { AccountsOverview } from '@/components/dashboard/AccountsOverview';
 import { PaydayCountdown } from '@/components/dashboard/PaydayCountdown';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
+import { HomeTransactions } from '@/pages/home/HomeTransactions';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -267,8 +268,9 @@ const Dashboard = () => {
         {/* Tabs Navigation */}
         <div className="px-4">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+            <TabsList className="grid w-full grid-cols-5 bg-white shadow-sm">
               <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="transactions">Review</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
               <TabsTrigger value="insights">Insights</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
@@ -341,6 +343,10 @@ const Dashboard = () => {
                 monthlyData={monthlyData}
                 filteredExpenses={displayExpenses as unknown as any[]}
               />
+            </TabsContent>
+
+            <TabsContent value="transactions" className="mt-4">
+              <HomeTransactions />
             </TabsContent>
 
             <TabsContent value="expenses">

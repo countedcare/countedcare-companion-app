@@ -44,8 +44,7 @@ const Onboarding = () => {
     }
     
     // User is authenticated, check if they completed onboarding
-    if (profile && profile.onboarding_complete) {
-      console.log('Onboarding complete, navigating to /home');
+    if (profile?.onboarding_complete) {
       navigate('/home', { replace: true });
     }
   }, [user, authLoading, profile, profileLoading, navigate]);

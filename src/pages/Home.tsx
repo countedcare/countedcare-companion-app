@@ -17,9 +17,9 @@ const Home = () => {
   const { profile } = useSupabaseProfile();
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  // Redirect to onboarding if not completed
+  // Redirect to onboarding if not completed (only after profile loads)
   React.useEffect(() => {
-    if (!profile?.onboarding_complete) {
+    if (profile && !profile.onboarding_complete) {
       navigate('/onboarding');
     }
   }, [profile, navigate]);

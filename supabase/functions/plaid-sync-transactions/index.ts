@@ -74,8 +74,10 @@ async function fetchPlaidTransactions(accessToken: string, days: number = 30) {
       access_token: accessToken,
       start_date: startDate.toISOString().split('T')[0],
       end_date: endDate.toISOString().split('T')[0],
-      count: 500,
-      offset: 0
+      options: {
+        count: 500,
+        offset: 0
+      }
     })
   });
   

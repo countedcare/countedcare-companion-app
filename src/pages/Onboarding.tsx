@@ -35,7 +35,7 @@ const Onboarding = () => {
 
   // Check authentication and onboarding status
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || profileLoading) return;
     
     if (!user) {
       // User is not authenticated, redirect to auth
@@ -44,10 +44,11 @@ const Onboarding = () => {
     }
     
     // User is authenticated, check if they completed onboarding
-    if (profile?.onboarding_complete) {
-      navigate('/dashboard');
+    if (profile && profile.onboarding_complete) {
+      console.log('Onboarding complete, navigating to /home');
+      navigate('/home', { replace: true });
     }
-  }, [user, authLoading, profile?.onboarding_complete, navigate]);
+  }, [user, authLoading, profile, profileLoading, navigate]);
 
   const handleNext = async () => {
     // Validate step 1 (User Info) - check profile data

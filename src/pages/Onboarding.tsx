@@ -24,10 +24,10 @@ const Onboarding = () => {
   const [tempProfileData, setTempProfileData] = useState({
     name: '',
     email: '',
-    is_caregiver: true,
-    caregiving_for: [] as string[],
-    zip_code: '',
-    household_agi: undefined as number | undefined
+    isCaregiver: true,
+    caregivingFor: [] as string[],
+    zipCode: '',
+    householdAGI: undefined as number | undefined
   });
   
   const [selectedRelationship, setSelectedRelationship] = useState<string>("");
@@ -68,11 +68,11 @@ const Onboarding = () => {
     if (step === 2) {
       const updatedData = {
         ...tempProfileData,
-        caregiving_for: tempProfileData.caregiving_for || []
+        caregivingFor: tempProfileData.caregivingFor || []
       };
       
-      if (selectedRelationship && !updatedData.caregiving_for.includes(selectedRelationship)) {
-        updatedData.caregiving_for = [...updatedData.caregiving_for, selectedRelationship];
+      if (selectedRelationship && !updatedData.caregivingFor.includes(selectedRelationship)) {
+        updatedData.caregivingFor = [...updatedData.caregivingFor, selectedRelationship];
       }
       
       setTempProfileData(updatedData);
@@ -83,17 +83,26 @@ const Onboarding = () => {
       setStep(step + 1);
     } else {
       try {
-        await updateProfile({
-          ...tempProfileData,
+        // Map camelCase UI fields to snake_case database fields
+        const dbData = {
+          name: tempProfileData.name,
+          email: tempProfileData.email,
+          is_caregiver: tempProfileData.isCaregiver,
+          caregiving_for: tempProfileData.caregivingFor,
+          zip_code: tempProfileData.zipCode,
+          household_agi: tempProfileData.householdAGI,
           onboarding_complete: true
-        });
+        };
+        
+        await updateProfile(dbData);
         
         toast({
           title: "Welcome to CountedCare! 🎉",
           description: "Your profile is set up and ready to help you track expenses and find resources.",
         });
-        navigate('/dashboard');
+        navigate('/home');
       } catch (error) {
+        console.error('Onboarding error:', error);
         toast({
           title: "Error",
           description: "Failed to complete onboarding. Please try again.",

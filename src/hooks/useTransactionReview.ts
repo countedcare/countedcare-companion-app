@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 
 export interface Transaction {
   id: string;
@@ -37,6 +38,7 @@ export function useTransactionReview({ sort = 'newest', filter = 'all' }: UseTra
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { accounts: linkedAccounts } = useLinkedAccounts();
 
   // Fetch transactions
   const {
@@ -86,6 +88,11 @@ export function useTransactionReview({ sort = 'newest', filter = 'all' }: UseTra
   // Sync transactions mutation
   const syncTransactionsMutation = useMutation({
     mutationFn: async (days: number = 30) => {
+      // Check if user has linked accounts
+      if (!linkedAccounts || linkedAccounts.length === 0) {
+        throw new Error('No linked financial accounts found. Please link an account first.');
+      }
+
       const { data, error } = await supabase.functions.invoke('plaid-sync-transactions', {
         body: { days }
       });
@@ -102,9 +109,14 @@ export function useTransactionReview({ sort = 'newest', filter = 'all' }: UseTra
     },
     onError: (error) => {
       console.error('Sync error:', error);
+      
+      const errorMessage = error.message.includes('No linked financial accounts') 
+        ? 'No linked accounts found. Please link a financial account in your profile first.'
+        : 'Failed to sync transactions. Please try again.';
+      
       toast({
-        title: 'Sync failed',
-        description: 'Failed to sync transactions. Please try again.',
+        title: 'Sync failed', 
+        description: errorMessage,
         variant: 'destructive'
       });
     }
@@ -207,7 +219,8 @@ export function useTransactionReview({ sort = 'newest', filter = 'all' }: UseTra
   // Calculate stats
   const stats = {
     totalPending: transactions.filter(tx => tx.review_status === 'pending').length,
-    totalCandidates: transactions.filter(tx => tx.is_potential_medical && tx.review_status === 'pending').length
+    totalCandidates: transactions.filter(tx => tx.is_potential_medical && tx.review_status === 'pending').length,
+    linkedAccountsCount: linkedAccounts.length
   };
 
   return {

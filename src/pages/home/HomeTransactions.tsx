@@ -63,6 +63,7 @@ export function HomeTransactions() {
             isSyncing={isSyncing}
             totalPending={stats.totalPending}
             totalCandidates={stats.totalCandidates}
+            linkedAccountsCount={stats.linkedAccountsCount}
           />
 
           <div className="mt-8">

@@ -12,6 +12,7 @@ interface TopFiltersProps {
   isSyncing?: boolean;
   totalPending?: number;
   totalCandidates?: number;
+  linkedAccountsCount?: number;
 }
 
 export function TopFilters({
@@ -22,7 +23,8 @@ export function TopFilters({
   onSync,
   isSyncing = false,
   totalPending = 0,
-  totalCandidates = 0
+  totalCandidates = 0,
+  linkedAccountsCount = 0
 }: TopFiltersProps) {
   return (
     <div className="space-y-4">
@@ -33,7 +35,7 @@ export function TopFilters({
         </div>
         <Button
           onClick={onSync}
-          disabled={isSyncing}
+          disabled={isSyncing || linkedAccountsCount === 0}
           variant="outline"
           size="sm"
         >
@@ -79,6 +81,11 @@ export function TopFilters({
 
       {/* Summary badges */}
       <div className="flex gap-2 flex-wrap">
+        {linkedAccountsCount === 0 && (
+          <Badge variant="outline" className="text-amber-600 border-amber-200">
+            No linked accounts - link an account in Profile to sync
+          </Badge>
+        )}
         {totalPending > 0 && (
           <Badge variant="outline">
             {totalPending} pending review

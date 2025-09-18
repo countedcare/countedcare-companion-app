@@ -182,8 +182,15 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
             <p className="text-sm text-muted-foreground">
               Securely connect your bank account to automatically import and categorize transactions.
             </p>
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md p-3 mb-3">
+              <p className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-1">Sandbox Mode - Test Credentials:</p>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Username: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">user_good</code> | 
+                Password: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded ml-1">pass_good</code>
+              </p>
+            </div>
             <Button onClick={handlePlaidConnect} disabled={plaidLoading || !plaidReady} className="w-full">
-              {plaidLoading ? "Connecting..." : "Connect with Plaid"}
+              {plaidLoading ? "Connecting..." : "Connect with Plaid (Sandbox)"}
             </Button>
             {!plaidReady && (
               <p className="text-xs text-muted-foreground text-center">

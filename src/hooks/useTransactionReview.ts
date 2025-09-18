@@ -21,7 +21,7 @@ export interface Transaction {
 }
 
 interface ExpenseFormData {
-  date: Date;
+  date: Date | string;
   vendor: string;
   amount: number;
   category: string;
@@ -154,22 +154,24 @@ export function useTransactionReview({ sort = 'newest', filter = 'all' }: UseTra
     }) => {
       if (!user) throw new Error('Not authenticated');
 
-      // Create the expense
-      const { data: expense, error: expenseError } = await supabase
-        .from('expenses')
-        .insert({
-          user_id: user.id,
-          date: expenseData.date.toISOString().split('T')[0],
-          vendor: expenseData.vendor,
-          amount: expenseData.amount,
-          category: expenseData.category,
-          notes: expenseData.notes,
-          is_tax_deductible: expenseData.is_tax_deductible,
-          is_potentially_deductible: expenseData.is_tax_deductible,
-          synced_transaction_id: transactionId
-        })
-        .select()
-        .single();
+        // Create the expense
+        const { data: expense, error: expenseError } = await supabase
+          .from('expenses')
+          .insert({
+            user_id: user.id,
+            date: typeof expenseData.date === 'string' 
+              ? expenseData.date 
+              : expenseData.date.toISOString().split('T')[0],
+            vendor: expenseData.vendor,
+            amount: expenseData.amount,
+            category: expenseData.category,
+            notes: expenseData.notes,
+            is_tax_deductible: expenseData.is_tax_deductible,
+            is_potentially_deductible: expenseData.is_tax_deductible,
+            synced_transaction_id: transactionId
+          })
+          .select()
+          .single();
 
       if (expenseError) throw expenseError;
 

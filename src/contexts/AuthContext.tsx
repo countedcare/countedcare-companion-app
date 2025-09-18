@@ -28,14 +28,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
+        
+        console.log('Auth state change:', event, !!session);
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        
+        // Only set loading to false after initialization is complete
+        if (initialized) {
+          setLoading(false);
+        }
       }
     );
 
@@ -46,21 +56,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (error) {
           console.error('Error getting initial session:', error);
         }
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        if (isMounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setInitialized(true);
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Unexpected error getting session:', error);
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setInitialized(true);
+          setLoading(false);
+        }
       }
     };
 
     getInitialSession();
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array
 
   const signOut = async () => {
     try {

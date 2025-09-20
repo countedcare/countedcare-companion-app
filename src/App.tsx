@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Onboarding from "./pages/Onboarding";
+import TransactionTriage from "./pages/TransactionTriage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,7 +49,7 @@ const App = () => (
             } />
             <Route path="/home/transactions" element={
               <ProtectedRoute>
-                <Dashboard />
+                <TransactionTriage />
               </ProtectedRoute>
             } />
             <Route path="/dashboard" element={

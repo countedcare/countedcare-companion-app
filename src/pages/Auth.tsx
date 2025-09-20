@@ -68,7 +68,7 @@ const Auth = () => {
 
         // 4) If session exists and we’re not in a recovery flow, route to app
         if (session && !urlInfo.hasAccessToken && !urlInfo.type) {
-          navigate("/dashboard");
+          navigate("/home");
         }
       } catch (e) {
         console.error("Auth init error:", e);
@@ -84,7 +84,7 @@ const Auth = () => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       // console.debug("Auth state:", event, session?.user?.email);
       if (event === "SIGNED_IN" && session && !isPasswordRecovery) {
-        navigate("/dashboard");
+        navigate("/home");
       }
       if (event === "PASSWORD_RECOVERY") {
         setIsPasswordRecovery(true);

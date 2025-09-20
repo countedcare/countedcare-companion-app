@@ -250,6 +250,24 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         <MapPin className="h-4 w-4 text-blue-600" />
         <h4 className="font-medium text-blue-900">Track Mileage</h4>
       </div>
+      
+      {!isConfigured && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            <div className="space-y-2">
+              <p><strong>Google Maps API Configuration Required</strong></p>
+              <p>Add this domain to your Google Maps API restrictions:</p>
+              <code className="bg-gray-800 text-white px-2 py-1 rounded text-xs block mt-1">
+                {window.location.origin}/*
+              </code>
+              <p className="text-xs mt-2">
+                Go to Google Cloud Console → APIs & Services → Credentials → Edit your API key → Application restrictions → HTTP referrers
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <p className="text-xs text-muted-foreground">Tip: Allow location access to quickly set your current location for From/To.</p>
       
       <div className="grid grid-cols-1 gap-4">

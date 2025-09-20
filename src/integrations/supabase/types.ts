@@ -542,6 +542,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_all_user_transactions: {
+        Args: {
+          p_filter?: string
+          p_limit?: number
+          p_offset?: number
+          p_user_id: string
+        }
+        Returns: {
+          account_id: string
+          amount: number
+          authorized_date: string
+          category: string
+          date: string
+          expense_category: string
+          expense_id: string
+          is_confirmed_medical: boolean
+          is_potential_medical: boolean
+          iso_currency_code: string
+          location: Json
+          merchant_entity_id: string
+          merchant_name: string
+          name: string
+          payment_channel: string
+          pending: boolean
+          personal_finance_category: Json
+          subcategory: string
+          transaction_id: string
+          triage_created_at: string
+          triage_decision: string
+        }[]
+      }
       get_pending_triage_transactions: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: {

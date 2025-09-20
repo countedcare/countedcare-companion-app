@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Onboarding from "./pages/Onboarding";
 import TransactionTriage from "./pages/TransactionTriage";
+import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,11 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/home/transactions" element={
+              <ProtectedRoute>
+                <Transactions />
+              </ProtectedRoute>
+            } />
+            <Route path="/triage" element={
               <ProtectedRoute>
                 <TransactionTriage />
               </ProtectedRoute>
@@ -95,6 +101,11 @@ const App = () => (
             <Route path="/resources" element={
               <ProtectedRoute>
                 <Resources />
+              </ProtectedRoute>
+            } />
+            <Route path="/transactions" element={
+              <ProtectedRoute>
+                <Transactions />
               </ProtectedRoute>
             } />
             <Route path="/profile" element={

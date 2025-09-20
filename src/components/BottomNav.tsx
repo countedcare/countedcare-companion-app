@@ -6,7 +6,7 @@ import { Home, CreditCard, TrendingUp, User } from 'lucide-react';
 const BottomNav: React.FC = () => {
   const navItems = [
     { icon: Home, text: 'Home', path: '/home' },
-    { icon: CreditCard, text: 'Transactions', path: '/home/transactions' },
+    { icon: CreditCard, text: 'Transactions', path: '/transactions' },
     { icon: TrendingUp, text: 'Deductions', path: '/deductions' },
     { icon: User, text: 'Profile', path: '/profile' },
   ];

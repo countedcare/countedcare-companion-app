@@ -223,6 +223,22 @@ const MileageForm = () => {
         
         <form onSubmit={handleSubmit}>
           <div className="space-y-6">
+            {/* Mileage Calculator Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Calculate Mileage
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MileageCalculator 
+                  onAmountCalculated={handleMileageAmountCalculated}
+                  apiKey={apiKey}
+                />
+              </CardContent>
+            </Card>
+
             {/* Basic Information Card */}
             <Card>
               <CardHeader>
@@ -263,22 +279,6 @@ const MileageForm = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Mileage Calculator Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calculator className="h-5 w-5" />
-                  Calculate Mileage
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MileageCalculator 
-                  onAmountCalculated={handleMileageAmountCalculated}
-                  apiKey={apiKey}
-                />
               </CardContent>
             </Card>
 

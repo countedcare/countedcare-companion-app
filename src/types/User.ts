@@ -218,6 +218,7 @@ export interface Expense {
   reimbursement_source?: string;
   synced_transaction_id?: string;
   source_account_id?: string;
+  linked_account_id?: string;
   created_at?: string;
   updated_at?: string;
   user_id?: string;

@@ -146,7 +146,7 @@ const ExpenseForm = () => {
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
         setReceiptUrl(expenseToEdit.receiptUrl);
-        setSourceAccountId(expenseToEdit.source_account_id || '');
+        setSourceAccountId(expenseToEdit.linked_account_id || '');
       }
     }
   }, [id, expenses]);
@@ -233,7 +233,7 @@ const ExpenseForm = () => {
         care_recipient_id: careRecipientId || null,
         receipt_url: receiptUrl || null,
         notes: description || null,
-        source_account_id: sourceAccountId || null,
+        linked_account_id: sourceAccountId || null,
       };
 
       if (id) {

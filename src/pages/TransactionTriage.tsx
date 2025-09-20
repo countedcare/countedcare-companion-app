@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useTransactionTriage, PrefillExpense } from '@/hooks/useTransactionTriage';
+import { useTransactionTriage } from '@/hooks/useTransactionTriage';
 import { TransactionCard } from '@/components/transactions/TransactionCard';
 import { TransactionDetailsSheet } from '@/components/transactions/TransactionDetailsSheet';
-import { ConfirmKeepSheet } from '@/components/transactions/ConfirmKeepSheet';
-import { AddReceiptSheet } from '@/components/transactions/AddReceiptSheet';
-import { Undo, HelpCircle, CheckCircle, ArrowLeft, ArrowRight, Info } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { Undo, CheckCircle, ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const TransactionTriage = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
   const {
@@ -36,10 +33,6 @@ const TransactionTriage = () => {
   } = useTransactionTriage();
 
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
-  const [showConfirmSheet, setShowConfirmSheet] = useState(false);
-  const [showReceiptSheet, setShowReceiptSheet] = useState(false);
-  const [pendingExpense, setPendingExpense] = useState<PrefillExpense | null>(null);
-  const [createdExpenseId, setCreatedExpenseId] = useState<string | null>(null);
   const [showUndoToast, setShowUndoToast] = useState(false);
 
   const showUndoNotification = (duration = 7000) => {
@@ -52,8 +45,24 @@ const TransactionTriage = () => {
 
     const prefillExpense = await handleKeep(currentTransaction);
     if (prefillExpense) {
-      setPendingExpense(prefillExpense);
-      setShowConfirmSheet(true);
+      // Navigate to expense form with prefilled data
+      const searchParams = new URLSearchParams({
+        prefill: 'true',
+        external_id: prefillExpense.external_id,
+        account_id: prefillExpense.account_id,
+        date: prefillExpense.date,
+        amount: prefillExpense.amount.toString(),
+        currency: prefillExpense.currency,
+        merchant: prefillExpense.merchant,
+        memo: prefillExpense.memo,
+        category_guess: prefillExpense.category_guess,
+        payment_channel: prefillExpense.payment_channel,
+        status: prefillExpense.status,
+        is_refund: prefillExpense.is_refund.toString(),
+        is_medical_related: prefillExpense.is_medical_related?.toString() || 'false'
+      });
+      
+      navigate(`/expenses/new?${searchParams.toString()}`);
       showUndoNotification();
     }
   };
@@ -65,122 +74,6 @@ const TransactionTriage = () => {
     showUndoNotification();
   };
 
-  const onConfirmWithReceipt = async (expense: PrefillExpense) => {
-    if (!user) return;
-
-    try {
-      // Create expense in database
-      const { data, error } = await supabase
-        .from('expenses')
-        .insert({
-          user_id: user.id,
-          source: 'plaid',
-          external_id: expense.external_id,
-          linked_account_id: expense.account_id,
-          date: expense.date,
-          amount: expense.amount,
-          currency: expense.currency,
-          is_refund: expense.is_refund,
-          merchant: expense.merchant,
-          description: expense.memo,
-          memo: expense.memo,
-          category_raw: expense.category_raw,
-          category_guess: expense.category_guess,
-          category: expense.category_guess,
-          payment_channel: expense.payment_channel,
-          status: expense.status,
-          location: expense.location,
-          counterparty_id: expense.counterparty_id,
-          care_recipient_id: expense.care_recipient_id,
-          notes: expense.notes,
-          is_tax_deductible: expense.is_medical_related || false,
-          receipt_required_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days from now
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-
-      setCreatedExpenseId(data.id);
-      setShowConfirmSheet(false);
-      setShowReceiptSheet(true);
-    } catch (error) {
-      console.error('Error creating expense:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save expense",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const onSaveWithoutReceipt = async (expense: PrefillExpense) => {
-    if (!user) return;
-
-    try {
-      // Create expense in database without receipt
-      const { data, error } = await supabase
-        .from('expenses')
-        .insert({
-          user_id: user.id,
-          source: 'plaid',
-          external_id: expense.external_id,
-          linked_account_id: expense.account_id,
-          date: expense.date,
-          amount: expense.amount,
-          currency: expense.currency,
-          is_refund: expense.is_refund,
-          merchant: expense.merchant,
-          description: expense.memo,
-          memo: expense.memo,
-          category_raw: expense.category_raw,
-          category_guess: expense.category_guess,
-          category: expense.category_guess,
-          payment_channel: expense.payment_channel,
-          status: expense.status,
-          location: expense.location,
-          counterparty_id: expense.counterparty_id,
-          care_recipient_id: expense.care_recipient_id,
-          notes: expense.notes,
-          is_tax_deductible: expense.is_medical_related || false,
-          receipt_required_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days from now
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-
-      setShowConfirmSheet(false);
-      
-      const categoryPath = expense.category_guess.replace(' > ', ' → ');
-      toast({
-        title: "Expense saved!",
-        description: `Saved to ${categoryPath} — receipt reminder set ⏰`,
-      });
-
-      showUndoNotification();
-    } catch (error) {
-      console.error('Error creating expense:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save expense",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const onReceiptAdded = (receiptUrl: string) => {
-    const categoryPath = pendingExpense?.category_guess.replace(' > ', ' → ') || '';
-    toast({
-      title: "Expense saved!",
-      description: `Saved to ${categoryPath} — receipt attached ✅`,
-    });
-    
-    setShowReceiptSheet(false);
-    setPendingExpense(null);
-    setCreatedExpenseId(null);
-    showUndoNotification();
-  };
 
   const handleTipsClick = () => {
     incrementTipsShown();
@@ -357,21 +250,6 @@ const TransactionTriage = () => {
         onClose={() => setShowDetailsSheet(false)}
         onKeep={onKeepTransaction}
         onSkip={onSkipTransaction}
-      />
-
-      <ConfirmKeepSheet
-        expense={pendingExpense}
-        isOpen={showConfirmSheet}
-        onClose={() => setShowConfirmSheet(false)}
-        onConfirmWithReceipt={onConfirmWithReceipt}
-        onSaveWithoutReceipt={onSaveWithoutReceipt}
-      />
-
-      <AddReceiptSheet
-        expenseId={createdExpenseId}
-        isOpen={showReceiptSheet}
-        onClose={() => setShowReceiptSheet(false)}
-        onReceiptAdded={onReceiptAdded}
       />
     </Layout>
   );

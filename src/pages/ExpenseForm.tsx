@@ -88,16 +88,50 @@ const ExpenseForm = () => {
     loadExpenses();
   }, [authUser]);
   
-  // Handle pre-selected category from URL params
+  // Handle pre-selected category from URL params and Plaid prefill
   useEffect(() => {
     const categoryParam = searchParams.get('category');
     const subcategoryParam = searchParams.get('subcategory');
+    const isPrefill = searchParams.get('prefill') === 'true';
     
     if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
       setCategory('🚘 Transportation & Travel for Medical Care');
       setSubcategory('Mileage for car travel (21 cents/mile in 2024)');
     }
-  }, [searchParams]);
+    
+    // Prefill from Plaid transaction data
+    if (isPrefill) {
+      const prefillData = {
+        external_id: searchParams.get('external_id'),
+        account_id: searchParams.get('account_id'),
+        date: searchParams.get('date'),
+        amount: searchParams.get('amount'),
+        currency: searchParams.get('currency'),
+        merchant: searchParams.get('merchant'),
+        memo: searchParams.get('memo'),
+        category_guess: searchParams.get('category_guess'),
+        payment_channel: searchParams.get('payment_channel'),
+        status: searchParams.get('status'),
+        is_refund: searchParams.get('is_refund') === 'true',
+        is_medical_related: searchParams.get('is_medical_related') === 'true'
+      };
+      
+      // Set form fields from Plaid data
+      if (prefillData.amount) setAmount(prefillData.amount);
+      if (prefillData.merchant) {
+        setTitle(prefillData.merchant);
+        setVendor(prefillData.merchant);
+      }
+      if (prefillData.memo) setDescription(prefillData.memo);
+      if (prefillData.category_guess) setCategory(prefillData.category_guess);
+      if (prefillData.date) setDate(new Date(prefillData.date));
+      
+      toast({
+        title: "Transaction imported!",
+        description: "Form prefilled from your bank transaction. Please review and complete.",
+      });
+    }
+  }, [searchParams, toast]);
   
   // For editing mode
   useEffect(() => {

@@ -9,7 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import PlacesAutocomplete from '@/components/places/PlacesAutocomplete';
+import MileageLocationInput from '@/components/MileageLocationInput';
+import { SelectedPlace } from '@/hooks/usePlacesAutocomplete';
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 interface MileageCalculatorProps {
@@ -274,18 +275,15 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         {/* From Address */}
         <div className="space-y-2">
           {isConfigured ? (
-            <PlacesAutocomplete
+            <MileageLocationInput
               label="From Address"
               placeholder="Enter starting address"
               value={fromAddress}
-              apiKey={apiKey}
-              types={['address']}
-              onPlaceSelect={(place) => {
-                setFromAddress(place.formatted_address);
+              onSelected={(place: SelectedPlace) => {
+                setFromAddress(place.formattedAddress);
                 setFromIsGPS(false);
-                setFromPlaceId(place.place_id || null);
+                setFromPlaceId(place.placeId);
               }}
-              className="bg-white"
             />
           ) : (
             <>
@@ -319,18 +317,15 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         {/* To Address */}
         <div className="space-y-2">
           {isConfigured ? (
-            <PlacesAutocomplete
+            <MileageLocationInput
               label="To Address"
               placeholder="Enter destination address"
               value={toAddress}
-              apiKey={apiKey}
-              types={['address']}
-              onPlaceSelect={(place) => {
-                setToAddress(place.formatted_address);
+              onSelected={(place: SelectedPlace) => {
+                setToAddress(place.formattedAddress);
                 setToIsGPS(false);
-                setToPlaceId(place.place_id || null);
+                setToPlaceId(place.placeId);
               }}
-              className="bg-white"
             />
           ) : (
             <>

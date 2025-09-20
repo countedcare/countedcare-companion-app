@@ -41,8 +41,8 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
       icon: Car,
       action: () => {
         setPreference('lastQuickAction', 'enter-mileage');
-        // Navigate to expense form with mileage category pre-selected
-        navigate('/expenses/new?category=transportation&subcategory=mileage');
+        // Navigate to mileage form
+        navigate('/mileage/new');
         onClose();
       }
     },

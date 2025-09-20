@@ -91,13 +91,7 @@ const ExpenseForm = () => {
   // Handle pre-selected category from URL params and Plaid prefill
   useEffect(() => {
     const categoryParam = searchParams.get('category');
-    const subcategoryParam = searchParams.get('subcategory');
     const isPrefill = searchParams.get('prefill') === 'true';
-    
-    if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
-      setCategory('Transportation & Travel');
-      setSubcategory('Car Mileage & Expenses');
-    }
     
     // Prefill from Plaid transaction data
     if (isPrefill) {
@@ -303,14 +297,6 @@ const ExpenseForm = () => {
     }
   };
 
-  const handleMileageAmountCalculated = (calculatedAmount: number) => {
-    setAmount(calculatedAmount.toString());
-  };
-
-  const isMileageMode =
-    category === '🚘 Transportation & Travel for Medical Care' &&
-    (subcategory?.toLowerCase().includes('mileage') || subcategory?.toLowerCase().includes('mile'));
-
 
   if (loading) {
     return (
@@ -346,38 +332,32 @@ const ExpenseForm = () => {
                   linkedAccounts={linkedAccounts}
                   date={date}
                   setDate={setDate}
-                  amountReadOnly={isMileageMode}
-                  amountNote={isMileageMode ? "Calculated from mileage at $0.21/mi" : undefined}
                 />
 
                 {/* Receipt Upload */}
-                {!isMileageMode && (
-                  <ExpenseReceiptUpload
-                    receiptUrl={receiptUrl}
-                    setReceiptUrl={setReceiptUrl}
-                    isUploading={isUploading}
-                    setIsUploading={setIsUploading}
-                    isProcessingDocument={isProcessingDocument}
-                    setIsProcessingDocument={setIsProcessingDocument}
-                    onReceiptProcessed={handleReceiptProcessed}
-                  />
-                )}
+                <ExpenseReceiptUpload
+                  receiptUrl={receiptUrl}
+                  setReceiptUrl={setReceiptUrl}
+                  isUploading={isUploading}
+                  setIsUploading={setIsUploading}
+                  isProcessingDocument={isProcessingDocument}
+                  setIsProcessingDocument={setIsProcessingDocument}
+                  onReceiptProcessed={handleReceiptProcessed}
+                />
                 
                 {/* Vendor */}
-                {!isMileageMode && (
-                  <div className="space-y-2">
-                    <Label htmlFor="vendor">Vendor</Label>
-                    <Input
-                      id="vendor"
-                      placeholder="e.g., Walgreens, UCLA Health"
-                      value={vendor}
-                      onChange={(e) => setVendor(e.target.value)}
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="vendor">Vendor</Label>
+                  <Input
+                    id="vendor"
+                    placeholder="e.g., Walgreens, UCLA Health"
+                    value={vendor}
+                    onChange={(e) => setVendor(e.target.value)}
+                  />
+                </div>
 
                 {/* Google Maps API Setup */}
-                {!isMileageMode && !isConfigured && (
+                {!isConfigured && (
                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                     <p className="text-sm text-yellow-800">
                       Google Maps API is not configured. Location features will be limited.
@@ -386,15 +366,13 @@ const ExpenseForm = () => {
                 )}
 
                 {/* Location Search */}
-                {!isMileageMode && (
-                  <ExpenseLocationSection
-                    selectedLocation={selectedLocation}
-                    setSelectedLocation={setSelectedLocation}
-                    title={title}
-                    setTitle={setTitle}
-                    apiKey={apiKey}
-                  />
-                )}
+                <ExpenseLocationSection
+                  selectedLocation={selectedLocation}
+                  setSelectedLocation={setSelectedLocation}
+                  title={title}
+                  setTitle={setTitle}
+                  apiKey={apiKey}
+                />
                 
                 {/* Category Selection */}
                 <ExpenseCategorySection
@@ -405,7 +383,6 @@ const ExpenseForm = () => {
                   careRecipientId={careRecipientId}
                   setCareRecipientId={setCareRecipientId}
                   recipients={recipients}
-                  onMileageAmountCalculated={handleMileageAmountCalculated}
                 />
 
                 {/* Notes */}

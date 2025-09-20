@@ -305,7 +305,7 @@ const Dashboard = () => {
 
                     {/* Enter Mileage */}
                     <Button
-                      onClick={() => navigate('/expenses/new?category=transportation&subcategory=mileage')}
+                      onClick={() => navigate('/mileage/new')}
                       variant="ghost"
                       className="w-full h-16 flex items-center justify-start space-x-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] hover:shadow-md bg-white border-gray-200 hover:bg-gray-50"
                     >

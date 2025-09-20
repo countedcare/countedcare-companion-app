@@ -4,9 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CareRecipient } from '@/types/User';
-import MileageCalculator from './MileageCalculator';
 import MedicalCategorySelector from './MedicalCategorySelector';
-import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 interface ExpenseCategorySectionProps {
   category: string;
@@ -16,7 +14,6 @@ interface ExpenseCategorySectionProps {
   careRecipientId: string;
   setCareRecipientId: (id: string) => void;
   recipients: CareRecipient[];
-  onMileageAmountCalculated: (amount: number) => void;
 }
 
 const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
@@ -26,10 +23,8 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
   setSubcategory,
   careRecipientId,
   setCareRecipientId,
-  recipients,
-  onMileageAmountCalculated
+  recipients
 }) => {
-  const { apiKey } = useGoogleMapsAPI();
   const [irsReferenceTag, setIrsReferenceTag] = useState('');
   const [irsDescription, setIrsDescription] = useState('');
   const [isPrescribed, setIsPrescribed] = useState<boolean | null>(null);
@@ -57,10 +52,6 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
     setIsPrescribed(prescribed);
     setDoctorNote(note || '');
   };
-
-  const isMileageMode = 
-    category === 'Transportation & Travel' && 
-    (subcategory?.toLowerCase().includes('mileage') || subcategory?.toLowerCase().includes('mile'));
 
   return (
     <Card>
@@ -96,13 +87,6 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
           </Select>
         </div>
 
-        {/* Mileage Calculator for Transportation */}
-        {isMileageMode && (
-          <MileageCalculator 
-            onAmountCalculated={onMileageAmountCalculated}
-            apiKey={apiKey}
-          />
-        )}
       </CardContent>
     </Card>
   );

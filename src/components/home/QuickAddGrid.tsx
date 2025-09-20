@@ -37,7 +37,7 @@ export function QuickAddGrid({ onOpenReceiptModal }: QuickAddGridProps) {
       color: 'from-emerald-500 to-emerald-600',
       bgColor: 'bg-emerald-50',
       textColor: 'text-emerald-700',
-      onClick: () => navigate('/expenses/new?category=transportation&subcategory=mileage')
+      onClick: () => navigate('/mileage/new')
     },
     {
       icon: Pill,

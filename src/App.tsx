@@ -14,6 +14,7 @@ import Deductions from "./pages/Deductions";
 import Expenses from "./pages/Expenses";
 import ExpenseForm from "./pages/ExpenseForm";
 import MileageForm from "./pages/MileageForm";
+import Mileage from "./pages/Mileage";
 import CareRecipients from "./pages/CareRecipients";
 import CareRecipientForm from "./pages/CareRecipientForm";
 import Resources from "./pages/Resources";
@@ -77,6 +78,11 @@ const App = () => (
             <Route path="/expenses/new" element={
               <ProtectedRoute>
                 <ExpenseForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/mileage" element={
+              <ProtectedRoute>
+                <Mileage />
               </ProtectedRoute>
             } />
             <Route path="/mileage/new" element={

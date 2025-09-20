@@ -95,8 +95,8 @@ const ExpenseForm = () => {
     const isPrefill = searchParams.get('prefill') === 'true';
     
     if (categoryParam === 'transportation' && subcategoryParam === 'mileage') {
-      setCategory('🚘 Transportation & Travel for Medical Care');
-      setSubcategory('Mileage for car travel (21 cents/mile in 2024)');
+      setCategory('Transportation & Travel');
+      setSubcategory('Car Mileage & Expenses');
     }
     
     // Prefill from Plaid transaction data

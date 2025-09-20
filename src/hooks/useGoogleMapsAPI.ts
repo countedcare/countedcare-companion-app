@@ -135,6 +135,17 @@ export default function useGoogleMapsAPI() {
 
     (async () => {
       try {
+        // Check if Google Maps is already loaded
+        if (areGoogleMapsServicesReady()) {
+          console.log("Google Maps already loaded, configuring...");
+          // Warm up singletons
+          getGlobalAutocompleteService();
+          getGlobalPlacesService();
+          setIsConfigured(true);
+          setIsLoading(false);
+          return;
+        }
+
         // 1) try env
         let key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 

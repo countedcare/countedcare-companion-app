@@ -349,6 +349,19 @@ const ExpenseForm = () => {
                   amountReadOnly={isMileageMode}
                   amountNote={isMileageMode ? "Calculated from mileage at $0.21/mi" : undefined}
                 />
+
+                {/* Receipt Upload */}
+                {!isMileageMode && (
+                  <ExpenseReceiptUpload
+                    receiptUrl={receiptUrl}
+                    setReceiptUrl={setReceiptUrl}
+                    isUploading={isUploading}
+                    setIsUploading={setIsUploading}
+                    isProcessingDocument={isProcessingDocument}
+                    setIsProcessingDocument={setIsProcessingDocument}
+                    onReceiptProcessed={handleReceiptProcessed}
+                  />
+                )}
                 
                 {/* Vendor */}
                 {!isMileageMode && (
@@ -395,19 +408,6 @@ const ExpenseForm = () => {
                   onMileageAmountCalculated={handleMileageAmountCalculated}
                 />
 
-                {/* Receipt Upload */}
-                {!isMileageMode && (
-                  <ExpenseReceiptUpload
-                    receiptUrl={receiptUrl}
-                    setReceiptUrl={setReceiptUrl}
-                    isUploading={isUploading}
-                    setIsUploading={setIsUploading}
-                    isProcessingDocument={isProcessingDocument}
-                    setIsProcessingDocument={setIsProcessingDocument}
-                    onReceiptProcessed={handleReceiptProcessed}
-                  />
-                )}
-                
                 {/* Notes */}
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>

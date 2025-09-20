@@ -55,17 +55,33 @@ export type Database = {
           amount: number
           care_recipient_id: string | null
           category: string
+          category_guess: string | null
+          category_raw: Json | null
+          counterparty_id: string | null
           created_at: string | null
+          currency: string | null
           date: string
           description: string | null
           expense_tags: string[] | null
+          external_id: string | null
           id: string
+          irs_description: string | null
+          irs_reference_tag: string | null
           is_potentially_deductible: boolean | null
+          is_refund: boolean | null
           is_reimbursed: boolean | null
           is_tax_deductible: boolean | null
+          linked_account_id: string | null
+          location: Json | null
+          memo: string | null
           notes: string | null
+          payment_channel: string | null
+          receipt_required_at: string | null
           receipt_url: string | null
+          receipt_urls: string[] | null
           reimbursement_source: string | null
+          source: string | null
+          status: string | null
           synced_transaction_id: string | null
           updated_at: string | null
           user_id: string
@@ -75,17 +91,33 @@ export type Database = {
           amount: number
           care_recipient_id?: string | null
           category: string
+          category_guess?: string | null
+          category_raw?: Json | null
+          counterparty_id?: string | null
           created_at?: string | null
+          currency?: string | null
           date: string
           description?: string | null
           expense_tags?: string[] | null
+          external_id?: string | null
           id?: string
+          irs_description?: string | null
+          irs_reference_tag?: string | null
           is_potentially_deductible?: boolean | null
+          is_refund?: boolean | null
           is_reimbursed?: boolean | null
           is_tax_deductible?: boolean | null
+          linked_account_id?: string | null
+          location?: Json | null
+          memo?: string | null
           notes?: string | null
+          payment_channel?: string | null
+          receipt_required_at?: string | null
           receipt_url?: string | null
+          receipt_urls?: string[] | null
           reimbursement_source?: string | null
+          source?: string | null
+          status?: string | null
           synced_transaction_id?: string | null
           updated_at?: string | null
           user_id: string
@@ -95,17 +127,33 @@ export type Database = {
           amount?: number
           care_recipient_id?: string | null
           category?: string
+          category_guess?: string | null
+          category_raw?: Json | null
+          counterparty_id?: string | null
           created_at?: string | null
+          currency?: string | null
           date?: string
           description?: string | null
           expense_tags?: string[] | null
+          external_id?: string | null
           id?: string
+          irs_description?: string | null
+          irs_reference_tag?: string | null
           is_potentially_deductible?: boolean | null
+          is_refund?: boolean | null
           is_reimbursed?: boolean | null
           is_tax_deductible?: boolean | null
+          linked_account_id?: string | null
+          location?: Json | null
+          memo?: string | null
           notes?: string | null
+          payment_channel?: string | null
+          receipt_required_at?: string | null
           receipt_url?: string | null
+          receipt_urls?: string[] | null
           reimbursement_source?: string | null
+          source?: string | null
+          status?: string | null
           synced_transaction_id?: string | null
           updated_at?: string | null
           user_id?: string
@@ -375,6 +423,30 @@ export type Database = {
           },
         ]
       }
+      transaction_triage: {
+        Row: {
+          created_at: string | null
+          decision: string
+          id: string
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          decision: string
+          id?: string
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          decision?: string
+          id?: string
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_documents: {
         Row: {
           content: string | null
@@ -432,12 +504,68 @@ export type Database = {
         }
         Relationships: []
       }
+      user_triage_stats: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_reset_date: string | null
+          reviewed_today: number | null
+          tips_shown: number | null
+          total_to_review: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_reset_date?: string | null
+          reviewed_today?: number | null
+          tips_shown?: number | null
+          total_to_review?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_reset_date?: string | null
+          reviewed_today?: number | null
+          tips_shown?: number | null
+          total_to_review?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_pending_triage_transactions: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          account_id: string
+          amount: number
+          authorized_date: string
+          category: string
+          date: string
+          iso_currency_code: string
+          location: Json
+          merchant_entity_id: string
+          merchant_name: string
+          name: string
+          payment_channel: string
+          pending: boolean
+          personal_finance_category: Json
+          subcategory: string
+          transaction_id: string
+        }[]
+      }
+      update_triage_stats: {
+        Args: { p_decision: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

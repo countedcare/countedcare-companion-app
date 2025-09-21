@@ -100,7 +100,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
         console.error("[places] exception during getPlacePredictions:", e);
       }
     },
-    [isConfigured, componentRestrictions, types]
+    [isConfigured]
   );
 
   // Debounced input watcher
@@ -118,7 +118,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
 
     const t = window.setTimeout(() => queryPredictions(trimmed), debounceMs);
     return () => window.clearTimeout(t);
-  }, [input, isConfigured, minLength, debounceMs, queryPredictions]);
+  }, [input, isConfigured, minLength, debounceMs]);
 
   const selectPrediction = useCallback(
     (prediction: Prediction): Promise<SelectedPlace> => {

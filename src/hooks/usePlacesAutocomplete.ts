@@ -1,3 +1,4 @@
+// src/hooks/usePlacesAutocomplete.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 import useGoogleMapsAPI, {
   getGlobalAutocompleteService,
@@ -37,96 +38,112 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
   const [err, setErr] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<number>(-1);
 
+  // One session token per typing session; reset after a successful selection.
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const ensureToken = () => {
     if (!sessionTokenRef.current) {
       sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+      // eslint-disable-next-line no-console
+      console.debug("[places] new AutocompleteSessionToken created");
     }
     return sessionTokenRef.current;
   };
 
   const queryPredictions = useCallback(
     (value: string) => {
-      if (!isConfigured) return;
+      if (!isConfigured || !window.google?.maps?.places) {
+        // eslint-disable-next-line no-console
+        console.debug("[places] skip query: maps not ready");
+        return;
+      }
       const svc = getGlobalAutocompleteService();
-      setLoading(true);
-      setErr(null);
-
       const token = ensureToken();
+
       const request: google.maps.places.AutocompletionRequest = {
         input: value,
-        componentRestrictions,
+        // Only include componentRestrictions if provided to avoid invalid shape
+        ...(componentRestrictions ? { componentRestrictions } : {}),
         types,
         sessionToken: token,
       };
 
-      svc.getPlacePredictions(request, (res, status) => {
+      // eslint-disable-next-line no-console
+      console.debug("[places] getPlacePredictions request:", request);
+
+      setLoading(true);
+      setErr(null);
+
+      try {
+        svc.getPlacePredictions(request, (res, status) => {
+          setLoading(false);
+          // eslint-disable-next-line no-console
+          console.debug("[places] status:", status, "results:", res);
+
+          if (status === google.maps.places.PlacesServiceStatus.OK && res) {
+            setPredictions(res);
+          } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            setPredictions([]);
+          } else {
+            const message = `Autocomplete error: ${status}`;
+            setErr(message);
+            setPredictions([]);
+            // eslint-disable-next-line no-console
+            console.warn("[places]", message, res);
+          }
+        });
+      } catch (e) {
         setLoading(false);
-        if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-          setPredictions(res);
-        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          setPredictions([]);
-        } else {
-          setErr(`Autocomplete error: ${status}`);
-          setPredictions([]);
-        }
-      });
+        const message = e instanceof Error ? e.message : String(e);
+        setErr(`Autocomplete exception: ${message}`);
+        setPredictions([]);
+        // eslint-disable-next-line no-console
+        console.error("[places] exception during getPlacePredictions:", e);
+      }
     },
     [isConfigured, componentRestrictions, types]
   );
 
-  // Debounce input
+  // Debounced input watcher
   useEffect(() => {
-    if (!isConfigured) return;
-    if (input.trim().length < minLength) {
+    if (!isConfigured) {
+      // eslint-disable-next-line no-console
+      console.debug("[places] effect: maps not configured yet");
+      return;
+    }
+    const trimmed = input.trim();
+    if (trimmed.length < minLength) {
       setPredictions([]);
       return;
     }
-    
-    const t = window.setTimeout(() => {
-      const svc = getGlobalAutocompleteService();
-      setLoading(true);
-      setErr(null);
 
-      const token = ensureToken();
-      const request: google.maps.places.AutocompletionRequest = {
-        input: input.trim(),
-        componentRestrictions,
-        types,
-        sessionToken: token,
-      };
-
-      svc.getPlacePredictions(request, (res, status) => {
-        setLoading(false);
-        if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-          setPredictions(res);
-        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          setPredictions([]);
-        } else {
-          setErr(`Autocomplete error: ${status}`);
-          setPredictions([]);
-        }
-      });
-    }, debounceMs);
-    
+    const t = window.setTimeout(() => queryPredictions(trimmed), debounceMs);
     return () => window.clearTimeout(t);
-  }, [input, isConfigured, minLength, debounceMs]);
+  }, [input, isConfigured, minLength, debounceMs, queryPredictions]);
 
   const selectPrediction = useCallback(
     (prediction: Prediction): Promise<SelectedPlace> => {
-      if (!isConfigured) return Promise.reject(new Error("Maps not ready"));
+      if (!isConfigured || !window.google?.maps?.places) {
+        return Promise.reject(new Error("Maps not ready"));
+      }
       const places = getGlobalPlacesService();
       const token = ensureToken();
+
+      // eslint-disable-next-line no-console
+      console.debug("[places] getDetails for place_id:", prediction.place_id);
 
       return new Promise((resolve, reject) => {
         places.getDetails(
           { placeId: prediction.place_id!, fields: fields as string[], sessionToken: token },
           (place, status) => {
+            // eslint-disable-next-line no-console
+            console.debug("[places] getDetails status:", status, "place:", place);
+
             if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
               reject(new Error(`Place details error: ${status}`));
               return;
             }
-            // reset token after successful selection
+
+            // Reset token for next session
             sessionTokenRef.current = null;
 
             const lat = place.geometry?.location?.lat();
@@ -136,12 +153,20 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
               reject(new Error("Place has no geometry"));
               return;
             }
-            resolve({
+
+            const selected: SelectedPlace = {
               placeId: place.place_id!,
               description: prediction.description || place.name || "",
               formattedAddress,
               location: { lat, lng },
-            });
+            };
+
+            // Lock input to the chosen address and clear predictions
+            setInput(formattedAddress);
+            setPredictions([]);
+            setHighlight(-1);
+
+            resolve(selected);
           }
         );
       });

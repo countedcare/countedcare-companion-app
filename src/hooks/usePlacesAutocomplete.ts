@@ -110,7 +110,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
     }, debounceMs);
     
     return () => window.clearTimeout(t);
-  }, [input, isConfigured, minLength, debounceMs, componentRestrictions, types]);
+  }, [input, isConfigured, minLength, debounceMs]);
 
   const selectPrediction = useCallback(
     (prediction: Prediction): Promise<SelectedPlace> => {

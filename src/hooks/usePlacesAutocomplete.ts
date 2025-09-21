@@ -32,14 +32,31 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
   } = opts;
 
   const { isConfigured, isLoading, error: mapsError } = useGoogleMapsAPI();
+
   const [input, setInput] = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<number>(-1);
 
-  // Skip one debounce cycle after a selection to avoid loop
+  // guards
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Skip one debounce cycle after a selection to avoid a loop
   const suppressNextQueryRef = useRef(false);
+
+  // Keep *stable* references for options that might be re-created each render
+  const compRestrictionsRef = useRef<typeof componentRestrictions>();
+  const typesRef = useRef<string[]>(types);
+  const fieldsRef = useRef<typeof fields>(fields);
+
+  useEffect(() => { compRestrictionsRef.current = componentRestrictions; }, [componentRestrictions]);
+  useEffect(() => { typesRef.current = types; }, [types]);
+  useEffect(() => { fieldsRef.current = fields; }, [fields]);
 
   // One session token per typing session; reset after a successful selection.
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
@@ -61,11 +78,10 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
 
       const svc = getGlobalAutocompleteService();
       const token = ensureToken();
-
       const request: google.maps.places.AutocompletionRequest = {
         input: value,
-        ...(componentRestrictions ? { componentRestrictions } : {}),
-        types,
+        ...(compRestrictionsRef.current ? { componentRestrictions: compRestrictionsRef.current } : {}),
+        types: typesRef.current,
         sessionToken: token,
       };
 
@@ -76,6 +92,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
 
       try {
         svc.getPlacePredictions(request, (res, status) => {
+          if (!mountedRef.current) return;
           setLoading(false);
           console.debug("[places] status:", status, "results:", res);
 
@@ -91,6 +108,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
           }
         });
       } catch (e) {
+        if (!mountedRef.current) return;
         setLoading(false);
         const message = e instanceof Error ? e.message : String(e);
         setErr(`Autocomplete exception: ${message}`);
@@ -98,7 +116,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
         console.error("[places] exception during getPlacePredictions:", e);
       }
     },
-    [isConfigured, componentRestrictions, types]
+    [isConfigured]
   );
 
   // Debounced input watcher
@@ -122,7 +140,8 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
 
     const t = window.setTimeout(() => queryPredictions(trimmed), debounceMs);
     return () => window.clearTimeout(t);
-  }, [input, isConfigured, minLength, debounceMs]);
+    // queryPredictions is stable (deps: [isConfigured])
+  }, [input, isConfigured, minLength, debounceMs, queryPredictions]);
 
   const selectPrediction = useCallback(
     (prediction: Prediction): Promise<SelectedPlace> => {
@@ -136,8 +155,13 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
 
       return new Promise((resolve, reject) => {
         places.getDetails(
-          { placeId: prediction.place_id!, fields: fields as string[], sessionToken: token },
+          {
+            placeId: prediction.place_id!,
+            fields: fieldsRef.current as string[],
+            sessionToken: token,
+          },
           (place, status) => {
+            if (!mountedRef.current) return;
             console.debug("[places] getDetails status:", status, "place:", place);
 
             if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
@@ -176,7 +200,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
         );
       });
     },
-    [isConfigured, fields]
+    [isConfigured]
   );
 
   return {

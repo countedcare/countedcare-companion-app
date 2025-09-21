@@ -82,9 +82,35 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
       setPredictions([]);
       return;
     }
-    const t = window.setTimeout(() => queryPredictions(input.trim()), debounceMs);
+    
+    const t = window.setTimeout(() => {
+      const svc = getGlobalAutocompleteService();
+      setLoading(true);
+      setErr(null);
+
+      const token = ensureToken();
+      const request: google.maps.places.AutocompletionRequest = {
+        input: input.trim(),
+        componentRestrictions,
+        types,
+        sessionToken: token,
+      };
+
+      svc.getPlacePredictions(request, (res, status) => {
+        setLoading(false);
+        if (status === google.maps.places.PlacesServiceStatus.OK && res) {
+          setPredictions(res);
+        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          setPredictions([]);
+        } else {
+          setErr(`Autocomplete error: ${status}`);
+          setPredictions([]);
+        }
+      });
+    }, debounceMs);
+    
     return () => window.clearTimeout(t);
-  }, [input, isConfigured, minLength, debounceMs, queryPredictions]);
+  }, [input, isConfigured, minLength, debounceMs, componentRestrictions, types]);
 
   const selectPrediction = useCallback(
     (prediction: Prediction): Promise<SelectedPlace> => {

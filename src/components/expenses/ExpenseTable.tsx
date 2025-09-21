@@ -3,16 +3,17 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Receipt, Calendar, CreditCard, PenTool } from 'lucide-react';
+import { Receipt, Calendar, CreditCard, PenTool, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Expense, CareRecipient } from '@/types/User';
 
 interface ExpenseTableProps {
   expenses: Expense[];
   recipients: CareRecipient[];
   onExpenseClick: (expenseId: string) => void;
+  onTriageAction?: (expenseId: string, action: 'keep' | 'skip') => void;
 }
 
-const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExpenseClick }) => {
+const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExpenseClick, onTriageAction }) => {
   const getRecipientName = (careRecipientId: string) => {
     if (careRecipientId === 'self') return 'Self';
     const recipient = recipients.find(r => r.id === careRecipientId);
@@ -21,6 +22,38 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExp
 
   const isAutoImported = (expense: Expense) => {
     return !!expense.synced_transaction_id;
+  };
+
+  const getTriageStatusBadge = (triageStatus?: string) => {
+    switch (triageStatus) {
+      case 'kept':
+        return (
+          <Badge variant="default" className="text-xs bg-green-100 text-green-700 border-green-300">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Kept
+          </Badge>
+        );
+      case 'skipped':
+        return (
+          <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+            <XCircle className="h-3 w-3 mr-1" />
+            Skipped
+          </Badge>
+        );
+      case 'pending':
+      default:
+        return (
+          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300">
+            <Clock className="h-3 w-3 mr-1" />
+            Needs Review
+          </Badge>
+        );
+    }
+  };
+
+  const handleTriageClick = (e: React.MouseEvent, expenseId: string, action: 'keep' | 'skip') => {
+    e.stopPropagation(); // Prevent row click
+    onTriageAction?.(expenseId, action);
   };
 
   return (
@@ -35,7 +68,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExp
               <TableHead className="hidden md:table-cell min-w-[120px]">Recipient</TableHead>
               <TableHead className="text-right min-w-[80px]">Amount</TableHead>
               <TableHead className="hidden lg:table-cell min-w-[100px]">Status</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="min-w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -45,7 +78,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExp
                   key={expense.id} 
                   className={`cursor-pointer hover:bg-muted/50 ${
                     isAutoImported(expense) ? 'bg-blue-50/30 border-l-2 border-l-blue-500' : ''
-                  }`}
+                  } ${expense.triage_status === 'skipped' ? 'opacity-60' : ''}`}
                   onClick={() => onExpenseClick(expense.id)}
                 >
                   <TableCell className="font-medium">
@@ -98,6 +131,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExp
                   <TableCell className="hidden lg:table-cell">
                     <div className="flex flex-col gap-1">
                       <div className="flex gap-1 flex-wrap">
+                        {getTriageStatusBadge(expense.triage_status)}
                         {expense.is_tax_deductible && (
                           <Badge variant="secondary" className="text-xs">
                             Tax Deductible
@@ -118,15 +152,48 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({ expenses, recipients, onExp
                     </div>
                   </TableCell>
                   <TableCell>
-                    {expense.receiptUrl && (
-                      <Receipt className="h-4 w-4 text-primary" />
-                    )}
+                    <div className="flex items-center gap-2">
+                      {expense.receiptUrl && (
+                        <Receipt className="h-4 w-4 text-primary" />
+                      )}
+                      
+                      {/* Triage Actions */}
+                      {expense.triage_status === 'pending' && onTriageAction && (
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs bg-green-50 hover:bg-green-100 border-green-200"
+                            onClick={(e) => handleTriageClick(e, expense.id, 'keep')}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Keep
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs bg-gray-50 hover:bg-gray-100 border-gray-200"
+                            onClick={(e) => handleTriageClick(e, expense.id, 'skip')}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Skip
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {/* Show status for already triaged items */}
+                      {expense.triage_status !== 'pending' && (
+                        <div className="text-xs text-muted-foreground">
+                          {expense.triage_status === 'kept' ? 'Kept for tracking' : 'Skipped from tracking'}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No expenses found matching your filters
                 </TableCell>
               </TableRow>

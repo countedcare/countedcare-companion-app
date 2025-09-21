@@ -225,6 +225,7 @@ export interface Expense {
   care_recipient_id?: string;
   receipt_url?: string;
   notes?: string;
+  triage_status?: 'pending' | 'kept' | 'skipped';
 }
 
 export interface Resource {

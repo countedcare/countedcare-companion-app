@@ -74,6 +74,7 @@ const ExpenseForm = () => {
         careRecipientId: expense.care_recipient_id || '',
         receiptUrl: expense.receipt_url,
         description: expense.description || expense.notes || '',
+        triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
       }));
       
       setExpenses(transformedExpenses);

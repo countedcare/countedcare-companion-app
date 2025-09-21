@@ -83,6 +83,7 @@ export type Database = {
           source: string | null
           status: string | null
           synced_transaction_id: string | null
+          triage_status: string | null
           updated_at: string | null
           user_id: string
           vendor: string | null
@@ -119,6 +120,7 @@ export type Database = {
           source?: string | null
           status?: string | null
           synced_transaction_id?: string | null
+          triage_status?: string | null
           updated_at?: string | null
           user_id: string
           vendor?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           source?: string | null
           status?: string | null
           synced_transaction_id?: string | null
+          triage_status?: string | null
           updated_at?: string | null
           user_id?: string
           vendor?: string | null

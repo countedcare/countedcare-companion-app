@@ -27,12 +27,14 @@ import EnhancedSmartFilters from '@/components/expenses/EnhancedSmartFilters';
 import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const Expenses = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
   const { profile } = useSupabaseProfile();
+  const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const { recipients } = useSupabaseCareRecipients();
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,7 @@ const Expenses = () => {
   const [filterSource, setFilterSource] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [triageFilter, setTriageFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Load expenses from Supabase (same as Dashboard)
@@ -66,6 +69,7 @@ const Expenses = () => {
         careRecipientId: expense.care_recipient_id || '',
         receiptUrl: expense.receipt_url,
         description: expense.description || expense.notes || '',
+        triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
       }));
       
       setExpenses(transformedExpenses);
@@ -103,13 +107,18 @@ const Expenses = () => {
       (filterSource === 'manual' && !expense.synced_transaction_id) ||
       (filterSource === 'auto-imported' && expense.synced_transaction_id);
 
-    // Status filter
     const matchesStatus = !statusFilter || statusFilter === 'all' ||
       (statusFilter === 'deductible' && expense.is_tax_deductible) ||
       (statusFilter === 'reimbursed' && expense.is_reimbursed) ||
       (statusFilter === 'pending-reimbursement' && !expense.is_reimbursed) ||
       (statusFilter === 'manual' && !expense.synced_transaction_id) ||
       (statusFilter === 'auto-imported' && expense.synced_transaction_id);
+
+    // Triage filter
+    const matchesTriage = !triageFilter || triageFilter === 'all' ||
+      (triageFilter === 'pending' && expense.triage_status === 'pending') ||
+      (triageFilter === 'kept' && expense.triage_status === 'kept') ||
+      (triageFilter === 'skipped' && expense.triage_status === 'skipped');
     
     // Date range filter
     let matchesDateRange = true;
@@ -123,7 +132,7 @@ const Expenses = () => {
       }
     }
     
-    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesStatus && matchesDateRange;
+    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesStatus && matchesTriage && matchesDateRange;
   });
   
   // Sort expenses based on sortBy selection
@@ -152,6 +161,7 @@ const Expenses = () => {
     setFilterDeductible('');
     setFilterSource('');
     setStatusFilter('all');
+    setTriageFilter('all');
     setSortBy('date-desc');
     setDateRange(undefined);
     setSearchTerm('');
@@ -168,16 +178,53 @@ const Expenses = () => {
     const reimbursed = expenses.filter(e => e.is_reimbursed).length;
     const manual = expenses.filter(e => !e.synced_transaction_id).length;
     const autoImported = expenses.filter(e => e.synced_transaction_id).length;
+    const pending = expenses.filter(e => e.triage_status === 'pending').length;
+    const kept = expenses.filter(e => e.triage_status === 'kept').length;
+    const skipped = expenses.filter(e => e.triage_status === 'skipped').length;
     const thisMonth = expenses.filter(e => {
       const expenseDate = new Date(e.date);
       const now = new Date();
       return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
     }).length;
     
-    return { total, deductible, reimbursed, manual, autoImported, thisMonth };
+    return { total, deductible, reimbursed, manual, autoImported, pending, kept, skipped, thisMonth };
   };
 
   const expenseStats = getExpenseStats();
+
+  // Handle triage actions
+  const handleTriageAction = async (expenseId: string, action: 'keep' | 'skip') => {
+    const dbAction = action === 'keep' ? 'kept' : 'skipped';
+    
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ triage_status: dbAction })
+        .eq('id', expenseId)
+        .eq('user_id', authUser?.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setExpenses(prev => prev.map(expense => 
+        expense.id === expenseId 
+          ? { ...expense, triage_status: dbAction as 'pending' | 'kept' | 'skipped' }
+          : expense
+      ));
+
+      toast({
+        title: action === 'keep' ? 'Expense Kept' : 'Expense Skipped',
+        description: `Expense has been marked as ${action === 'keep' ? 'kept' : 'skipped'}.`,
+      });
+    } catch (error) {
+      console.error('Error updating expense triage status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update expense status. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleConfirmTransaction = async (transactionId: string, expenseData: any) => {
     if (!authUser) return;
@@ -300,40 +347,40 @@ const Expenses = () => {
           
           <Card className="p-4">
             <div className="flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-green-600" />
+              <Clock className="w-4 h-4 text-yellow-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Review</p>
+                <p className="font-bold">{expenseStats.pending}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Kept</p>
+                <p className="font-bold">{expenseStats.kept}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-gray-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Skipped</p>
+                <p className="font-bold">{expenseStats.skipped}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-emerald-600" />
               <div>
                 <p className="text-sm text-muted-foreground">Deductible</p>
                 <p className="font-bold">{expenseStats.deductible}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Reimbursed</p>
-                <p className="font-bold">{expenseStats.reimbursed}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-yellow-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Manual</p>
-                <p className="font-bold">{expenseStats.manual}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-purple-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Auto-Sync</p>
-                <p className="font-bold">{expenseStats.autoImported}</p>
               </div>
             </div>
           </Card>
@@ -391,7 +438,22 @@ const Expenses = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                  <Select
+                    value={triageFilter}
+                    onValueChange={setTriageFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by review status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Reviews</SelectItem>
+                      <SelectItem value="pending">Needs Review</SelectItem>
+                      <SelectItem value="kept">Kept</SelectItem>
+                      <SelectItem value="skipped">Skipped</SelectItem>
+                    </SelectContent>
+                  </Select>
+
                   <Select
                     value={statusFilter}
                     onValueChange={setStatusFilter}
@@ -428,12 +490,10 @@ const Expenses = () => {
 
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-sm">
-                      Showing: {statusFilter === 'all' ? 'All expenses' : 
-                               statusFilter === 'deductible' ? 'Tax deductible expenses' :
-                               statusFilter === 'reimbursed' ? 'Reimbursed expenses' :
-                               statusFilter === 'pending-reimbursement' ? 'Pending reimbursement' :
-                               statusFilter === 'manual' ? 'Manual entries' :
-                               'Auto-imported expenses'}
+                      Review: {triageFilter === 'all' ? 'All expenses' : 
+                              triageFilter === 'pending' ? 'Needs review' :
+                              triageFilter === 'kept' ? 'Kept expenses' :
+                              'Skipped expenses'}
                     </Badge>
                   </div>
 
@@ -547,6 +607,7 @@ const Expenses = () => {
               expenses={sortedExpenses}
               recipients={recipients}
               onExpenseClick={(expenseId) => navigate(`/expenses/${expenseId}`)}
+              onTriageAction={handleTriageAction}
             />
             
             {/* Mobile-optimized empty state */}

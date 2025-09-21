@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import optimizedLogo from '@/assets/countedcare-logo-optimized.png';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -17,7 +18,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'md', className = '' }) => {
   return (
     <Link to="/" className={`flex items-center ${className}`}>
       <img
-        src="/lovable-uploads/a15212de-e863-4e80-8ede-92c2ccff9aaf.png"
+        src={optimizedLogo}
         alt="CountedCare Logo"
         className={`${sizeClasses[size]} w-auto`}
       />

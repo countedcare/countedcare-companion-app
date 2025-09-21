@@ -42,20 +42,41 @@ const Profile = () => {
     try {
       const { data, error } = await supabase
         .from('expenses')
-        .select('*')
+        .select(`
+          *,
+          synced_transactions(
+            description,
+            merchant_name
+          )
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
       // Transform database format to local format
-      const transformedExpenses: Expense[] = (data || []).map(expense => ({
-        ...expense,
-        careRecipientId: expense.care_recipient_id || '',
-        receiptUrl: expense.receipt_url,
-        description: expense.description || expense.notes || '',
-        triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
-      }));
+      const transformedExpenses: Expense[] = (data || []).map(expense => {
+        // Use synced transaction description if available, otherwise fall back to expense description
+        let description = expense.description || expense.notes || '';
+        
+        if (expense.synced_transaction_id && expense.synced_transactions) {
+          const syncedTransaction = Array.isArray(expense.synced_transactions) 
+            ? expense.synced_transactions[0] 
+            : expense.synced_transactions;
+          
+          if (syncedTransaction) {
+            description = syncedTransaction.merchant_name || syncedTransaction.description || description;
+          }
+        }
+        
+        return {
+          ...expense,
+          careRecipientId: expense.care_recipient_id || '',
+          receiptUrl: expense.receipt_url,
+          description,
+          triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
+        };
+      });
       
       setExpenses(transformedExpenses);
     } catch (error) {

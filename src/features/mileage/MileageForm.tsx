@@ -1,45 +1,19 @@
-import React, { useState } from "react";
-import MileageLocationInput from "@/components/MileageLocationInput";
-import { SelectedPlace } from "@/hooks/usePlacesAutocomplete";
+import React from "react";
+import MileageCalculator from "@/components/expenses/MileageCalculator";
 
 export default function MileageForm() {
-  const [origin, setOrigin] = useState<SelectedPlace | null>(null);
-  const [destination, setDestination] = useState<SelectedPlace | null>(null);
-
   return (
-    <div className="space-y-4">
-      <MileageLocationInput
-        label="Origin"
-        placeholder="Enter starting address"
-        onSelected={(p) => setOrigin(p)}
-        country="us"
-      />
-
-      <MileageLocationInput
-        label="Destination"
-        placeholder="Enter destination address"
-        onSelected={(p) => setDestination(p)}
-        country="us"
-      />
-
-      <div className="rounded-xl border p-3 text-sm">
-        <div>
-          <span className="font-medium">Origin:</span>{" "}
-          {origin?.formattedAddress || "—"}
-        </div>
-        <div>
-          <span className="font-medium">Destination:</span>{" "}
-          {destination?.formattedAddress || "—"}
-        </div>
-
-        {origin && destination && (
-          <div className="mt-3 text-gray-600">
-            Coordinates ready for distance calc:
-            <div>From: {origin.location.lat.toFixed(5)}, {origin.location.lng.toFixed(5)}</div>
-            <div>To: {destination.location.lat.toFixed(5)}, {destination.location.lng.toFixed(5)}</div>
-          </div>
-        )}
+    <div className="max-w-2xl mx-auto p-4">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Calculate Mileage</h1>
+        <p className="text-gray-600">Track your travel expenses for medical care</p>
       </div>
+      
+      <MileageCalculator 
+        onAmountCalculated={(amount) => {
+          console.log("Mileage calculated:", amount);
+        }}
+      />
     </div>
   );
 }

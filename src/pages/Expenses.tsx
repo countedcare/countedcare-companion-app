@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Search, BarChart3, CreditCard, Calculator, TrendingUp, FileText, Download, Sparkles } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, Search, BarChart3, CreditCard, Calculator, TrendingUp, FileText, Download, Sparkles, Filter, RefreshCw, Clock, CheckCircle, XCircle, Stethoscope } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,8 @@ const Expenses = () => {
   const [filterRecipient, setFilterRecipient] = useState('');
   const [filterDeductible, setFilterDeductible] = useState('');
   const [filterSource, setFilterSource] = useState('');
+  const [sortBy, setSortBy] = useState('date-desc');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Load expenses from Supabase (same as Dashboard)
@@ -82,11 +85,12 @@ const Expenses = () => {
     transaction => transaction.is_potential_medical && !transaction.is_confirmed_medical
   );
   
-  // Filter expenses
+  // Filter expenses with enhanced filtering
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = !searchTerm || 
       expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      expense.category.toLowerCase().includes(searchTerm.toLowerCase());
+      expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesCategory = !filterCategory || filterCategory === 'all-categories' || expense.category === filterCategory;
     const matchesRecipient = !filterRecipient || filterRecipient === 'all-recipients' || expense.careRecipientId === filterRecipient;
@@ -98,6 +102,14 @@ const Expenses = () => {
     const matchesSource = !filterSource || filterSource === 'all-sources' ||
       (filterSource === 'manual' && !expense.synced_transaction_id) ||
       (filterSource === 'auto-imported' && expense.synced_transaction_id);
+
+    // Status filter
+    const matchesStatus = !statusFilter || statusFilter === 'all' ||
+      (statusFilter === 'deductible' && expense.is_tax_deductible) ||
+      (statusFilter === 'reimbursed' && expense.is_reimbursed) ||
+      (statusFilter === 'pending-reimbursement' && !expense.is_reimbursed) ||
+      (statusFilter === 'manual' && !expense.synced_transaction_id) ||
+      (statusFilter === 'auto-imported' && expense.synced_transaction_id);
     
     // Date range filter
     let matchesDateRange = true;
@@ -111,22 +123,61 @@ const Expenses = () => {
       }
     }
     
-    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesDateRange;
+    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesStatus && matchesDateRange;
   });
   
-  // Sort expenses by date (newest first)
-  const sortedExpenses = [...filteredExpenses].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  // Sort expenses based on sortBy selection
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+    switch (sortBy) {
+      case 'date-desc':
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'date-asc':
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case 'amount-desc':
+        return b.amount - a.amount;
+      case 'amount-asc':
+        return a.amount - b.amount;
+      case 'category':
+        return a.category.localeCompare(b.category);
+      case 'vendor':
+        return (a.vendor || '').localeCompare(b.vendor || '');
+      default:
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+  });
 
   const handleClearFilters = () => {
     setFilterCategory('');
     setFilterRecipient('');
     setFilterDeductible('');
     setFilterSource('');
+    setStatusFilter('all');
+    setSortBy('date-desc');
     setDateRange(undefined);
     setSearchTerm('');
   };
+
+  const handleRefresh = () => {
+    loadExpenses();
+  };
+
+  // Get stats for expenses overview
+  const getExpenseStats = () => {
+    const total = expenses.length;
+    const deductible = expenses.filter(e => e.is_tax_deductible).length;
+    const reimbursed = expenses.filter(e => e.is_reimbursed).length;
+    const manual = expenses.filter(e => !e.synced_transaction_id).length;
+    const autoImported = expenses.filter(e => e.synced_transaction_id).length;
+    const thisMonth = expenses.filter(e => {
+      const expenseDate = new Date(e.date);
+      const now = new Date();
+      return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
+    }).length;
+    
+    return { total, deductible, reimbursed, manual, autoImported, thisMonth };
+  };
+
+  const expenseStats = getExpenseStats();
 
   const handleConfirmTransaction = async (transactionId: string, expenseData: any) => {
     if (!authUser) return;
@@ -218,6 +269,11 @@ const Expenses = () => {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+            <Button variant="outline" onClick={handleRefresh} className="mobile-button">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Refresh</span>
+              <span className="sm:hidden">Sync</span>
+            </Button>
             <Button variant="outline" onClick={() => navigate('/linked-accounts')} className="mobile-button">
               <CreditCard className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Link Bank Account</span>
@@ -228,6 +284,69 @@ const Expenses = () => {
               Add Expense
             </Button>
           </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-blue-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="font-bold">{expenseStats.total}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Deductible</p>
+                <p className="font-bold">{expenseStats.deductible}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Reimbursed</p>
+                <p className="font-bold">{expenseStats.reimbursed}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-yellow-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Manual</p>
+                <p className="font-bold">{expenseStats.manual}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-purple-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Auto-Sync</p>
+                <p className="font-bold">{expenseStats.autoImported}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-indigo-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">This Month</p>
+                <p className="font-bold">{expenseStats.thisMonth}</p>
+              </div>
+            </div>
+          </Card>
         </div>
         
         {/* Auto-imported transactions review */}
@@ -263,6 +382,68 @@ const Expenses = () => {
           </TabsList>
           
           <TabsContent value="list" className="space-y-4 sm:space-y-6">
+            {/* Enhanced Filters */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="w-5 h-5" />
+                  Filter & Sort Expenses
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <Select
+                    value={statusFilter}
+                    onValueChange={setStatusFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Expenses</SelectItem>
+                      <SelectItem value="deductible">Tax Deductible</SelectItem>
+                      <SelectItem value="reimbursed">Reimbursed</SelectItem>
+                      <SelectItem value="pending-reimbursement">Pending Reimbursement</SelectItem>
+                      <SelectItem value="manual">Manual Entry</SelectItem>
+                      <SelectItem value="auto-imported">Auto-Imported</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={sortBy}
+                    onValueChange={setSortBy}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                      <SelectItem value="amount-desc">Amount (Highest First)</SelectItem>
+                      <SelectItem value="amount-asc">Amount (Lowest First)</SelectItem>
+                      <SelectItem value="category">Category (A-Z)</SelectItem>
+                      <SelectItem value="vendor">Vendor (A-Z)</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-sm">
+                      Showing: {statusFilter === 'all' ? 'All expenses' : 
+                               statusFilter === 'deductible' ? 'Tax deductible expenses' :
+                               statusFilter === 'reimbursed' ? 'Reimbursed expenses' :
+                               statusFilter === 'pending-reimbursement' ? 'Pending reimbursement' :
+                               statusFilter === 'manual' ? 'Manual entries' :
+                               'Auto-imported expenses'}
+                    </Badge>
+                  </div>
+
+                  <Button variant="outline" onClick={handleClearFilters} size="sm">
+                    Clear All Filters
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Mobile-optimized search and filters */}
             <div className="space-y-3 sm:space-y-4">
               <div className="relative">

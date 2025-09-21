@@ -38,6 +38,9 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
   const [err, setErr] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<number>(-1);
 
+  // Skip one debounce cycle after a selection to avoid loop
+  const suppressNextQueryRef = useRef(false);
+
   // One session token per typing session; reset after a successful selection.
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const ensureToken = () => {
@@ -52,22 +55,20 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
   const queryPredictions = useCallback(
     (value: string) => {
       if (!isConfigured || !window.google?.maps?.places) {
-        // eslint-disable-next-line no-console
         console.debug("[places] skip query: maps not ready");
         return;
       }
+
       const svc = getGlobalAutocompleteService();
       const token = ensureToken();
 
       const request: google.maps.places.AutocompletionRequest = {
         input: value,
-        // Only include componentRestrictions if provided to avoid invalid shape
         ...(componentRestrictions ? { componentRestrictions } : {}),
         types,
         sessionToken: token,
       };
 
-      // eslint-disable-next-line no-console
       console.debug("[places] getPlacePredictions request:", request);
 
       setLoading(true);
@@ -76,7 +77,6 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
       try {
         svc.getPlacePredictions(request, (res, status) => {
           setLoading(false);
-          // eslint-disable-next-line no-console
           console.debug("[places] status:", status, "results:", res);
 
           if (status === google.maps.places.PlacesServiceStatus.OK && res) {
@@ -87,7 +87,6 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
             const message = `Autocomplete error: ${status}`;
             setErr(message);
             setPredictions([]);
-            // eslint-disable-next-line no-console
             console.warn("[places]", message, res);
           }
         });
@@ -96,20 +95,25 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
         const message = e instanceof Error ? e.message : String(e);
         setErr(`Autocomplete exception: ${message}`);
         setPredictions([]);
-        // eslint-disable-next-line no-console
         console.error("[places] exception during getPlacePredictions:", e);
       }
     },
-    [isConfigured]
+    [isConfigured, componentRestrictions, types]
   );
 
   // Debounced input watcher
   useEffect(() => {
     if (!isConfigured) {
-      // eslint-disable-next-line no-console
       console.debug("[places] effect: maps not configured yet");
       return;
     }
+
+    // Skip a single cycle right after selectPrediction setInput()
+    if (suppressNextQueryRef.current) {
+      suppressNextQueryRef.current = false;
+      return;
+    }
+
     const trimmed = input.trim();
     if (trimmed.length < minLength) {
       setPredictions([]);
@@ -118,7 +122,7 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
 
     const t = window.setTimeout(() => queryPredictions(trimmed), debounceMs);
     return () => window.clearTimeout(t);
-  }, [input, isConfigured, minLength, debounceMs]);
+  }, [input, isConfigured, minLength, debounceMs, queryPredictions]);
 
   const selectPrediction = useCallback(
     (prediction: Prediction): Promise<SelectedPlace> => {
@@ -128,14 +132,12 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
       const places = getGlobalPlacesService();
       const token = ensureToken();
 
-      // eslint-disable-next-line no-console
       console.debug("[places] getDetails for place_id:", prediction.place_id);
 
       return new Promise((resolve, reject) => {
         places.getDetails(
           { placeId: prediction.place_id!, fields: fields as string[], sessionToken: token },
           (place, status) => {
-            // eslint-disable-next-line no-console
             console.debug("[places] getDetails status:", status, "place:", place);
 
             if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
@@ -161,7 +163,10 @@ export default function usePlacesAutocomplete(opts: Options = {}) {
               location: { lat, lng },
             };
 
-            // Lock input to the chosen address and clear predictions
+            // Prevent the immediate next effect cycle from querying again
+            suppressNextQueryRef.current = true;
+
+            // Reflect selection in the input and clear suggestions
             setInput(formattedAddress);
             setPredictions([]);
             setHighlight(-1);

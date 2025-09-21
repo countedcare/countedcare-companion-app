@@ -10,7 +10,7 @@ import Index from "./pages/Index";
 import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
-import Deductions from "./pages/Deductions";
+
 import Expenses from "./pages/Expenses";
 import ExpenseForm from "./pages/ExpenseForm";
 import MileageForm from "./pages/MileageForm";
@@ -63,11 +63,6 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/deductions" element={
-              <ProtectedRoute>
-                <Deductions />
               </ProtectedRoute>
             } />
             <Route path="/expenses" element={

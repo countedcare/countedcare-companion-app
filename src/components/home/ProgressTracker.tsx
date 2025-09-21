@@ -67,7 +67,7 @@ export function ProgressTracker({ profile }: ProgressTrackerProps) {
 
           {/* CTA Button */}
           <Button 
-            onClick={() => navigate('/transactions')}
+            onClick={() => navigate('/expenses')}
             className="w-full bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
           >
             See Details

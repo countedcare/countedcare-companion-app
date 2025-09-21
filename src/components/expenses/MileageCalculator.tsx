@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { MapPin, Calculator, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,12 +44,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [result, setResult] = useState<MileageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
-  
+
   const [fromIsGPS, setFromIsGPS] = useState(false);
   const [toIsGPS, setToIsGPS] = useState(false);
   const [fromPlaceId, setFromPlaceId] = useState<string | null>(null);
   const [toPlaceId, setToPlaceId] = useState<string | null>(null);
-
 
   const buildMapsPreviewLink = (value: string) => {
     const query = encodeURIComponent(value);
@@ -59,7 +57,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
   const useCurrentLocation = (target: 'from' | 'to') => {
     if (!navigator.geolocation) {
-      toast({ title: 'Location unavailable', description: 'Geolocation is not supported by your browser.', variant: 'destructive' });
+      toast({
+        title: 'Location unavailable',
+        description: 'Geolocation is not supported by your browser.',
+        variant: 'destructive'
+      });
       return;
     }
     toast({ title: 'Requesting location', description: 'Please allow location access in your browser.' });
@@ -67,7 +69,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         const coords = `${latitude},${longitude}`;
-        
+
         // Try to reverse geocode if Google Maps API is available
         if (isConfigured && apiKey && window.google?.maps) {
           try {
@@ -89,14 +91,17 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               const address = result[0].formatted_address;
               if (target === 'from') {
                 setFromAddress(address);
-                setFromIsGPS(false); // It's now a proper address
+                setFromIsGPS(false);
                 setFromPlaceId(result[0].place_id || null);
               } else {
                 setToAddress(address);
                 setToIsGPS(false);
                 setToPlaceId(result[0].place_id || null);
               }
-              toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to: ${address}` });
+              toast({
+                title: 'Location set',
+                description: `${target === 'from' ? 'From' : 'To'} address set to: ${address}`
+              });
             } else {
               throw new Error('No address found');
             }
@@ -112,7 +117,10 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               setToIsGPS(true);
               setToPlaceId(null);
             }
-            toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location (coordinates)` });
+            toast({
+              title: 'Location set',
+              description: `${target === 'from' ? 'From' : 'To'} address set to current location (coordinates)`
+            });
           }
         } else {
           // Fallback to coordinates when Google Maps isn't available
@@ -125,14 +133,21 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
             setToIsGPS(true);
             setToPlaceId(null);
           }
-          toast({ title: 'Location set', description: `${target === 'from' ? 'From' : 'To'} address set to current location.` });
+          toast({
+            title: 'Location set',
+            description: `${target === 'from' ? 'From' : 'To'} address set to current location.`
+          });
         }
-        
+
         setResult(null);
       },
       (err) => {
         console.error('Geolocation error', err);
-        toast({ title: 'Location denied', description: 'We could not access your location. You can type the address manually.', variant: 'destructive' });
+        toast({
+          title: 'Location denied',
+          description: 'We could not access your location. You can type the address manually.',
+          variant: 'destructive'
+        });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -162,9 +177,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         }
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to calculate mileage');
-      }
+      if (error) throw new Error(error.message || 'Failed to calculate mileage');
 
       // Edge function returns { miles, deduction, origin, destination }
       const baseMiles = typeof data?.miles === 'number' ? Math.round(data.miles * 10) / 10 : 0;
@@ -184,7 +197,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
       setResult(resultPayload);
       onAmountCalculated(computedDeduction);
-      
+
       toast({
         title: 'Mileage Calculated!',
         description: `Distance: ${appliedMiles} miles • Total: $${computedDeduction}${isRoundTrip ? ' (round trip)' : ''}`
@@ -192,12 +205,12 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
     } catch (err) {
       let errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      // Provide a friendlier hint for common invocation errors
       if (typeof errorMessage === 'string' && errorMessage.includes('non-2xx')) {
-        errorMessage = 'Mileage service failed. Enable "Distance Matrix API" for your Google project and ensure the GOOGLE_MAPS_API_KEY (server key) is set with API restriction to Distance Matrix only and no application restriction.';
+        errorMessage =
+          'Mileage service failed. Enable "Distance Matrix API" for your Google project and ensure the GOOGLE_MAPS_API_KEY (server key) is set with API restriction to Distance Matrix only and no application restriction.';
       }
       setError(errorMessage);
-      
+
       toast({
         title: 'Calculation Failed',
         description: errorMessage,
@@ -212,7 +225,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
     if (!user || !result) return;
 
     setIsSaving(true);
-    
+
     try {
       const { error } = await supabase
         .from('expenses')
@@ -251,7 +264,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         <MapPin className="h-4 w-4 text-blue-600" />
         <h4 className="font-medium text-blue-900">Track Mileage</h4>
       </div>
-      
+
       {!isConfigured && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -268,9 +281,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
           </AlertDescription>
         </Alert>
       )}
-      
-      <p className="text-xs text-muted-foreground">Tip: Allow location access to quickly set your current location for From/To.</p>
-      
+
+      <p className="text-xs text-muted-foreground">
+        Tip: Allow location access to quickly set your current location for From/To.
+      </p>
+
       <div className="grid grid-cols-1 gap-4">
         {/* From Address */}
         <div className="space-y-2">
@@ -278,11 +293,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
             <MileageLocationInput
               label="From Address"
               placeholder="Enter starting address"
-              value={fromAddress}
               onSelected={(place: SelectedPlace) => {
                 setFromAddress(place.formattedAddress);
                 setFromIsGPS(false);
                 setFromPlaceId(place.placeId);
+                setResult(null);
               }}
             />
           ) : (
@@ -292,7 +307,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 id="from-address"
                 placeholder="Enter starting address"
                 value={fromAddress}
-                onChange={(e) => { setFromAddress(e.target.value); setFromPlaceId(null); }}
+                onChange={(e) => { setFromAddress(e.target.value); setFromPlaceId(null); setResult(null); }}
                 className="bg-white"
               />
             </>
@@ -320,11 +335,11 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
             <MileageLocationInput
               label="To Address"
               placeholder="Enter destination address"
-              value={toAddress}
               onSelected={(place: SelectedPlace) => {
                 setToAddress(place.formattedAddress);
                 setToIsGPS(false);
                 setToPlaceId(place.placeId);
+                setResult(null);
               }}
             />
           ) : (
@@ -334,7 +349,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
                 id="to-address"
                 placeholder="Enter destination address"
                 value={toAddress}
-                onChange={(e) => { setToAddress(e.target.value); setToPlaceId(null); }}
+                onChange={(e) => { setToAddress(e.target.value); setToPlaceId(null); setResult(null); }}
                 className="bg-white"
               />
             </>
@@ -405,7 +420,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               </p>
             </div>
           </div>
-          
+
           <Button
             onClick={saveMileageLog}
             disabled={isSaving}

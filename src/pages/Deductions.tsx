@@ -142,16 +142,16 @@ const Deductions = () => {
               {/* Stats Grid */}
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{deductibleExpenses.length}</div>
+                  <div className="text-2xl font-bold text-primary">{formatCurrency(unlockedDeductions)}</div>
+                  <div className="text-xs text-gray-600">Unlocked deductions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-emerald-600">{deductibleExpenses.length}</div>
                   <div className="text-xs text-gray-600">Deductible items</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-emerald-600">{formatCurrency(totalDeductible)}</div>
-                  <div className="text-xs text-gray-600">Total tracked</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">${householdAGI.toLocaleString()}</div>
-                  <div className="text-xs text-gray-600">Household AGI</div>
+                  <div className="text-2xl font-bold text-blue-600">{formatCurrency(threshold)}</div>
+                  <div className="text-xs text-gray-600">AGI threshold</div>
                 </div>
               </div>
             </CardContent>

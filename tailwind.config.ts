@@ -25,22 +25,22 @@ export default {
 			},
 			colors: {
 				primary: {
-					DEFAULT: '#6DAAE2',
+					DEFAULT: 'hsl(var(--primary))',
 					light: '#8BBDE9',
 					dark: '#4D8BC3',
-					foreground: 'white',
+					foreground: 'hsl(var(--primary-foreground))',
 				},
 				accent: {
 					DEFAULT: '#A0D5D8',
 					light: '#B8E1E3',
 					dark: '#7CBEC2',
-					foreground: '#333333',
+					foreground: '#1a1a1a',
 				},
 				neutral: {
 					DEFAULT: '#F5F5F7',
 					light: '#FFFFFF',
 					dark: '#E5E5E7',
-					foreground: '#333333',
+					foreground: '#1a1a1a',
 				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

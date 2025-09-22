@@ -122,9 +122,13 @@ const Auth = () => {
             }}
           />
         </Card>
-        <div className="mt-4 text-sm text-gray-500">
-          <p>© 2025 CountedCare. All rights reserved.</p>
+      <div className="mt-4 text-sm text-gray-500 text-center">
+        <p>© 2025 CountedCare. All rights reserved.</p>
+        <div className="mt-2 space-x-4">
+          <a href="/privacy-policy" className="hover:text-primary underline">Privacy Policy</a>
+          <a href="/terms" className="hover:text-primary underline">Terms & Conditions</a>
         </div>
+      </div>
       </div>
     );
   }
@@ -163,8 +167,12 @@ const Auth = () => {
           </TabsContent>
         </Tabs>
       </Card>
-      <div className="mt-4 text-sm text-gray-500">
+      <div className="mt-4 text-sm text-gray-500 text-center">
         <p>© 2025 CountedCare. All rights reserved.</p>
+        <div className="mt-2 space-x-4">
+          <a href="/privacy-policy" className="hover:text-primary underline">Privacy Policy</a>
+          <a href="/terms" className="hover:text-primary underline">Terms & Conditions</a>
+        </div>
       </div>
     </div>
   );

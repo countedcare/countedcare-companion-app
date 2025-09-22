@@ -29,6 +29,8 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const TransactionTriage = lazy(() => import("./pages/TransactionTriage"));
 const Transactions = lazy(() => import("./pages/Transactions"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 const queryClient = new QueryClient();
 
@@ -130,6 +132,8 @@ const App = () => (
                   <Profile />
                 </ProtectedRoute>
               } />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

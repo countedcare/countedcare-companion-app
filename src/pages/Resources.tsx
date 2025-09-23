@@ -1,59 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Search, Heart, ExternalLink, Bookmark } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, BookOpen, Info } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { useSupabaseResources } from '@/hooks/useSupabaseResources';
-import { useSupabaseSavedResources } from '@/hooks/useSupabaseSavedResources';
-import { toast } from 'sonner';
+import { useResourcesSystem, ResourceCategory } from '@/hooks/useResourcesSystem';
+import { useAuth } from '@/contexts/AuthContext';
+import ResourceCard from '@/components/resources/ResourceCard';
+import ResourceFilters from '@/components/resources/ResourceFilters';
+import ResourceSearchBar from '@/components/resources/ResourceSearchBar';
+import SuggestResourceModal from '@/components/resources/SuggestResourceModal';
+
+interface Filters {
+  category?: ResourceCategory;
+  state?: string;
+  county?: string;
+  tags?: string[];
+}
 
 const Resources = () => {
   const navigate = useNavigate();
-  const { resources, loading } = useSupabaseResources();
-  const { saveResource, unsaveResource, isResourceSaved } = useSupabaseSavedResources();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const { user } = useAuth();
+  const {
+    resources,
+    loading,
+    error,
+    searchResources,
+    toggleBookmark,
+    logResourceEvent,
+    suggestResource
+  } = useResourcesSystem();
 
-  // Filter resources based on search and active tab
-  const filteredResources = resources.filter(resource => {
-    const matchesSearch = !searchTerm || 
-      resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      resource.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesTab = activeTab === 'all'
-      ? true
-      : resource.category === activeTab;
-    
-    return matchesSearch && matchesTab;
-  });
+  // UI State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<Filters>({});
+  const [sortBy, setSortBy] = useState('recommended');
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
 
-  const handleSaveToggle = async (resourceId: string) => {
-    try {
-      if (isResourceSaved(resourceId)) {
-        await unsaveResource(resourceId);
-        toast.success('Resource removed from saved');
-      } else {
-        await saveResource(resourceId);
-        toast.success('Resource saved');
-      }
-    } catch (err) {
-      toast.error('Failed to update saved status');
+  // Search and filter logic
+  useEffect(() => {
+    const searchFilters = {
+      query: searchQuery || undefined,
+      ...filters
+    };
+    
+    searchResources(searchFilters);
+  }, [searchQuery, filters, searchResources]);
+
+  // Default to California/LA County for new users
+  useEffect(() => {
+    if (user && Object.keys(filters).length === 0) {
+      setFilters({
+        state: 'CA',
+        county: 'Los Angeles'
+      });
     }
-  };
+  }, [user, filters]);
 
-  const handleResourceClick = (resourceId: string) => {
+  // Sort resources
+  const sortedResources = React.useMemo(() => {
+    const resourcesCopy = [...resources];
+    
+    switch (sortBy) {
+      case 'az':
+        return resourcesCopy.sort((a, b) => a.title.localeCompare(b.title));
+      case 'newest':
+        return resourcesCopy.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      case 'savings':
+        return resourcesCopy.sort((a, b) => {
+          const aMax = a.estimated_benefit_max || 0;
+          const bMax = b.estimated_benefit_max || 0;
+          return bMax - aMax;
+        });
+      default: // recommended
+        return resourcesCopy; // Already sorted by rank from search function
+    }
+  }, [resources, sortBy]);
+
+  const handleViewDetails = (resourceId: string) => {
+    logResourceEvent(resourceId, 'view', { from: 'list' });
     navigate(`/resources/${resourceId}`);
   };
 
   if (loading) {
     return (
       <Layout>
-        <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="container-padding py-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-gray-200 rounded-lg h-48"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </Layout>
     );
@@ -62,109 +103,127 @@ const Resources = () => {
   return (
     <Layout>
       <div className="container-padding py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-heading">Resources</h1>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/resources/saved')}
-            className="flex items-center gap-2"
-          >
-            <Bookmark className="h-4 w-4" />
-            Saved
-          </Button>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold mb-1">Resources & Programs</h1>
+            <p className="text-gray-600">Discover programs that can help reduce caregiving costs</p>
+          </div>
+          <div className="flex gap-2">
+            <Link to="/resources/saved">
+              <Button variant="outline" size="sm">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Saved Resources
+              </Button>
+            </Link>
+            <Button size="sm" onClick={() => setShowSuggestModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Suggest Resource
+            </Button>
+          </div>
         </div>
-        
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <Input 
-            placeholder="Search resources..." 
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        {/* Resource Tabs */}
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="Federal">Federal</TabsTrigger>
-            <TabsTrigger value="California">California</TabsTrigger>
-            <TabsTrigger value="Los Angeles County">LA County</TabsTrigger>
-            <TabsTrigger value="Nonprofit">Nonprofit</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value={activeTab} className="mt-6">
-            <div className="space-y-4">
-              {filteredResources.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No resources found matching your criteria.</p>
-                </div>
-              )}
-              
-              {filteredResources.map((resource) => (
-                <Card key={resource.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1" onClick={() => handleResourceClick(resource.id)}>
-                        <CardTitle className="text-lg hover:text-primary transition-colors">
-                          {resource.title}
-                        </CardTitle>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {resource.category}
-                          </Badge>
-                          {resource.tags?.map(tag => (
-                            <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex space-x-1 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSaveToggle(resource.id);
-                          }}
-                          className={`${isResourceSaved(resource.id) ? 'text-red-600' : 'text-gray-400 hover:text-red-600'}`}
-                        >
-                          <Heart className={`h-4 w-4 ${isResourceSaved(resource.id) ? 'fill-current' : ''}`} />
-                        </Button>
-                        {(resource.url || resource.external_links?.source_url) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const url = resource.external_links?.source_url || resource.url;
-                              window.open(url, '_blank');
-                            }}
-                            className="flex items-center"
-                          >
-                            Visit <ExternalLink className="ml-1 h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent onClick={() => handleResourceClick(resource.id)}>
-                    <CardDescription>{resource.description}</CardDescription>
-                    {resource.estimated_benefit && (
-                      <div className="mt-2">
-                        <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                          💰 {resource.estimated_benefit}
-                        </Badge>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+
+        {/* Personalization Banner */}
+        {filters.state === 'CA' && filters.county === 'Los Angeles' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-medium text-blue-900 mb-1">Personalized for California (Los Angeles County)</h3>
+                <p className="text-sm text-blue-800">
+                  We're showing you programs available in your area. You can{' '}
+                  <Link to="/profile" className="underline font-medium">
+                    update your location in Profile
+                  </Link>{' '}
+                  or clear filters to see all programs.
+                </p>
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
+
+        {/* Search Bar */}
+        <ResourceSearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className="mb-6"
+        />
+
+        {/* Filters */}
+        <ResourceFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          className="mb-6"
+        />
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.reload()} 
+              className="mt-2"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {/* Resources Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedResources.map((resource) => (
+            <ResourceCard
+              key={resource.id}
+              resource={resource}
+              onToggleBookmark={toggleBookmark}
+              onViewDetails={handleViewDetails}
+            />
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {!loading && sortedResources.length === 0 && (
+          <div className="text-center py-12">
+            <div className="max-w-md mx-auto">
+              <p className="text-gray-500 mb-4">
+                {searchQuery || Object.keys(filters).length > 0
+                  ? 'No results. Try different keywords or clear filters.'
+                  : 'No resources available at this time.'}
+              </p>
+              {(searchQuery || Object.keys(filters).length > 0) && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilters({});
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Disclaimer */}
+        <div className="mt-12 pt-8 border-t border-gray-200">
+          <p className="text-sm text-gray-600 text-center max-w-3xl mx-auto">
+            This information is for educational purposes only and does not constitute legal or tax advice. 
+            Please consult a qualified professional for advice specific to your situation.
+          </p>
+        </div>
       </div>
+
+      {/* Suggest Resource Modal */}
+      <SuggestResourceModal
+        isOpen={showSuggestModal}
+        onClose={() => setShowSuggestModal(false)}
+        onSubmit={suggestResource}
+      />
     </Layout>
   );
 };

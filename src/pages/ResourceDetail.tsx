@@ -7,30 +7,16 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Heart, ExternalLink, Share, DollarSign, FileText, Phone, Mail, Clock } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
-import { useSupabaseSavedResources } from '@/hooks/useSupabaseSavedResources';
+import { useResourcesSystem } from '@/hooks/useResourcesSystem';
 import { toast } from 'sonner';
-
-interface Resource {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  url?: string;
-  content?: string;
-  tags?: string[];
-  estimated_benefit?: string;
-  eligibility_requirements?: string[];
-  application_process?: string;
-  contact_info?: any;
-  external_links?: any;
-}
+import { analytics } from '@/utils/analytics';
 
 const ResourceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [resource, setResource] = useState<Resource | null>(null);
+  const [resource, setResource] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { saveResource, unsaveResource, isResourceSaved } = useSupabaseSavedResources();
+  const { toggleBookmark, isBookmarked, logResourceEvent } = useResourcesSystem();
 
   useEffect(() => {
     if (id) {
@@ -67,35 +53,24 @@ const ResourceDetail = () => {
     if (!resource) return;
     
     try {
-      if (isResourceSaved(resource.id)) {
-        await unsaveResource(resource.id);
-        toast.success('Resource removed from saved');
-      } else {
-        await saveResource(resource.id);
-        toast.success('Resource saved');
-      }
+      await toggleBookmark(resource.id);
     } catch (err) {
       toast.error('Failed to update saved status');
     }
   };
 
   const handleApplyClick = () => {
-    if (resource?.external_links?.apply_url) {
-      window.open(resource.external_links.apply_url, '_blank');
+    if (resource?.apply_url) {
+      window.open(resource.apply_url, '_blank');
       // Analytics event
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'resource_click_apply', {
-          resource_id: resource.id
-        });
-      }
+      analytics.resourceApplyClicked(resource.id);
     }
   };
 
   const handleLearnMoreClick = () => {
-    if (resource?.url || resource?.external_links?.source_url) {
-      const url = resource.external_links?.source_url || resource.url;
-      window.open(url, '_blank');
-      // Analytics event
+    if (resource?.source_url) {
+      window.open(resource.source_url, '_blank');
+      // Analytics event  
       if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('event', 'resource_click_source', {
           resource_id: resource.id
@@ -182,9 +157,9 @@ const ResourceDetail = () => {
                   variant="ghost"
                   size="sm"
                   onClick={handleSaveToggle}
-                  className={`${isResourceSaved(resource.id) ? 'text-red-600' : 'text-gray-400 hover:text-red-600'}`}
+                  className={`${isBookmarked(resource.id) ? 'text-red-600' : 'text-gray-400 hover:text-red-600'}`}
                 >
-                  <Heart className={`h-5 w-5 ${isResourceSaved(resource.id) ? 'fill-current' : ''}`} />
+                  <Heart className={`h-5 w-5 ${isBookmarked(resource.id) ? 'fill-current' : ''}`} />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={handleShare}>
                   <Share className="h-4 w-4" />
@@ -193,110 +168,127 @@ const ResourceDetail = () => {
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            {/* What it provides */}
-            <div>
-              <h3 className="font-semibold mb-2">What it provides</h3>
-              <p className="text-gray-700">{resource.content || resource.description}</p>
-            </div>
+        <CardContent className="space-y-6">
+          {/* What it provides */}
+          <div>
+            <h3 className="font-semibold mb-2">What it provides</h3>
+            <p className="text-gray-700">{resource.description}</p>
+          </div>
 
-            {/* Estimated Savings */}
-            {resource.estimated_benefit && (
-              <>
-                <Separator />
-                <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold mb-1">Estimated Savings</h3>
-                    <p className="text-gray-700">{resource.estimated_benefit}</p>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Eligibility */}
-            {resource.eligibility_requirements && resource.eligibility_requirements.length > 0 && (
-              <>
-                <Separator />
+          {/* Estimated Savings */}
+          {(resource.estimated_benefit_min || resource.estimated_benefit_max) && (
+            <>
+              <Separator />
+              <div className="flex items-start gap-3">
+                <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
                 <div>
-                  <h3 className="font-semibold mb-3">Eligibility Requirements</h3>
-                  <ul className="space-y-2">
-                    {resource.eligibility_requirements.map((req, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                        <span className="text-gray-700">{req}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <h3 className="font-semibold mb-1">Estimated Savings</h3>
+                  <p className="text-gray-700">
+                    {resource.estimated_benefit_min && resource.estimated_benefit_max
+                      ? `$${resource.estimated_benefit_min.toLocaleString()} - $${resource.estimated_benefit_max.toLocaleString()}`
+                      : resource.estimated_benefit_min
+                        ? `From $${resource.estimated_benefit_min.toLocaleString()}`
+                        : `Up to $${resource.estimated_benefit_max.toLocaleString()}`
+                    }
+                  </p>
                 </div>
-              </>
-            )}
+              </div>
+            </>
+          )}
 
-            {/* How to Apply */}
-            {resource.application_process && (
-              <>
-                <Separator />
-                <div className="flex items-start gap-3">
-                  <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold mb-2">How to Apply</h3>
-                    <p className="text-gray-700 whitespace-pre-line">{resource.application_process}</p>
-                  </div>
-                </div>
-              </>
-            )}
+          {/* Eligibility */}
+          {resource.eligibility_summary && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="font-semibold mb-3">Eligibility Requirements</h3>
+                <p className="text-gray-700">{resource.eligibility_summary}</p>
+              </div>
+            </>
+          )}
 
-            {/* Contact Information */}
-            {resource.contact_info && Object.keys(resource.contact_info).length > 0 && (
-              <>
-                <Separator />
+          {/* How to Apply */}
+          {resource.application_steps && (
+            <>
+              <Separator />
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
                 <div>
-                  <h3 className="font-semibold mb-3">Contact Information</h3>
-                  <div className="space-y-2">
-                    {resource.contact_info.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-gray-500" />
-                        <a href={`tel:${resource.contact_info.phone}`} className="text-blue-600 hover:underline">
-                          {resource.contact_info.phone}
-                        </a>
-                      </div>
-                    )}
-                    {resource.contact_info.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-gray-500" />
-                        <a href={`mailto:${resource.contact_info.email}`} className="text-blue-600 hover:underline">
-                          {resource.contact_info.email}
-                        </a>
-                      </div>
-                    )}
-                    {resource.contact_info.hours && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-700">{resource.contact_info.hours}</span>
-                      </div>
-                    )}
-                  </div>
+                  <h3 className="font-semibold mb-2">How to Apply</h3>
+                  <p className="text-gray-700 whitespace-pre-line">{resource.application_steps}</p>
                 </div>
-              </>
-            )}
+              </div>
+            </>
+          )}
 
-            {/* Action Buttons */}
-            <Separator />
-            <div className="flex flex-col sm:flex-row gap-3">
-              {resource.external_links?.apply_url && (
-                <Button onClick={handleApplyClick} className="flex items-center gap-2">
-                  Apply Now
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              )}
-              {(resource.url || resource.external_links?.source_url) && (
-                <Button variant="secondary" onClick={handleLearnMoreClick} className="flex items-center gap-2">
-                  Learn More
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </CardContent>
+          {/* Documents Required */}
+          {resource.documents_required && resource.documents_required.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="font-semibold mb-3">Documents Required</h3>
+                <div className="flex flex-wrap gap-2">
+                  {resource.documents_required.map((doc, index) => (
+                    <Badge key={index} variant="outline">
+                      {doc}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Contact Information */}
+          {resource.contact_phone || resource.contact_email || resource.contact_hours && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="font-semibold mb-3">Contact Information</h3>
+                <div className="space-y-2">
+                  {resource.contact_phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-500" />
+                      <a href={`tel:${resource.contact_phone}`} className="text-blue-600 hover:underline">
+                        {resource.contact_phone}
+                      </a>
+                    </div>
+                  )}
+                  {resource.contact_email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <a href={`mailto:${resource.contact_email}`} className="text-blue-600 hover:underline">
+                        {resource.contact_email}
+                      </a>
+                    </div>
+                  )}
+                  {resource.contact_hours && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-700">{resource.contact_hours}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Action Buttons */}
+          <Separator />
+          <div className="flex flex-col sm:flex-row gap-3">
+            {resource.apply_url && (
+              <Button onClick={handleApplyClick} className="flex items-center gap-2">
+                Apply Now
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            )}
+            {resource.source_url && (
+              <Button variant="secondary" onClick={handleLearnMoreClick} className="flex items-center gap-2">
+                Learn More
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
         </Card>
       </div>
     </Layout>

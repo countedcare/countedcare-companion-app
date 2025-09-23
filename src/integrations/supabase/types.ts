@@ -304,37 +304,55 @@ export type Database = {
       }
       resources: {
         Row: {
+          application_process: string | null
           category: string
+          contact_info: Json | null
+          content: string | null
           created_at: string
-          description: string | null
+          description: string
+          eligibility_requirements: string[] | null
+          estimated_benefit: string | null
+          external_links: Json | null
           id: string
-          is_favorited: boolean
+          is_active: boolean | null
+          tags: string[] | null
           title: string
           updated_at: string
           url: string | null
-          user_id: string
         }
         Insert: {
+          application_process?: string | null
           category: string
+          contact_info?: Json | null
+          content?: string | null
           created_at?: string
-          description?: string | null
+          description?: string
+          eligibility_requirements?: string[] | null
+          estimated_benefit?: string | null
+          external_links?: Json | null
           id?: string
-          is_favorited?: boolean
+          is_active?: boolean | null
+          tags?: string[] | null
           title: string
           updated_at?: string
           url?: string | null
-          user_id: string
         }
         Update: {
+          application_process?: string | null
           category?: string
+          contact_info?: Json | null
+          content?: string | null
           created_at?: string
-          description?: string | null
+          description?: string
+          eligibility_requirements?: string[] | null
+          estimated_benefit?: string | null
+          external_links?: Json | null
           id?: string
-          is_favorited?: boolean
+          is_active?: boolean | null
+          tags?: string[] | null
           title?: string
           updated_at?: string
           url?: string | null
-          user_id?: string
         }
         Relationships: []
       }

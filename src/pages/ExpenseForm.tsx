@@ -46,6 +46,7 @@ const ExpenseForm = () => {
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingDocument, setIsProcessingDocument] = useState(false);
+  const [isTaxDeductible, setIsTaxDeductible] = useState(false);
   
   
   // Google Maps integration
@@ -163,6 +164,7 @@ const ExpenseForm = () => {
         setCareRecipientId(expenseToEdit.careRecipientId);
         setReceiptUrl(expenseToEdit.receiptUrl);
         setSourceAccountId(expenseToEdit.linked_account_id || '');
+        setIsTaxDeductible(expenseToEdit.is_tax_deductible || false);
       }
     }
   }, [id, expenses]);
@@ -250,6 +252,8 @@ const ExpenseForm = () => {
         receipt_url: receiptUrl || null,
         notes: description || null,
         linked_account_id: sourceAccountId || null,
+        is_tax_deductible: isTaxDeductible,
+        is_potentially_deductible: isTaxDeductible,
       };
 
       if (id) {
@@ -405,6 +409,8 @@ const ExpenseForm = () => {
                   careRecipientId={careRecipientId}
                   setCareRecipientId={setCareRecipientId}
                   recipients={recipients}
+                  isTaxDeductible={isTaxDeductible}
+                  setIsTaxDeductible={setIsTaxDeductible}
                 />
 
                 {/* Notes */}

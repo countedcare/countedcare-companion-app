@@ -71,13 +71,21 @@ export function QualifyForm({ open, onOpenChange, transaction, onSubmit }: Quali
   // Update form when transaction changes
   useEffect(() => {
     if (transaction && open) {
+      // Default to tax deductible if it's a potential medical transaction
+      const isLikelyMedical = transaction.is_potential_medical || 
+        transaction.category?.toLowerCase().includes('medical') ||
+        transaction.description?.toLowerCase().includes('medical') ||
+        transaction.merchant_name?.toLowerCase().includes('pharmacy') ||
+        transaction.merchant_name?.toLowerCase().includes('hospital') ||
+        transaction.merchant_name?.toLowerCase().includes('clinic');
+
       form.reset({
         date: new Date(transaction.date),
         vendor: transaction.merchant_name || transaction.description.split(' ').slice(0, 3).join(' '),
-        amount: transaction.amount,
+        amount: Math.abs(transaction.amount), // Ensure positive amount
         category: transaction.category || 'Medical Visits',
         notes: `Original description: ${transaction.description}`,
-        is_tax_deductible: true,
+        is_tax_deductible: isLikelyMedical, // Default based on medical likelihood
       });
     }
   }, [transaction, open, form]);

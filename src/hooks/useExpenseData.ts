@@ -81,7 +81,6 @@ export function useExpenseData() {
     }
   };
 
-  // Calculate comprehensive statistics
   const calculateStats = (): ExpenseStats => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -110,12 +109,19 @@ export function useExpenseData() {
     const thisMonth = thisMonthExpenses.length;
     const thisYear = thisYearExpenses.length;
 
-    // Amount-based stats
+    // Amount-based stats - include both manual and converted transaction expenses
     const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Tax deductible amounts (includes converted transactions that are marked as deductible)
     const deductibleAmount = expenses
       .filter(e => e.is_tax_deductible)
       .reduce((sum, expense) => sum + expense.amount, 0);
+    
     const thisMonthAmount = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // This year deductible amount for tax calculations
+    const thisYearDeductibleExpenses = thisYearExpenses.filter(e => e.is_tax_deductible);
+    const thisYearDeductibleAmount = thisYearDeductibleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const thisYearAmount = thisYearExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
     return {
@@ -132,7 +138,7 @@ export function useExpenseData() {
       totalAmount,
       deductibleAmount,
       thisMonthAmount,
-      thisYearAmount,
+      thisYearAmount: thisYearDeductibleAmount, // Use deductible amount for tax calculations
     };
   };
 
@@ -145,7 +151,15 @@ export function useExpenseData() {
   const getTaxProgress = (householdAGI: number = 75000) => {
     const threshold = householdAGI * 0.075;
     const stats = calculateStats();
-    const currentTracked = stats.thisYearAmount; // Use real data instead of mock
+    
+    // Use this year's deductible expenses for tax calculation
+    const currentYear = new Date().getFullYear();
+    const thisYearDeductibleExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      return expenseDate.getFullYear() === currentYear && expense.is_tax_deductible;
+    });
+    
+    const currentTracked = thisYearDeductibleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const progressPercent = Math.min(100, (currentTracked / threshold) * 100);
     const unlockedDeductions = Math.max(0, currentTracked - threshold);
 

@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CreditCard, CheckCircle } from 'lucide-react';
 import { SwipeDeck } from '@/components/transactions/SwipeDeck';
+import { QualifyForm } from '@/components/transactions/QualifyForm';
 import { useTransactionReview } from '@/hooks/useTransactionReview';
+import { Transaction } from '@/hooks/useTransactionReview';
 
 export function TransactionTriage() {
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [qualifyFormOpen, setQualifyFormOpen] = useState(false);
+
   const {
     transactions,
     isLoading,
@@ -17,22 +22,19 @@ export function TransactionTriage() {
   // Mock reviews count - this would be tracked in user preferences or gamification
   const reviewsToday = 5;
 
-  const handleKeep = async (transaction: any) => {
-    // This would open the qualify form modal
-    // For now, we'll just mark as kept
-    await keepTransaction({
-      date: transaction.date,
-      vendor: transaction.merchant_name || transaction.description,
-      amount: transaction.amount,
-      category: 'Medical',
-      notes: '',
-      is_tax_deductible: true,
-      transactionId: transaction.id
-    });
+  const handleKeep = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setQualifyFormOpen(true);
   };
 
-  const handleSkip = (transaction: any) => {
+  const handleSkip = (transaction: Transaction) => {
     skipTransaction(transaction);
+  };
+
+  const handleQualifySubmit = async (data: any) => {
+    await keepTransaction(data);
+    setQualifyFormOpen(false);
+    setSelectedTransaction(null);
   };
 
   if (stats.totalPending === 0) {
@@ -86,6 +88,13 @@ export function TransactionTriage() {
           </div>
         </CardContent>
       </Card>
+      
+      <QualifyForm
+        open={qualifyFormOpen}
+        onOpenChange={setQualifyFormOpen}
+        transaction={selectedTransaction}
+        onSubmit={handleQualifySubmit}
+      />
     </div>
   );
 }

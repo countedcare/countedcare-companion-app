@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { CareRecipient } from '@/types/User';
 import MedicalCategorySelector from './MedicalCategorySelector';
+import { MEDICAL_CATEGORIES } from '@/lib/medicalCategories';
 
 interface ExpenseCategorySectionProps {
   category: string;
@@ -39,16 +40,9 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
     setCategory(value);
     setSubcategory(''); // Reset subcategory when category changes
     
-    // Auto-check tax deductible for medical categories
-    const isMedicalCategory = [
-      'Medical Visits', 'Prescriptions', 'Dental', 'Vision', 'Therapy', 
-      'Hospital/Emergency', 'Medical Equipment', 'Home Modifications', 
-      'Transportation', 'Other Medical'
-    ].includes(value);
-    
-    if (isMedicalCategory) {
-      setIsTaxDeductible(true);
-    }
+    // Auto-set tax deductible for all medical categories
+    const isMedicalCategory = MEDICAL_CATEGORIES.some(cat => cat.userFriendlyLabel === value);
+    setIsTaxDeductible(isMedicalCategory);
   };
 
   const handleSubcategoryChange = (value: string) => {
@@ -103,23 +97,18 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
           </Select>
         </div>
 
-        {/* Tax Deductible Checkbox */}
-        <div className="space-y-3">
-          <Label>Tax Information</Label>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="tax-deductible"
-              checked={isTaxDeductible}
-              onCheckedChange={(checked) => setIsTaxDeductible(checked === true)}
-            />
-            <Label htmlFor="tax-deductible" className="text-sm font-normal cursor-pointer">
-              This expense may be tax deductible
-            </Label>
+        {/* Tax Deductible Status */}
+        {isTaxDeductible && (
+          <div className="space-y-2 p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center space-x-2">
+              <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+              <Label className="text-sm font-medium text-green-800">Tax Deductible Expense</Label>
+            </div>
+            <p className="text-xs text-green-700">
+              Medical expenses over 7.5% of your AGI may be tax deductible. This will be counted toward your tax savings progress.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Medical expenses over 7.5% of your AGI may be tax deductible. Consult a tax professional for advice.
-          </p>
-        </div>
+        )}
 
       </CardContent>
     </Card>

@@ -3,14 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Heart, Star } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { useResourcesSystem } from '@/hooks/useResourcesSystem';
+import { useResourcesSystem, ResourceCategory } from '@/hooks/useResourcesSystem';
 import { useAuth } from '@/contexts/AuthContext';
 import ResourceCard from '@/components/resources/ResourceCard';
 import ResourceFilters from '@/components/resources/ResourceFilters';
 import ResourceSearchBar from '@/components/resources/ResourceSearchBar';
 
-interface Filters {
-  category?: string;
+interface SavedResourceFilters {
+  category?: ResourceCategory;
   state?: string;
   county?: string;
   tags?: string[];
@@ -28,7 +28,7 @@ const SavedResources = () => {
   } = useResourcesSystem();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<SavedFilters>({});
+  const [filters, setFilters] = useState<SavedResourceFilters>({});
   const [sortBy, setSortBy] = useState('recommended');
 
   useEffect(() => {

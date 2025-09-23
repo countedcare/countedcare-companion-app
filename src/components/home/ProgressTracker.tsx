@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, ArrowRight, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useExpenseData } from '@/hooks/useExpenseData';
 
 interface ProgressTrackerProps {
   profile: any;
@@ -11,15 +12,11 @@ interface ProgressTrackerProps {
 
 export function ProgressTracker({ profile }: ProgressTrackerProps) {
   const navigate = useNavigate();
+  const { getTaxProgress } = useExpenseData();
   
-  // Calculate AGI threshold (7.5% for medical expenses)
+  // Get real tax progress data from expenses
   const householdAGI = profile?.household_agi || 75000;
-  const threshold = householdAGI * 0.075;
-  
-  // Mock current tracked amount - this would come from expenses
-  const currentTracked = 3200;
-  const progressPercent = Math.min(100, (currentTracked / threshold) * 100);
-  const unlockedDeductions = Math.max(0, currentTracked - threshold);
+  const { threshold, currentTracked, progressPercent, unlockedDeductions } = getTaxProgress(householdAGI);
 
   return (
     <div className="px-4">

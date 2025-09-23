@@ -1,42 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Receipt, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useExpenseData } from '@/hooks/useExpenseData';
 import { format } from 'date-fns';
 
 export function RecentActivity() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchRecentExpenses = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(3);
-
-        if (error) throw error;
-        setRecentExpenses(data || []);
-      } catch (error) {
-        console.error('Error fetching recent expenses:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecentExpenses();
-  }, [user]);
+  const { getRecentExpenses, loading } = useExpenseData();
+  const recentExpenses = getRecentExpenses(3);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

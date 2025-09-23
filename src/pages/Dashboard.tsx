@@ -15,6 +15,7 @@ import { AccountsOverview } from '@/components/dashboard/AccountsOverview';
 import { PaydayCountdown } from '@/components/dashboard/PaydayCountdown';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import { HomeTransactions } from '@/pages/home/HomeTransactions';
+import { useExpenseData } from '@/hooks/useExpenseData';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -22,8 +23,7 @@ const Dashboard = () => {
   const { profile } = useSupabaseProfile();
   
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { expenses, loading, reloadExpenses } = useExpenseData();
   const [timeFrame, setTimeFrame] = useState<'month' | 'year'>('month');
   
   // Redirect to onboarding if not completed
@@ -39,61 +39,6 @@ const Dashboard = () => {
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute('content', 'See where caregiving expenses go with a category pie chart and quick actions.');
   }, []);
-
-  // Load expenses from Supabase
-  const loadExpenses = async () => {
-    if (!authUser) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select(`
-          *,
-          synced_transactions(
-            description,
-            merchant_name
-          )
-        `)
-        .eq('user_id', authUser.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // Transform database format to local format
-      const transformedExpenses: Expense[] = (data || []).map(expense => {
-        // Use synced transaction description if available, otherwise fall back to expense description
-        let description = expense.description || expense.notes || '';
-        
-        if (expense.synced_transaction_id && expense.synced_transactions) {
-          const syncedTransaction = Array.isArray(expense.synced_transactions) 
-            ? expense.synced_transactions[0] 
-            : expense.synced_transactions;
-          
-          if (syncedTransaction) {
-            description = syncedTransaction.merchant_name || syncedTransaction.description || description;
-          }
-        }
-        
-        return {
-          ...expense,
-          careRecipientId: expense.care_recipient_id || '',
-          receiptUrl: expense.receipt_url,
-          description,
-          triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
-        };
-      });
-      
-      setExpenses(transformedExpenses);
-    } catch (error) {
-      console.error('Error loading expenses:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadExpenses();
-  }, [authUser]);
 
   // Auto-show receipt modal on first visit
   useEffect(() => {
@@ -414,7 +359,7 @@ const Dashboard = () => {
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
         onExpenseAdded={() => {
-          loadExpenses();
+          reloadExpenses();
           setShowReceiptModal(false);
         }}
       />

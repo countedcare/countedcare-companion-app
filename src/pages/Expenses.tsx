@@ -29,15 +29,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useExpenseData } from '@/hooks/useExpenseData';
 
 const Expenses = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
   const { profile } = useSupabaseProfile();
   const { toast } = useToast();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { expenses, loading, stats, reloadExpenses } = useExpenseData();
   const { recipients } = useSupabaseCareRecipients();
-  const [loading, setLoading] = useState(true);
   const { transactions: syncedTransactions, updateTransaction, deleteTransaction } = useSyncedTransactions();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,61 +50,6 @@ const Expenses = () => {
   const [triageFilter, setTriageFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  // Load expenses from Supabase (same as Dashboard)
-  const loadExpenses = async () => {
-    if (!authUser) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select(`
-          *,
-          synced_transactions(
-            description,
-            merchant_name
-          )
-        `)
-        .eq('user_id', authUser.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // Transform database format to local format
-      const transformedExpenses: Expense[] = (data || []).map(expense => {
-        // Use synced transaction description if available, otherwise fall back to expense description
-        let description = expense.description || expense.notes || '';
-        
-        if (expense.synced_transaction_id && expense.synced_transactions) {
-          const syncedTransaction = Array.isArray(expense.synced_transactions) 
-            ? expense.synced_transactions[0] 
-            : expense.synced_transactions;
-          
-          if (syncedTransaction) {
-            description = syncedTransaction.merchant_name || syncedTransaction.description || description;
-          }
-        }
-        
-        return {
-          ...expense,
-          careRecipientId: expense.care_recipient_id || '',
-          receiptUrl: expense.receipt_url,
-          description,
-          triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
-        };
-      });
-      
-      setExpenses(transformedExpenses);
-    } catch (error) {
-      console.error('Error loading expenses:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadExpenses();
-  }, [authUser]);
-  
   // Filter only unconfirmed potential medical transactions for the review section
   const unconfirmedTransactions = syncedTransactions.filter(
     transaction => transaction.is_potential_medical && !transaction.is_confirmed_medical
@@ -176,6 +121,7 @@ const Expenses = () => {
     }
   });
 
+  
   const handleClearFilters = () => {
     setFilterCategory('');
     setFilterRecipient('');
@@ -189,29 +135,11 @@ const Expenses = () => {
   };
 
   const handleRefresh = () => {
-    loadExpenses();
+    reloadExpenses();
   };
 
-  // Get stats for expenses overview
-  const getExpenseStats = () => {
-    const total = expenses.length;
-    const deductible = expenses.filter(e => e.is_tax_deductible).length;
-    const reimbursed = expenses.filter(e => e.is_reimbursed).length;
-    const manual = expenses.filter(e => !e.synced_transaction_id).length;
-    const autoImported = expenses.filter(e => e.synced_transaction_id).length;
-    const pending = expenses.filter(e => e.triage_status === 'pending').length;
-    const kept = expenses.filter(e => e.triage_status === 'kept').length;
-    const skipped = expenses.filter(e => e.triage_status === 'skipped').length;
-    const thisMonth = expenses.filter(e => {
-      const expenseDate = new Date(e.date);
-      const now = new Date();
-      return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
-    }).length;
-    
-    return { total, deductible, reimbursed, manual, autoImported, pending, kept, skipped, thisMonth };
-  };
-
-  const expenseStats = getExpenseStats();
+  // Get stats for expenses overview - using the centralized stats
+  const expenseStats = stats;
 
   // Handle triage actions
   const handleTriageAction = async (expenseId: string, action: 'keep' | 'skip') => {
@@ -226,12 +154,8 @@ const Expenses = () => {
 
       if (error) throw error;
 
-      // Update local state
-      setExpenses(prev => prev.map(expense => 
-        expense.id === expenseId 
-          ? { ...expense, triage_status: dbAction as 'pending' | 'kept' | 'skipped' }
-          : expense
-      ));
+      // Update local state - since we're using the hook, we'll refresh the data
+      reloadExpenses();
 
       toast({
         title: action === 'keep' ? 'Expense Kept' : 'Expense Skipped',
@@ -274,7 +198,7 @@ const Expenses = () => {
       });
       
       // Reload expenses to get updated data
-      loadExpenses();
+      reloadExpenses();
     } catch (error) {
       console.error('Error saving expense:', error);
     }

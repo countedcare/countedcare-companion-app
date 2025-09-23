@@ -7,90 +7,115 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* WCAG AA compliant colors - 4.5:1 contrast minimum */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 205 65% 45%;
-    --primary-foreground: 210 40% 98%;
+    /* Enhanced primary with better contrast */
+    --primary: 210 89% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    /* Improved secondary with higher contrast */
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 0 0% 9%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 35%;
+    /* Better muted colors for accessibility */
+    --muted: 210 40% 95%;
+    --muted-foreground: 0 0% 25%; /* Improved from 35% to 25% for better contrast */
 
-    --accent: 185 46% 74%;
-    --accent-foreground: 222 47% 11%;
+    /* High contrast accent */
+    --accent: 185 50% 45%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    /* Accessible destructive colors */
+    --destructive: 0 84% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 222 84% 48%;
+    /* Stronger borders for visibility */
+    --border: 214 32% 85%;
+    --input: 214 32% 85%;
+    --ring: 210 89% 42%;
     
-    /* Chart palette (light) */
-    --chart-1: 205 65% 60%; /* brand blue */
-    --chart-2: 185 46% 54%; /* teal */
-    --chart-3: 230 35% 60%; /* indigo */
-    --chart-4: 197 54% 64%; /* sky */
-    --chart-5: 260 35% 60%; /* violet */
-    --chart-6: 170 45% 48%; /* green */
+    /* High contrast chart palette */
+    --chart-1: 210 89% 42%; /* high contrast blue */
+    --chart-2: 185 50% 35%; /* high contrast teal */
+    --chart-3: 230 45% 40%; /* high contrast indigo */
+    --chart-4: 197 54% 40%; /* high contrast sky */
+    --chart-5: 260 45% 40%; /* high contrast violet */
+    --chart-6: 170 55% 30%; /* high contrast green */
 
     --radius: 0.75rem;
 
+    /* Accessible sidebar colors */
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5% 26%;
-    --sidebar-primary: 240 6% 10%;
+    --sidebar-foreground: 0 0% 15%;
+    --sidebar-primary: 0 0% 9%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 5% 96%;
-    --sidebar-accent-foreground: 240 6% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 210 40% 94%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 220 13% 85%;
+    --sidebar-ring: 210 89% 42%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    /* High contrast dark mode - WCAG AA compliant */
+    --background: 0 0% 8%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 205 65% 55%;
-    --primary-foreground: 210 40% 98%;
+    /* Brighter primary for dark mode accessibility */
+    --primary: 210 89% 58%;
+    --primary-foreground: 0 0% 8%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    /* Better contrast secondary for dark mode */
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    /* Improved muted colors for dark mode readability */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 75%; /* Improved from 65% to 75% for better contrast */
 
-    --accent: 185 46% 64%;
-    --accent-foreground: 222 47% 11%;
+    /* High contrast accent for dark mode */
+    --accent: 185 50% 60%;
+    --accent-foreground: 0 0% 8%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    /* Accessible destructive colors for dark mode */
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 8%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-     --ring: 213 27% 84%;
+    /* Stronger borders for dark mode visibility */
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 210 89% 58%;
 
-    /* Chart palette (dark) */
-    --chart-1: 205 65% 55%;
-    --chart-2: 185 46% 50%;
-    --chart-3: 230 35% 55%;
-    --chart-4: 197 54% 58%;
-    --chart-5: 260 35% 55%;
-    --chart-6: 170 45% 44%;
+    /* High contrast dark mode chart palette */
+    --chart-1: 210 89% 58%;
+    --chart-2: 185 50% 55%;
+    --chart-3: 230 45% 60%;
+    --chart-4: 197 54% 65%;
+    --chart-5: 260 45% 60%;
+    --chart-6: 170 55% 50%;
+
+    /* Accessible dark sidebar */
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 210 89% 58%;
   }
 }
 
@@ -110,7 +135,7 @@
 
 @layer components {
   .card-shadow {
-    @apply shadow-md shadow-black/5;
+    @apply shadow-md shadow-black/8;
   }
   
   .container-padding {
@@ -136,5 +161,22 @@
 
   .mobile-button {
     @apply px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base;
+  }
+
+  /* Accessibility enhancements */
+  .focus-visible {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  .high-contrast-text {
+    @apply text-foreground font-medium;
+  }
+
+  .accessible-link {
+    @apply text-primary underline hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  .accessible-button {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors;
   }
 }

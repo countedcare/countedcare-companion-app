@@ -18,8 +18,6 @@ import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
 import { Expense } from '@/types/User';
 import { SyncedTransaction } from '@/types/FinancialAccount';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import ExpenseInsights from '@/components/expenses/ExpenseInsights';
-import ExpenseRecommendations from '@/components/expenses/ExpenseRecommendations';
 import ExpenseTable from '@/components/expenses/ExpenseTable';
 import AutoImportedTransactions from '@/components/expenses/AutoImportedTransactions';
 import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
@@ -351,12 +349,6 @@ const Expenses = () => {
         
         {/* Tax deduction progress */}
         <TaxDeductionProgress expenses={expenses} />
-        
-        {/* Insights Overview */}
-        <ExpenseInsights expenses={expenses} />
-        
-        {/* Recommendations */}
-        <ExpenseRecommendations expenses={expenses} recipients={recipients} />
         
         <Tabs defaultValue="list" className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10">

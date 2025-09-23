@@ -77,7 +77,7 @@ const ExpenseCategorySection: React.FC<ExpenseCategorySectionProps> = ({
               <SelectValue placeholder="Who is this expense for?" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Myself</SelectItem>
+              <SelectItem value="myself">Myself</SelectItem>
               {recipients.filter(recipient => recipient.id?.trim()).map((recipient) => (
                 <SelectItem key={recipient.id} value={recipient.id}>
                   {recipient.name}

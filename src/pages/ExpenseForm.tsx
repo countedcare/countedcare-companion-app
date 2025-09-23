@@ -246,7 +246,7 @@ const ExpenseForm = () => {
         description: title || description,
         vendor: vendor || null,
         user_id: authUser.id,
-        care_recipient_id: careRecipientId || null,
+        care_recipient_id: careRecipientId === 'myself' ? null : careRecipientId || null,
         receipt_url: receiptUrl || null,
         notes: description || null,
         linked_account_id: sourceAccountId || null,

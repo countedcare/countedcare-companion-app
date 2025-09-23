@@ -70,11 +70,11 @@ const ResourceFilters: React.FC<ResourceFiltersProps> = ({
         
         {/* Category Filter */}
         <Select 
-          value={filters.category || ''} 
+          value={filters.category || 'all'} 
           onValueChange={(value) => 
             onFiltersChange({ 
               ...filters, 
-              category: value as ResourceCategory 
+              category: value === 'all' ? undefined : value as ResourceCategory 
             })
           }
         >
@@ -82,7 +82,7 @@ const ResourceFilters: React.FC<ResourceFiltersProps> = ({
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Categories</SelectItem>
+            <SelectItem value="all">All Categories</SelectItem>
             {categoryOptions.map(option => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}

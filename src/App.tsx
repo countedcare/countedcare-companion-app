@@ -25,6 +25,8 @@ const Mileage = lazy(() => import("./pages/Mileage"));
 const CareRecipients = lazy(() => import("./pages/CareRecipients"));
 const CareRecipientForm = lazy(() => import("./pages/CareRecipientForm"));
 const Resources = lazy(() => import("./pages/Resources"));
+const ResourceDetail = lazy(() => import("./pages/ResourceDetail"));
+const SavedResources = lazy(() => import("./pages/SavedResources"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const TransactionTriage = lazy(() => import("./pages/TransactionTriage"));
@@ -120,6 +122,16 @@ const App = () => (
               <Route path="/resources" element={
                 <ProtectedRoute>
                   <Resources />
+                </ProtectedRoute>
+              } />
+              <Route path="/resources/:id" element={
+                <ProtectedRoute>
+                  <ResourceDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/resources/saved" element={
+                <ProtectedRoute>
+                  <SavedResources />
                 </ProtectedRoute>
               } />
               <Route path="/transactions" element={

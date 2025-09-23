@@ -64,7 +64,7 @@ const ExpenseForm = () => {
         .from('expenses')
         .select(`
           *,
-          synced_transactions(
+          synced_transactions!expenses_synced_transaction_id_fkey(
             description,
             merchant_name
           )

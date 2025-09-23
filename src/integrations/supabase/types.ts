@@ -302,57 +302,163 @@ export type Database = {
         }
         Relationships: []
       }
-      resources: {
+      resource_bookmarks: {
         Row: {
-          application_process: string | null
-          category: string
-          contact_info: Json | null
-          content: string | null
-          created_at: string
-          description: string
-          eligibility_requirements: string[] | null
-          estimated_benefit: string | null
-          external_links: Json | null
-          id: string
-          is_active: boolean | null
-          tags: string[] | null
-          title: string
-          updated_at: string
-          url: string | null
+          created_at: string | null
+          resource_id: string
+          user_id: string
         }
         Insert: {
-          application_process?: string | null
-          category: string
-          contact_info?: Json | null
-          content?: string | null
-          created_at?: string
-          description?: string
-          eligibility_requirements?: string[] | null
-          estimated_benefit?: string | null
-          external_links?: Json | null
-          id?: string
-          is_active?: boolean | null
-          tags?: string[] | null
-          title: string
-          updated_at?: string
-          url?: string | null
+          created_at?: string | null
+          resource_id: string
+          user_id: string
         }
         Update: {
-          application_process?: string | null
-          category?: string
-          contact_info?: Json | null
-          content?: string | null
-          created_at?: string
-          description?: string
-          eligibility_requirements?: string[] | null
-          estimated_benefit?: string | null
-          external_links?: Json | null
+          created_at?: string | null
+          resource_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_bookmarks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_events: {
+        Row: {
+          context: Json | null
+          created_at: string | null
+          event_type: string
+          id: number
+          resource_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string | null
+          event_type: string
+          id?: number
+          resource_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string | null
+          event_type?: string
+          id?: number
+          resource_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_events_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_suggestions: {
+        Row: {
+          created_at: string | null
+          id: string
+          link: string | null
+          note: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          note?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          note?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      resources: {
+        Row: {
+          application_steps: string | null
+          apply_url: string | null
+          category: Database["public"]["Enums"]["resource_category"]
+          contact_email: string | null
+          contact_hours: string | null
+          contact_phone: string | null
+          county_name: string | null
+          created_at: string | null
+          description: string
+          documents_required: string[] | null
+          eligibility_summary: string | null
+          estimated_benefit_max: number | null
+          estimated_benefit_min: number | null
+          id: string
+          is_active: boolean | null
+          search_tsv: unknown | null
+          source_url: string | null
+          state_code: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          application_steps?: string | null
+          apply_url?: string | null
+          category: Database["public"]["Enums"]["resource_category"]
+          contact_email?: string | null
+          contact_hours?: string | null
+          contact_phone?: string | null
+          county_name?: string | null
+          created_at?: string | null
+          description: string
+          documents_required?: string[] | null
+          eligibility_summary?: string | null
+          estimated_benefit_max?: number | null
+          estimated_benefit_min?: number | null
           id?: string
           is_active?: boolean | null
+          search_tsv?: unknown | null
+          source_url?: string | null
+          state_code?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          application_steps?: string | null
+          apply_url?: string | null
+          category?: Database["public"]["Enums"]["resource_category"]
+          contact_email?: string | null
+          contact_hours?: string | null
+          contact_phone?: string | null
+          county_name?: string | null
+          created_at?: string | null
+          description?: string
+          documents_required?: string[] | null
+          eligibility_summary?: string | null
+          estimated_benefit_max?: number | null
+          estimated_benefit_min?: number | null
+          id?: string
+          is_active?: boolean | null
+          search_tsv?: unknown | null
+          source_url?: string | null
+          state_code?: string | null
           tags?: string[] | null
           title?: string
-          updated_at?: string
-          url?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -525,6 +631,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_saved_resources: {
+        Row: {
+          created_at: string
+          id: string
+          resource_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          resource_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          resource_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_triage_stats: {
         Row: {
           created_at: string | null
@@ -614,13 +741,74 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      search_resources: {
+        Args: {
+          p_category?: Database["public"]["Enums"]["resource_category"]
+          p_county?: string
+          p_state?: string
+          p_tags?: string[]
+          q: string
+        }
+        Returns: {
+          category: Database["public"]["Enums"]["resource_category"]
+          county_name: string
+          description: string
+          estimated_benefit_max: number
+          estimated_benefit_min: number
+          id: string
+          rank: number
+          state_code: string
+          tags: string[]
+          title: string
+        }[]
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
+      }
+      unaccent: {
+        Args: { "": string }
+        Returns: string
+      }
+      unaccent_init: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
       update_triage_stats: {
         Args: { p_decision: string; p_user_id: string }
         Returns: undefined
       }
     }
     Enums: {
-      [_ in never]: never
+      resource_category: "federal" | "state" | "county" | "nonprofit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -747,6 +935,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      resource_category: ["federal", "state", "county", "nonprofit"],
+    },
   },
 } as const

@@ -470,6 +470,22 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   return (
     <div className="space-y-2">
       <Label>Receipt & Document Upload</Label>
+      
+      {/* IRS Receipt Warning */}
+      <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+        <div className="flex items-start space-x-2">
+          <FileText className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-amber-800">
+              Receipt Required for IRS Documentation
+            </p>
+            <p className="text-xs text-amber-700">
+              Keep receipts for all medical and tax-deductible expenses. The IRS may request proof during an audit. 
+              Without proper documentation, deductions may be disallowed.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {!receiptUrl ? (
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">

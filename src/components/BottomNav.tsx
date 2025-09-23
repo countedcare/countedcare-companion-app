@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, CreditCard, TrendingUp, User } from 'lucide-react';
+import { Home, TrendingUp, BookOpen, User } from 'lucide-react';
 import FloatingActionButton from './FloatingActionButton';
 
 const BottomNav: React.FC = () => {
   const navItems = [
     { icon: Home, text: 'Home', path: '/home' },
-    { icon: CreditCard, text: 'Transactions', path: '/transactions' },
     { icon: TrendingUp, text: 'Expenses', path: '/expenses' },
+    { icon: BookOpen, text: 'Resources', path: '/resources' },
     { icon: User, text: 'Profile', path: '/profile' },
   ];
 

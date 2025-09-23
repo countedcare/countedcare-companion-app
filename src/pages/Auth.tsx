@@ -126,7 +126,7 @@ const Auth = () => {
         <p>© 2025 CountedCare. All rights reserved.</p>
         <div className="mt-2 space-x-4">
           <a href="https://countedcare.com/privacy-policy" className="hover:text-primary underline">Privacy Policy</a>
-          <a href="https://countedcare.com/terms" className="hover:text-primary underline">Terms & Conditions</a>
+          <a href="https://countedcare.com/terms-and-conditions" className="hover:text-primary underline">Terms & Conditions</a>
         </div>
       </div>
       </div>
@@ -171,7 +171,7 @@ const Auth = () => {
         <p>© 2025 CountedCare. All rights reserved.</p>
         <div className="mt-2 space-x-4">
           <a href="https://countedcare.com/privacy-policy" className="hover:text-primary underline">Privacy Policy</a>
-          <a href="https://countedcare.com/terms" className="hover:text-primary underline">Terms & Conditions</a>
+          <a href="https://countedcare.com/terms-and-conditions" className="hover:text-primary underline">Terms & Conditions</a>
         </div>
       </div>
     </div>

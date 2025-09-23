@@ -68,7 +68,7 @@ export function SwipeCard({ transaction, onKeep, onSkip, isTop = false }: SwipeC
         style={{ opacity: keepColor }}
       >
         <Check className="w-4 h-4" />
-        <span className="font-medium">Keep</span>
+        <span className="font-medium">Create Expense</span>
       </motion.div>
 
       {/* Skip indicator */}
@@ -145,7 +145,7 @@ export function SwipeCard({ transaction, onKeep, onSkip, isTop = false }: SwipeC
               className="flex-1"
             >
               <Check className="w-4 h-4 mr-2" />
-              Keep
+              Create Expense
             </Button>
           </div>
         </CardContent>

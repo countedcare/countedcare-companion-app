@@ -179,7 +179,7 @@ export const useTransactionTriage = () => {
       .trim();
   };
 
-  // Handle keep decision
+  // Handle keep decision - now creates expense and navigates to edit form
   const handleKeep = async (transaction: PlaidTransaction) => {
     if (!user) return null;
 
@@ -191,17 +191,48 @@ export const useTransactionTriage = () => {
         decision: 'keep'
       });
 
+      // Create prefilled expense data
+      const prefillExpense = createPrefillExpense(transaction);
+      
+      // Determine if this is likely a tax deductible medical expense
+      const isTaxDeductible = prefillExpense.is_medical_related || false;
+      
+      // Create expense record in database
+      const { data: expenseData, error: expenseError } = await supabase
+        .from('expenses')
+        .insert({
+          amount: prefillExpense.amount,
+          date: prefillExpense.date,
+          category: prefillExpense.category_guess,
+          description: prefillExpense.merchant || prefillExpense.memo,
+          vendor: prefillExpense.merchant,
+          user_id: user.id,
+          synced_transaction_id: null, // We could link this to synced transactions if available
+          external_id: prefillExpense.external_id,
+          currency: prefillExpense.currency,
+          notes: prefillExpense.notes,
+          is_tax_deductible: isTaxDeductible,
+          is_potentially_deductible: isTaxDeductible,
+          source: 'triage',
+          triage_status: 'kept'
+        })
+        .select('id')
+        .single();
+      
+      if (expenseError) throw expenseError;
+
       // Update stats
       await supabase.rpc('update_triage_stats', {
         p_user_id: user.id,
         p_decision: 'keep'
       });
 
-      // Create prefilled expense
-      const prefillExpense = createPrefillExpense(transaction);
-
-      // Add to undo stack
-      setUndoStack(prev => [...prev, { type: 'keep', transaction_id: transaction.transaction_id }]);
+      // Add to undo stack with expense ID for potential deletion
+      setUndoStack(prev => [...prev, { 
+        type: 'keep', 
+        transaction_id: transaction.transaction_id,
+        expense_id: expenseData.id
+      }]);
 
       // Move to next transaction
       moveToNext();
@@ -209,12 +240,12 @@ export const useTransactionTriage = () => {
       // Update stats
       setTriageStats(prev => ({ ...prev, reviewed_today: prev.reviewed_today + 1 }));
 
-      return prefillExpense;
+      return { ...prefillExpense, expense_id: expenseData.id };
     } catch (error) {
       console.error('Error handling keep:', error);
       toast({
         title: "Error",
-        description: "Failed to save decision",
+        description: "Failed to create expense",
         variant: "destructive"
       });
       return null;
@@ -276,13 +307,13 @@ export const useTransactionTriage = () => {
         .eq('user_id', user!.id)
         .eq('transaction_id', lastAction.transaction_id);
 
-      // If it was a keep action, also remove the created expense
-      if (lastAction.type === 'keep') {
+      // If it was a keep action, remove the created expense
+      if (lastAction.type === 'keep' && lastAction.expense_id) {
         await supabase
           .from('expenses')
           .delete()
           .eq('user_id', user!.id)
-          .eq('external_id', lastAction.transaction_id);
+          .eq('id', lastAction.expense_id);
       }
 
       // Update undo stack
@@ -296,7 +327,7 @@ export const useTransactionTriage = () => {
 
       toast({
         title: "Action undone",
-        description: "Last decision has been reversed",
+        description: "Expense deleted and decision reversed",
       });
 
       // Refresh transactions

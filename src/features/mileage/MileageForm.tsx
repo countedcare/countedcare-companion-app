@@ -11,7 +11,7 @@ export default function MileageForm() {
       
       <MileageCalculator 
         onAmountCalculated={(amount) => {
-          console.log("Mileage calculated:", amount);
+          // Amount calculated successfully
         }}
       />
     </div>

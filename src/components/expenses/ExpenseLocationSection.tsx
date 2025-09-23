@@ -23,7 +23,6 @@ const ExpenseLocationSection: React.FC<ExpenseLocationSectionProps> = ({
 
   const handleLocationSelect = (place: google.maps.places.PlaceResult) => {
     setSelectedLocation(place);
-    console.log('Selected location:', place);
     
     // Auto-populate title if it's empty
     if (!title && place.name) {

@@ -65,11 +65,6 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
   // Check if Google Maps services are ready
   useEffect(() => {
-    console.log('PlacesAutocomplete: Checking Google Maps status');
-    console.log('API configured:', isConfigured);
-    console.log('API loading:', apiLoading);
-    console.log('Services ready:', areGoogleMapsServicesReady());
-    
     if (!isConfigured && !apiLoading) {
       const error = 'Google Maps API key is required';
       setLoadingError(error);
@@ -82,7 +77,6 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     }
 
     if (isConfigured && areGoogleMapsServicesReady()) {
-      console.log('PlacesAutocomplete: Google Maps services are ready');
       setIsLoaded(true);
       setLoadingError(null);
     }
@@ -100,12 +94,8 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     if (!isLoaded || !areGoogleMapsServicesReady()) return;
 
     try {
-      console.log('PlacesAutocomplete: Using global Google Maps services');
       autocompleteServiceRef.current = getGlobalAutocompleteService();
       placesServiceRef.current = getGlobalPlacesService();
-      
-      console.log('AutocompleteService available:', !!autocompleteServiceRef.current);
-      console.log('PlacesService available:', !!placesServiceRef.current);
     } catch (error) {
       console.error('Failed to get global Google Maps services:', error);
       const errorMsg = 'Failed to initialize Google Maps services';

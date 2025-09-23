@@ -167,7 +167,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({ open, onOpenChange 
           if (mountedRef.current) setPlaidLoading(false);
         },
         onEvent: (eventName: string, metadata: any) => {
-          // console.log("Plaid event:", eventName, metadata);
+          // Track Plaid events for analytics if needed
         },
       });
     } catch (e) {

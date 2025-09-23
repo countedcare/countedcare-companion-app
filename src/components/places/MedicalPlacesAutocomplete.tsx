@@ -27,7 +27,6 @@ const MedicalPlacesAutocomplete: React.FC<MedicalPlacesAutocompleteProps> = ({
   ];
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
-    console.log('Selected medical facility:', place);
     onPlaceSelect(place);
   };
 

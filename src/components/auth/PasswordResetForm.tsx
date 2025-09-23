@@ -51,8 +51,6 @@ const PasswordResetForm = ({ onSuccess }: PasswordResetFormProps) => {
     setLoading(true);
 
     try {
-      console.log('Updating password...');
-      
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -76,7 +74,6 @@ const PasswordResetForm = ({ onSuccess }: PasswordResetFormProps) => {
         return;
       }
 
-      console.log('Password updated successfully');
       toast({
         title: "Password updated!",
         description: "Your password has been successfully updated. You are now signed in.",

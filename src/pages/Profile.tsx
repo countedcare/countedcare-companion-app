@@ -44,7 +44,7 @@ const Profile = () => {
         .from('expenses')
         .select(`
           *,
-          synced_transactions(
+          synced_transactions!synced_transactions_expense_id_fkey(
             description,
             merchant_name
           )

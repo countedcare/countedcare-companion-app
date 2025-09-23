@@ -133,7 +133,6 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
       }
 
       if (data.user) {
-        console.log('User signed up successfully:', data.user.email);
         toast({
           title: "Account created successfully!",
           description: "Welcome to CountedCare. You can now start tracking your caregiving expenses.",

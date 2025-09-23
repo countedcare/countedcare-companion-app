@@ -170,8 +170,6 @@ const ExpenseForm = () => {
   }, [id, expenses]);
 
   const handleReceiptProcessed = (extractedData: any) => {
-    console.log('Receipt data extracted:', extractedData);
-    
     // Auto-populate form fields with extracted data
     if (extractedData.amount && extractedData.amount > 0) {
       setAmount(extractedData.amount.toString());

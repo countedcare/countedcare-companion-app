@@ -137,7 +137,6 @@ export default function useGoogleMapsAPI() {
       try {
         // Check if Google Maps is already loaded
         if (areGoogleMapsServicesReady()) {
-          console.log("Google Maps already loaded, configuring...");
           // Warm up singletons
           getGlobalAutocompleteService();
           getGlobalPlacesService();

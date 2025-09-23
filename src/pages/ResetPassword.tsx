@@ -35,12 +35,6 @@ const ResetPassword = () => {
     const doSessionSetup = async () => {
       try {
         const { type, access_token, refresh_token, code } = getAllParams();
-        console.log("Reset password params:", {
-          type,
-          hasAccessToken: !!access_token,
-          hasRefreshToken: !!refresh_token,
-          hasCode: !!code,
-        });
 
         // 1) PKCE-style: ?code=... (no access_token in URL)
         if (code) {

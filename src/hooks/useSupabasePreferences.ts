@@ -8,7 +8,8 @@ export interface UserPreferences {
 }
 
 export function useSupabasePreferences() {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user;
   const [preferences, setPreferences] = useState<UserPreferences>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export function useSupabasePreferences() {
   };
 
   const updatePreferences = async (updates: Partial<UserPreferences>) => {
-    if (!user) throw new Error('User not authenticated');
+    if (!user || !auth) throw new Error('User not authenticated');
 
     try {
       const currentPrefs = preferences.preferences || {};
@@ -85,8 +86,10 @@ export function useSupabasePreferences() {
   };
 
   useEffect(() => {
-    loadPreferences();
-  }, [user]);
+    if (auth) {
+      loadPreferences();
+    }
+  }, [user, auth]);
 
   return {
     preferences,

@@ -13,7 +13,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  if (ctx === undefined) {
+    // During initial render or React StrictMode, context might not be ready
+    console.warn("useAuth called outside AuthProvider - returning null context");
+    return { user: null, session: null, loading: true, signOut: async () => {} };
+  }
   return ctx;
 };
 

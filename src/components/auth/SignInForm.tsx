@@ -111,9 +111,16 @@ const SignInForm = ({
     setLoading(true);
 
     try {
+      console.log("🔐 Calling signInWithPassword...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
+      });
+
+      console.log("🔐 Sign-in response:", { 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session, 
+        error: error?.message 
       });
 
       if (error) {

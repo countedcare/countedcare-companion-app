@@ -58,7 +58,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     // 2) Subscribe to auth changes (don’t toggle loading here)
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    // 2) Subscribe to auth changes (don't toggle loading here)
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      console.log("🔐 AuthContext - auth state change:", { event, hasUser: !!s?.user, userEmail: s?.user?.email });
       if (!mountedRef.current) return;
       setSession(s);
       setUser(s?.user ?? null);

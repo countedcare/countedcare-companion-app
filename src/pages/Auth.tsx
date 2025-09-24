@@ -82,8 +82,9 @@ const Auth = () => {
   // React to Supabase auth state changes (signin / recovery / etc)
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      // console.debug("Auth state:", event, session?.user?.email);
+      console.log("🔐 Auth page - auth state change:", { event, hasSession: !!session, userEmail: session?.user?.email });
       if (event === "SIGNED_IN" && session && !isPasswordRecovery) {
+        console.log("🔐 Auth page - navigating to /home");
         navigate("/home");
       }
       if (event === "PASSWORD_RECOVERY") {

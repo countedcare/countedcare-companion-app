@@ -61,21 +61,53 @@ const ResourceDetail = () => {
 
   const handleApplyClick = () => {
     if (resource?.apply_url) {
-      window.open(resource.apply_url, '_blank');
-      // Analytics event
-      analytics.resourceApplyClicked(resource.id);
+      try {
+        // Ensure URL has protocol
+        let url = resource.apply_url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+        
+        console.log('Opening apply URL:', url);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        
+        // Analytics event
+        analytics.resourceApplyClicked(resource.id);
+        toast.success('Opening application page...');
+      } catch (error) {
+        console.error('Error opening apply URL:', error);
+        toast.error('Unable to open application page');
+      }
+    } else {
+      toast.error('No application link available');
     }
   };
 
   const handleLearnMoreClick = () => {
     if (resource?.source_url) {
-      window.open(resource.source_url, '_blank');
-      // Analytics event  
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'resource_click_source', {
-          resource_id: resource.id
-        });
+      try {
+        // Ensure URL has protocol
+        let url = resource.source_url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+        
+        console.log('Opening source URL:', url);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        
+        // Analytics event  
+        if (typeof window !== 'undefined' && window.gtag) {
+          window.gtag('event', 'resource_click_source', {
+            resource_id: resource.id
+          });
+        }
+        toast.success('Opening information page...');
+      } catch (error) {
+        console.error('Error opening source URL:', error);
+        toast.error('Unable to open information page');
       }
+    } else {
+      toast.error('No information link available');
     }
   };
 
@@ -245,22 +277,30 @@ const ResourceDetail = () => {
               <div>
                 <h3 className="font-semibold mb-3">Contact Information</h3>
                 <div className="space-y-2">
-                  {resource.contact_phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-500" />
-                      <a href={`tel:${resource.contact_phone}`} className="text-blue-600 hover:underline">
-                        {resource.contact_phone}
-                      </a>
-                    </div>
-                  )}
-                  {resource.contact_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-gray-500" />
-                      <a href={`mailto:${resource.contact_email}`} className="text-blue-600 hover:underline">
-                        {resource.contact_email}
-                      </a>
-                    </div>
-                  )}
+                   {resource.contact_phone && (
+                     <div className="flex items-center gap-2">
+                       <Phone className="h-4 w-4 text-gray-500" />
+                       <a 
+                         href={`tel:${resource.contact_phone.replace(/[^\d+]/g, '')}`} 
+                         className="text-blue-600 hover:underline"
+                         onClick={() => console.log('Calling:', resource.contact_phone)}
+                       >
+                         {resource.contact_phone}
+                       </a>
+                     </div>
+                   )}
+                   {resource.contact_email && (
+                     <div className="flex items-center gap-2">
+                       <Mail className="h-4 w-4 text-gray-500" />
+                       <a 
+                         href={`mailto:${resource.contact_email}`} 
+                         className="text-blue-600 hover:underline"
+                         onClick={() => console.log('Emailing:', resource.contact_email)}
+                       >
+                         {resource.contact_email}
+                       </a>
+                     </div>
+                   )}
                   {resource.contact_hours && (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-gray-500" />

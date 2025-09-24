@@ -140,19 +140,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
             <Button 
               variant="outline"
               size="sm"
-              onClick={() => {
-                try {
-                  // Ensure URL has protocol
-                  let url = resource.apply_url!;
-                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                    url = 'https://' + url;
-                  }
-                  console.log('Opening apply URL from card:', url);
-                  window.open(url, '_blank', 'noopener,noreferrer');
-                } catch (error) {
-                  console.error('Error opening apply URL from card:', error);
-                }
-              }}
+              onClick={() => window.open(resource.apply_url, '_blank')}
               className="flex-1"
             >
               Apply Now

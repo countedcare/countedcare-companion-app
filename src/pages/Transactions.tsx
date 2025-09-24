@@ -9,6 +9,7 @@ import { useAllTransactions, TransactionFilters } from '@/hooks/useAllTransactio
 import { RefreshCw, Filter, TrendingUp, Clock, CheckCircle, XCircle, Stethoscope } from 'lucide-react';
 
 const Transactions = () => {
+  // Force rebuild after git revert
   const [filters, setFilters] = useState<TransactionFilters>({
     filter: 'all',
     limit: 20,

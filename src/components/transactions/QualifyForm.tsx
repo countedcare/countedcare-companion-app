@@ -39,9 +39,7 @@ const EXPENSE_CATEGORIES = [
 ] as const;
 
 const formSchema = z.object({
-  date: z.date({
-    required_error: 'Date is required'
-  }),
+  date: z.date(),
   vendor: z.string().min(1, 'Vendor is required'),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
   category: z.string().min(1, 'Category is required'),

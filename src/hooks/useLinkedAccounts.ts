@@ -1,15 +1,17 @@
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { LinkedAccount } from '@/types/FinancialAccount';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useErrorHandler } from './useErrorHandler';
 
 export const useLinkedAccounts = () => {
   const [accounts, setAccounts] = useState<LinkedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { handleError } = useErrorHandler();
 
   const fetchAccounts = async () => {
     if (!user) {
@@ -27,12 +29,7 @@ export const useLinkedAccounts = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching linked accounts:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch linked accounts",
-          variant: "destructive"
-        });
+        handleError(error, "Failed to fetch linked accounts");
         return;
       }
 
@@ -44,12 +41,7 @@ export const useLinkedAccounts = () => {
 
       setAccounts(typedAccounts);
     } catch (error) {
-      console.error('Error fetching linked accounts:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch linked accounts",
-        variant: "destructive"
-      });
+      handleError(error, "Failed to fetch linked accounts");
     } finally {
       setLoading(false);
     }
@@ -57,11 +49,7 @@ export const useLinkedAccounts = () => {
 
   const addAccount = async (accountData: Omit<LinkedAccount, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to add accounts",
-        variant: "destructive"
-      });
+      handleError(new Error('Authentication required'), "You must be logged in to add accounts");
       return;
     }
 
@@ -76,12 +64,7 @@ export const useLinkedAccounts = () => {
         .single();
 
       if (error) {
-        console.error('Error adding account:', error);
-        toast({
-          title: "Error",
-          description: "Failed to add account",
-          variant: "destructive"
-        });
+        handleError(error, "Failed to add account");
         throw error;
       }
 
@@ -93,7 +76,7 @@ export const useLinkedAccounts = () => {
       await fetchAccounts();
       return data;
     } catch (error) {
-      console.error('Error adding account:', error);
+      handleError(error, "Failed to add account");
       throw error;
     }
   };
@@ -106,12 +89,7 @@ export const useLinkedAccounts = () => {
         .eq('id', accountId);
 
       if (error) {
-        console.error('Error removing account:', error);
-        toast({
-          title: "Error",
-          description: "Failed to remove account",
-          variant: "destructive"
-        });
+        handleError(error, "Failed to remove account");
         return;
       }
 
@@ -122,12 +100,7 @@ export const useLinkedAccounts = () => {
 
       await fetchAccounts();
     } catch (error) {
-      console.error('Error removing account:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove account",
-        variant: "destructive"
-      });
+      handleError(error, "Failed to remove account");
     }
   };
 

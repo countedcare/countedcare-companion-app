@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ErrorBoundary from "./components/ErrorBoundary";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { initializeAnalytics } from "./utils/analytics";
 
 // Core pages loaded immediately
@@ -37,7 +37,30 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Help = lazy(() => import("./pages/Help"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: (failureCount, error: any) => {
+        // Don't retry on auth errors
+        if (error?.status === 401 || error?.status === 403) {
+          return false;
+        }
+        // Don't retry on network errors more than 2 times
+        if (error?.message?.includes('fetch') && failureCount >= 2) {
+          return false;
+        }
+        // Retry up to 3 times for other errors
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+    mutations: {
+      retry: false, // Don't retry mutations by default
+    },
+  },
+});
 
 const App = () => {
   // Initialize Google Analytics
@@ -63,15 +86,15 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-    <ErrorBoundary>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-          <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
-            <Routes>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+            <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+              <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
@@ -175,13 +198,13 @@ const App = () => {
               <Route path="/terms" element={<Terms />} />
               <Route path="/help" element={<Help />} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-    </ErrorBoundary>
-  </QueryClientProvider>
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
   );
 };
 

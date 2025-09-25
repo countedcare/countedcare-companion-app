@@ -211,6 +211,7 @@ export interface Expense {
   careRecipientId?: string;
   careRecipientName?: string;
   receiptUrl?: string;
+  receiptUrls?: string[];
   expense_tags?: string[];
   is_tax_deductible?: boolean;
   is_reimbursed?: boolean;

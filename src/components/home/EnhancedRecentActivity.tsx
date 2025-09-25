@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Receipt, Calendar, MapPin, DollarSign, Star, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useExpenseData } from '@/hooks/useExpenseData';
-import { ExpenseDetailsModal } from '@/components/expenses/ExpenseDetailsModal';
+import ExpenseDetailsModal from '@/components/expenses/ExpenseDetailsModal';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { Expense } from '@/types/User';
 

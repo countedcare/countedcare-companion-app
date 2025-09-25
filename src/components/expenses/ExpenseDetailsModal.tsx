@@ -1,344 +1,252 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
-import { Expense, EXPENSE_CATEGORIES } from '@/types/User';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
-import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
-
-// Import the expense form components
-import ExpenseBasicFields from '@/components/expenses/ExpenseBasicFields';
-import ExpenseLocationSection from '@/components/expenses/ExpenseLocationSection';
-import ExpenseReceiptUpload from '@/components/expenses/ExpenseReceiptUpload';
-import ExpenseCategorySection from '@/components/expenses/ExpenseCategorySection';
-import ExpenseFormActions from '@/components/expenses/ExpenseFormActions';
-import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  Calendar, DollarSign, User, MapPin, FileText, Tag, 
+  Receipt, Edit, Trash2, Star, CreditCard, PenTool
+} from 'lucide-react';
+import { Expense, CareRecipient } from '@/types/User';
+import { format } from 'date-fns';
+import ReceiptViewer from './ReceiptViewer';
+import { cn } from '@/lib/utils';
 
 interface ExpenseDetailsModalProps {
+  expense: Expense | null;
+  recipients: CareRecipient[];
   isOpen: boolean;
   onClose: () => void;
-  expense: Expense | null;
-  onExpenseUpdated?: () => void;
+  onEdit?: (expenseId: string) => void;
+  onDelete?: (expenseId: string) => void;
 }
 
-export function ExpenseDetailsModal({ 
-  isOpen, 
-  onClose, 
-  expense, 
-  onExpenseUpdated 
-}: ExpenseDetailsModalProps) {
-  const { toast } = useToast();
-  const { user: authUser } = useAuth();
-  const { recipients } = useSupabaseCareRecipients();
-  const { accounts: linkedAccounts } = useLinkedAccounts();
-  const { apiKey, isConfigured } = useGoogleMapsAPI();
-  
-  // Form state
-  const [title, setTitle] = useState('');
-  const [vendor, setVendor] = useState('');
-  const [amount, setAmount] = useState('');
-  const [sourceAccountId, setSourceAccountId] = useState('');
-  const [date, setDate] = useState<Date>(new Date());
-  const [category, setCategory] = useState('');
-  const [subcategory, setSubcategory] = useState('');
-  const [description, setDescription] = useState('');
-  const [careRecipientId, setCareRecipientId] = useState('');
-  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isProcessingDocument, setIsProcessingDocument] = useState(false);
-  const [isTaxDeductible, setIsTaxDeductible] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Populate form when expense changes
-  useEffect(() => {
-    if (expense && isOpen) {
-      setTitle(expense.description || '');
-      setVendor(expense.vendor || '');
-      setAmount(expense.amount.toString());
-      setDate(new Date(expense.date));
-      setCategory(expense.category);
-      setSubcategory(expense.subcategory || '');
-      setDescription(expense.description || expense.notes || '');
-      setCareRecipientId(expense.careRecipientId || expense.care_recipient_id || '');
-      setReceiptUrl(expense.receiptUrl || expense.receipt_url);
-      setSourceAccountId(expense.linked_account_id || '');
-      setIsTaxDeductible(expense.is_tax_deductible || false);
-    }
-  }, [expense, isOpen]);
-
-  // Reset form when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setTitle('');
-      setVendor('');
-      setAmount('');
-      setSourceAccountId('');
-      setDate(new Date());
-      setCategory('');
-      setSubcategory('');
-      setDescription('');
-      setCareRecipientId('');
-      setReceiptUrl(undefined);
-      setIsUploading(false);
-      setIsProcessingDocument(false);
-      setIsTaxDeductible(false);
-      setSelectedLocation(null);
-      setIsSubmitting(false);
-    }
-  }, [isOpen]);
-
-  const handleReceiptProcessed = (extractedData: any) => {
-    // Auto-populate form fields with extracted data
-    if (extractedData.amount && extractedData.amount > 0) {
-      setAmount(extractedData.amount.toString());
-    }
-    
-    if (extractedData.date) {
-      try {
-        const parsedDate = new Date(extractedData.date);
-        if (!isNaN(parsedDate.getTime())) {
-          setDate(parsedDate);
-        }
-      } catch (error) {
-        console.error('Error parsing date:', error);
-      }
-    }
-    
-    if (extractedData.merchant) {
-      setTitle(extractedData.merchant);
-    }
-    if (extractedData.vendor) {
-      setVendor(extractedData.vendor);
-    }
-    
-    // Try to match category
-    if (extractedData.category) {
-      const matchedCategory = EXPENSE_CATEGORIES.find(cat => 
-        cat.toLowerCase().includes(extractedData.category.toLowerCase()) ||
-        extractedData.category.toLowerCase().includes('medical') && cat.includes('Medical') ||
-        extractedData.category.toLowerCase().includes('dental') && cat.includes('Dental') ||
-        extractedData.category.toLowerCase().includes('pharmacy') && cat.includes('Prescriptions')
-      );
-      if (matchedCategory) {
-        setCategory(matchedCategory);
-      }
-    }
-    
-    if (extractedData.description) {
-      setDescription(extractedData.description);
-    }
-    
-    toast({
-      title: "Form Auto-Populated!",
-      description: "Please review and adjust the extracted information as needed.",
-    });
-  };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!authUser || !expense) {
-      toast({
-        title: "Error",
-        description: "You must be logged in and have an expense selected",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Validate required fields
-    if (!amount || !category) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      const expenseData = {
-        amount: parseFloat(amount),
-        date: date.toISOString().split('T')[0],
-        category,
-        description: title || description,
-        vendor: vendor || null,
-        care_recipient_id: careRecipientId === 'myself' ? null : careRecipientId || null,
-        receipt_url: receiptUrl || null,
-        notes: description || null,
-        linked_account_id: sourceAccountId || null,
-        is_tax_deductible: isTaxDeductible,
-        is_potentially_deductible: isTaxDeductible,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from('expenses')
-        .update(expenseData)
-        .eq('id', expense.id)
-        .eq('user_id', authUser.id);
-
-      if (error) throw error;
-      
-      toast({
-        title: "Expense Updated",
-        description: "Your expense has been updated successfully."
-      });
-
-      onExpenseUpdated?.();
-      onClose();
-    } catch (error) {
-      console.error('Error saving expense:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save expense. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const handleDelete = async () => {
-    if (!expense || !authUser) return;
-
-    try {
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', expense.id)
-        .eq('user_id', authUser.id);
-
-      if (error) throw error;
-      
-      toast({
-        title: "Expense Deleted",
-        description: "Your expense has been deleted successfully."
-      });
-      
-      onExpenseUpdated?.();
-      onClose();
-    } catch (error) {
-      console.error('Error deleting expense:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete expense. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
+const ExpenseDetailsModal: React.FC<ExpenseDetailsModalProps> = ({
+  expense,
+  recipients,
+  isOpen,
+  onClose,
+  onEdit,
+  onDelete
+}) => {
   if (!expense) return null;
+
+  const getRecipientName = (careRecipientId: string) => {
+    if (careRecipientId === 'self') return 'Self';
+    const recipient = recipients.find(r => r.id === careRecipientId);
+    return recipient?.name || 'Unknown';
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  const isAutoImported = !!expense.synced_transaction_id;
+  const receipts = expense.receiptUrls || (expense.receiptUrl ? [expense.receiptUrl] : []);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Expense</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Expense Details</span>
+            <div className="flex items-center space-x-2">
+              {onEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onEdit(expense.id)}
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDelete(expense.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1 text-destructive" />
+                </Button>
+              )}
+            </div>
+          </DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
+
+        <div className="space-y-6">
+          {/* Header Info */}
           <Card>
             <CardContent className="pt-6">
-              <div className="space-y-4">
-                {/* Basic Information */}
-                <ExpenseBasicFields
-                  title={title}
-                  setTitle={setTitle}
-                  amount={amount}
-                  setAmount={setAmount}
-                  sourceAccountId={sourceAccountId}
-                  setSourceAccountId={setSourceAccountId}
-                  linkedAccounts={linkedAccounts}
-                  date={date}
-                  setDate={setDate}
-                />
-
-                {/* Receipt Upload */}
-                <ExpenseReceiptUpload
-                  receiptUrl={receiptUrl}
-                  setReceiptUrl={setReceiptUrl}
-                  isUploading={isUploading}
-                  setIsUploading={setIsUploading}
-                  isProcessingDocument={isProcessingDocument}
-                  setIsProcessingDocument={setIsProcessingDocument}
-                  onReceiptProcessed={handleReceiptProcessed}
-                />
-                
-                {/* Vendor */}
-                <div className="space-y-2">
-                  <Label htmlFor="vendor">Vendor</Label>
-                  <Input
-                    id="vendor"
-                    placeholder="e.g., Walgreens, UCLA Health"
-                    value={vendor}
-                    onChange={(e) => setVendor(e.target.value)}
-                  />
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold">{expense.description || expense.category}</h3>
+                  <p className="text-2xl font-bold text-primary mt-1">
+                    {formatCurrency(expense.amount)}
+                  </p>
                 </div>
+                <div className="flex flex-col gap-2 items-end">
+                  <Badge variant="outline" className="text-xs">
+                    {expense.category}
+                  </Badge>
+                  {isAutoImported ? (
+                    <Badge variant="secondary" className="text-xs flex items-center">
+                      <CreditCard className="h-3 w-3 mr-1" />
+                      Auto-imported
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs flex items-center">
+                      <PenTool className="h-3 w-3 mr-1" />
+                      Manual
+                    </Badge>
+                  )}
+                </div>
+              </div>
 
-                {/* Google Maps API Setup */}
-                {!isConfigured && (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800">
-                      Google Maps API is not configured. Location features will be limited.
-                    </p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>{format(new Date(expense.date), 'MMM d, yyyy')}</span>
+                </div>
+                <div className="flex items-center">
+                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>{getRecipientName(expense.careRecipientId || '')}</span>
+                </div>
+                {expense.vendor && (
+                  <div className="flex items-center col-span-2">
+                    <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>{expense.vendor}</span>
                   </div>
                 )}
-
-                {/* Location Search */}
-                <ExpenseLocationSection
-                  selectedLocation={selectedLocation}
-                  setSelectedLocation={setSelectedLocation}
-                  title={title}
-                  setTitle={setTitle}
-                  apiKey={apiKey}
-                />
-                
-                {/* Category Selection */}
-                <ExpenseCategorySection
-                  category={category}
-                  setCategory={setCategory}
-                  subcategory={subcategory}
-                  setSubcategory={setSubcategory}
-                  careRecipientId={careRecipientId}
-                  setCareRecipientId={setCareRecipientId}
-                  recipients={recipients}
-                  isTaxDeductible={isTaxDeductible}
-                  setIsTaxDeductible={setIsTaxDeductible}
-                />
-
-                {/* Notes */}
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Enter any additional information about this expense"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Form Actions */}
-          <div className="flex justify-between pt-4">
-            <ExpenseFormActions
-              isEditing={true}
-              onDelete={handleDelete}
-            />
-          </div>
-        </form>
+          {/* Status Badges */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Status & Classifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {expense.is_tax_deductible && (
+                  <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
+                    <Star className="h-3 w-3 mr-1 fill-current" />
+                    Tax Deductible
+                  </Badge>
+                )}
+                {expense.is_reimbursed && (
+                  <Badge className="bg-green-100 text-green-800">
+                    Reimbursed
+                  </Badge>
+                )}
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs",
+                    expense.triage_status === 'kept' && "bg-green-50 border-green-200 text-green-700",
+                    expense.triage_status === 'skipped' && "bg-gray-50 border-gray-200 text-gray-700",
+                    expense.triage_status === 'pending' && "bg-yellow-50 border-yellow-200 text-yellow-700"
+                  )}
+                >
+                  Status: {expense.triage_status || 'pending'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Receipts */}
+          {receipts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center">
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Receipts ({receipts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReceiptViewer 
+                  receipts={receipts}
+                  trigger={
+                    <Button variant="outline" className="w-full">
+                      <Receipt className="h-4 w-4 mr-2" />
+                      View Receipts ({receipts.length})
+                    </Button>
+                  }
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Notes */}
+          {expense.notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {expense.notes}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Transaction Info */}
+          {isAutoImported && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Transaction Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <p className="text-muted-foreground">
+                  This expense was automatically imported from your connected bank account.
+                </p>
+                {expense.synced_transaction_id && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Transaction ID: {expense.synced_transaction_id}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Metadata */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Details</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Created:</span>
+                <span>{expense.created_at ? format(new Date(expense.created_at), 'MMM d, yyyy h:mm a') : 'Unknown'}</span>
+              </div>
+              {expense.updated_at && expense.updated_at !== expense.created_at && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Updated:</span>
+                  <span>{format(new Date(expense.updated_at), 'MMM d, yyyy h:mm a')}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Source:</span>
+                <span>{isAutoImported ? 'Bank Import' : 'Manual Entry'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default ExpenseDetailsModal;

@@ -17,7 +17,7 @@ import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 // Import the new components
 import ExpenseBasicFields from '@/components/expenses/ExpenseBasicFields';
 import ExpenseLocationSection from '@/components/expenses/ExpenseLocationSection';
-import ExpenseReceiptUpload from '@/components/expenses/ExpenseReceiptUpload';
+import ReceiptUpload from '@/components/expenses/ReceiptUpload';
 import ExpenseCategorySection from '@/components/expenses/ExpenseCategorySection';
 import ExpenseFormActions from '@/components/expenses/ExpenseFormActions';
 import GoogleMapsAPIConfig from '@/components/places/GoogleMapsAPIConfig';
@@ -43,7 +43,7 @@ const ExpenseForm = () => {
   const [subcategory, setSubcategory] = useState('');
   const [description, setDescription] = useState('');
   const [careRecipientId, setCareRecipientId] = useState('');
-  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
+  const [receiptUrls, setReceiptUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingDocument, setIsProcessingDocument] = useState(false);
   const [isTaxDeductible, setIsTaxDeductible] = useState(false);
@@ -93,7 +93,7 @@ const ExpenseForm = () => {
         return {
           ...expense,
           careRecipientId: expense.care_recipient_id || '',
-          receiptUrl: expense.receipt_url,
+          receiptUrls: expense.receipt_urls || (expense.receipt_url ? [expense.receipt_url] : []),
           description,
           triage_status: (expense.triage_status as 'pending' | 'kept' | 'skipped') || 'pending',
         };
@@ -162,7 +162,7 @@ const ExpenseForm = () => {
         setSubcategory(expenseToEdit.subcategory || '');
         setDescription(expenseToEdit.description || '');
         setCareRecipientId(expenseToEdit.careRecipientId);
-        setReceiptUrl(expenseToEdit.receiptUrl);
+        setReceiptUrls((expenseToEdit as any).receiptUrls || (expenseToEdit.receiptUrl ? [expenseToEdit.receiptUrl] : []));
         setSourceAccountId(expenseToEdit.linked_account_id || '');
         setIsTaxDeductible(expenseToEdit.is_tax_deductible || false);
       }
@@ -247,7 +247,8 @@ const ExpenseForm = () => {
         vendor: vendor || null,
         user_id: authUser.id,
         care_recipient_id: careRecipientId === 'myself' ? null : careRecipientId || null,
-        receipt_url: receiptUrl || null,
+        receipt_urls: receiptUrls.length > 0 ? receiptUrls : null,
+        receipt_url: receiptUrls.length > 0 ? receiptUrls[0] : null, // Keep backward compatibility
         notes: description || null,
         linked_account_id: sourceAccountId || null,
         is_tax_deductible: isTaxDeductible,
@@ -359,15 +360,15 @@ const ExpenseForm = () => {
                 />
 
                 {/* Receipt Upload */}
-                <ExpenseReceiptUpload
-                  receiptUrl={receiptUrl}
-                  setReceiptUrl={setReceiptUrl}
-                  isUploading={isUploading}
-                  setIsUploading={setIsUploading}
-                  isProcessingDocument={isProcessingDocument}
-                  setIsProcessingDocument={setIsProcessingDocument}
-                  onReceiptProcessed={handleReceiptProcessed}
-                />
+                <div className="space-y-2">
+                  <Label>Receipts</Label>
+                  <ReceiptUpload
+                    expenseId={id}
+                    existingReceipts={receiptUrls}
+                    onReceiptsChange={setReceiptUrls}
+                    maxFiles={5}
+                  />
+                </div>
                 
                 {/* Vendor */}
                 <div className="space-y-2">

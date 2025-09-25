@@ -411,9 +411,9 @@ const EnhancedExpenseTable: React.FC<EnhancedExpenseTableProps> = ({
                     <TableCell className="py-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <div className="flex items-center gap-2">
-                          {expense.receiptUrl && (
-                            <Receipt className="h-4 w-4 text-primary" />
-                          )}
+                        {(expense.receiptUrls?.length > 0 || expense.receiptUrl) && (
+                          <Receipt className="h-4 w-4 text-primary" />
+                        )}
                           
                           <Button
                             variant="ghost"

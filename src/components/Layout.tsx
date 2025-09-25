@@ -28,7 +28,11 @@ const Layout: React.FC<LayoutProps> = ({
       <main className="flex-1 pb-16">
         {children}
       </main>
-      {showBottomNav && <BottomNav />}
+      {showBottomNav && (
+        <div data-tour="navigation">
+          <BottomNav />
+        </div>
+      )}
       
       {/* Show chat bot on all pages */}
       <ResourcesChatDrawer />

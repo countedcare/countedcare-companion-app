@@ -40,10 +40,10 @@ const tutorials: TutorialConfig[] = [
         position: 'center'
       },
       {
-        id: 'recent-activity',
-        title: 'Recent Activity',
-        content: 'Your recent expenses and transactions appear here. This gives you a quick overview of your latest caregiving costs.',
-        target: '[data-tour="recent-activity"]',
+        id: 'progress-tracker',
+        title: 'Progress Tracker',
+        content: 'Track your caregiving journey and see your accomplishments. This shows your level, streaks, and achievements.',
+        target: '[data-tour="progress-tracker"]',
         position: 'bottom'
       },
       {
@@ -56,7 +56,7 @@ const tutorials: TutorialConfig[] = [
       {
         id: 'navigation',
         title: 'Main Navigation',
-        content: 'Navigate between different sections using the bottom menu (mobile) or header menu (desktop).',
+        content: 'Navigate between different sections using the bottom menu. Tap any icon to explore expenses, transactions, resources, and your profile.',
         target: '[data-tour="navigation"]',
         position: 'top'
       }

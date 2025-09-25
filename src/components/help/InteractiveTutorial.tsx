@@ -51,11 +51,10 @@ const tutorials: TutorialConfig[] = [
       },
       {
         id: 'profile-setup',
-        title: 'Profile Management',
-        content: 'Click here to access your profile settings where you can update your information and manage your caregiving details.',
+        title: 'Navigate to Profile',
+        content: 'Click on the Profile tab in the bottom navigation to access your profile settings and manage your caregiving information.',
         target: '[data-tour="profile-link"]',
-        position: 'top',
-        navigateTo: '/profile'
+        position: 'top'
       },
       {
         id: 'profile-overview',
@@ -63,7 +62,8 @@ const tutorials: TutorialConfig[] = [
         content: 'Here you can see your profile completion status and basic information. Complete your profile to get personalized insights.',
         target: '[data-tour="profile-overview"]',
         position: 'bottom',
-        delay: 500
+        navigateTo: '/profile',
+        delay: 800
       },
       {
         id: 'care-recipients-section',

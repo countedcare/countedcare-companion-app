@@ -24,7 +24,7 @@ import { QuickFilters } from '@/components/expenses/QuickFilters';
 import AutoImportedTransactions from '@/components/expenses/AutoImportedTransactions';
 import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
 import { TaxExportSection } from '@/components/expenses/TaxExportSection';
-import EnhancedSmartFilters from '@/components/expenses/EnhancedSmartFilters';
+import AdvancedSearchFilters from '@/components/expenses/AdvancedSearchFilters';
 import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
@@ -51,6 +51,7 @@ const Expenses = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [triageFilter, setTriageFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [amountRange, setAmountRange] = useState<[number, number]>([0, 10000]);
 
   // Filter only unconfirmed potential medical transactions for the review section
   const unconfirmedTransactions = syncedTransactions.filter(
@@ -100,7 +101,11 @@ const Expenses = () => {
       }
     }
     
-    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesStatus && matchesTriage && matchesDateRange;
+    // Amount range filter
+    const matchesAmountRange = expense.amount >= amountRange[0] && 
+      (amountRange[1] >= 10000 || expense.amount <= amountRange[1]);
+    
+    return matchesSearch && matchesCategory && matchesRecipient && matchesDeductible && matchesSource && matchesStatus && matchesTriage && matchesDateRange && matchesAmountRange;
   });
   
   // Sort expenses based on sortBy selection
@@ -133,6 +138,7 @@ const Expenses = () => {
     setTriageFilter('all');
     setSortBy('date-desc');
     setDateRange(undefined);
+    setAmountRange([0, 10000]);
     setSearchTerm('');
   };
 
@@ -607,103 +613,7 @@ const Expenses = () => {
               </CardContent>
             </Card>
 
-            {/* Mobile-optimized search and filters */}
-            <div className="space-y-3 sm:space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input 
-                  placeholder="Search expenses..." 
-                  className="pl-10 h-9 sm:h-10 text-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              <EnhancedSmartFilters
-                filterCategory={filterCategory}
-                setFilterCategory={setFilterCategory}
-                filterRecipient={filterRecipient}
-                setFilterRecipient={setFilterRecipient}
-                filterDeductible={filterDeductible}
-                setFilterDeductible={setFilterDeductible}
-                filterSource={filterSource}
-                setFilterSource={setFilterSource}
-                recipients={recipients}
-                onClearFilters={handleClearFilters}
-              />
-              
-              {/* Mobile-optimized date range picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal h-9 sm:h-10 text-xs sm:text-sm w-full sm:w-auto",
-                      !dateRange && "text-muted-foreground"
-                    )}
-                  >
-                    <Search className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <span className="truncate">
-                          {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, y")}
-                        </span>
-                      ) : (
-                        format(dateRange.from, "MMM dd, y")
-                      )
-                    ) : (
-                      <span className="truncate">Filter by date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={(value) => value && setDateRange(value)}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                  <div className="p-3 border-t border-border flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setDateRange(undefined)}
-                      className="text-xs"
-                    >
-                      Clear
-                    </Button>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => {
-                          const today = new Date();
-                          const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                          setDateRange({ from: firstDay, to: today });
-                        }}
-                        className="text-xs"
-                      >
-                        This Month
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => {
-                          const today = new Date();
-                          const thirtyDaysAgo = new Date(today);
-                          thirtyDaysAgo.setDate(today.getDate() - 30);
-                          setDateRange({ from: thirtyDaysAgo, to: today });
-                        }}
-                        className="text-xs"
-                      >
-                        Last 30 Days
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+            {/* Mobile-optimized search and filters - now handled by AdvancedSearchFilters */}
             
             {/* Enhanced Expense Table */}
             <EnhancedExpenseTable 

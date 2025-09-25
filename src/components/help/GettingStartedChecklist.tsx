@@ -3,6 +3,7 @@ import { Check, ChevronRight, User, CreditCard, Users, DollarSign, FileText, X }
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
@@ -167,49 +168,56 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
           <Progress value={progressPercent} className="h-2" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-              item.completed 
-                ? 'bg-green-50 border border-green-200' 
-                : item.action 
-                  ? 'bg-gray-50 hover:bg-gray-100 cursor-pointer border border-gray-200' 
-                  : 'bg-gray-50 border border-gray-200'
-            }`}
-            onClick={() => handleItemClick(item)}
-          >
-            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-              item.completed 
-                ? 'bg-green-500 text-white' 
-                : 'bg-gray-200 text-gray-500'
-            }`}>
-              {item.completed ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                item.icon
-              )}
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <h4 className={`font-medium text-sm ${
-                item.completed ? 'text-green-800' : 'text-gray-900'
-              }`}>
-                {item.title}
-              </h4>
-              <p className={`text-xs ${
-                item.completed ? 'text-green-600' : 'text-gray-600'
-              }`}>
-                {item.description}
-              </p>
-            </div>
+      <CardContent className="px-2 pb-4">
+        <Carousel className="w-full max-w-sm mx-auto">
+          <CarouselContent>
+            {items.map((item) => (
+              <CarouselItem key={item.id}>
+                <div
+                  className={`flex items-center gap-3 p-4 rounded-lg transition-colors ${
+                    item.completed 
+                      ? 'bg-green-50 border border-green-200' 
+                      : item.action 
+                        ? 'bg-gray-50 hover:bg-gray-100 cursor-pointer border border-gray-200' 
+                        : 'bg-gray-50 border border-gray-200'
+                  }`}
+                  onClick={() => handleItemClick(item)}
+                >
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                    item.completed 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    {item.completed ? (
+                      <Check className="h-5 w-5" />
+                    ) : (
+                      item.icon
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`font-medium ${
+                      item.completed ? 'text-green-800' : 'text-gray-900'
+                    }`}>
+                      {item.title}
+                    </h4>
+                    <p className={`text-sm ${
+                      item.completed ? 'text-green-600' : 'text-gray-600'
+                    }`}>
+                      {item.description}
+                    </p>
+                  </div>
 
-            {!item.completed && item.action && (
-              <ChevronRight className="h-4 w-4 text-gray-400" />
-            )}
-          </div>
-        ))}
+                  {!item.completed && item.action && (
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="left-2" />
+          <CarouselNext className="right-2" />
+        </Carousel>
 
         {completedCount > 0 && completedCount < items.length && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">

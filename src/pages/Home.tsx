@@ -11,7 +11,11 @@ import { InteractiveDashboard } from '@/components/home/InteractiveDashboard';
 import { EnhancedRecentActivity } from '@/components/home/EnhancedRecentActivity';
 import { PersonalizedInsights } from '@/components/home/PersonalizedInsights';
 import { SignInLoadingExperience } from '@/components/home/SignInLoadingExperience';
+import GettingStartedChecklist from '@/components/help/GettingStartedChecklist';
+import InteractiveTutorial from '@/components/help/InteractiveTutorial';
 import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
+import { Button } from '@/components/ui/button';
+import { Play } from 'lucide-react';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -19,6 +23,8 @@ const Home = () => {
   const { profile } = useSupabaseProfile();
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showLoadingExperience, setShowLoadingExperience] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(true);
 
   // Redirect to onboarding if not completed (only after profile loads)
   React.useEffect(() => {
@@ -71,26 +77,56 @@ const Home = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="space-y-6 pb-24">
+          {/* Getting Started Checklist */}
+          {showChecklist && (
+            <div className="container-padding">
+              <GettingStartedChecklist onClose={() => setShowChecklist(false)} />
+            </div>
+          )}
+          
           {/* Enhanced Welcome Header */}
           <EnhancedWelcomeHeader profile={profile} />
           
+          {/* Tutorial Trigger */}
+          <div className="container-padding">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTutorial(true)}
+              className="mb-4 flex items-center gap-2"
+            >
+              <Play className="h-4 w-4" />
+              Take a Tour
+            </Button>
+          </div>
+          
           {/* Progress Tracker */}
-          <ProgressTracker profile={profile} />
+          <div data-tour="progress-tracker">
+            <ProgressTracker profile={profile} />
+          </div>
           
           {/* Interactive Dashboard */}
-          <InteractiveDashboard />
+          <div data-tour="dashboard">
+            <InteractiveDashboard />
+          </div>
           
           {/* Transaction Triage */}
-          <TransactionTriage />
+          <div data-tour="transaction-triage">
+            <TransactionTriage />
+          </div>
           
           {/* Personalized Insights */}
           <PersonalizedInsights />
           
           {/* Quick Add Grid */}
-          <QuickAddGrid onOpenReceiptModal={() => setShowReceiptModal(true)} />
+          <div data-tour="quick-actions">
+            <QuickAddGrid onOpenReceiptModal={() => setShowReceiptModal(true)} />
+          </div>
           
           {/* Enhanced Recent Activity */}
-          <EnhancedRecentActivity />
+          <div data-tour="recent-activity">
+            <EnhancedRecentActivity />
+          </div>
         </div>
       </div>
       
@@ -99,6 +135,15 @@ const Home = () => {
         onClose={() => setShowReceiptModal(false)}
         onExpenseAdded={() => setShowReceiptModal(false)}
       />
+      
+      {/* Interactive Tutorial */}
+      {showTutorial && (
+        <InteractiveTutorial
+          tutorialId="home-overview"
+          onComplete={() => setShowTutorial(false)}
+          onClose={() => setShowTutorial(false)}
+        />
+      )}
     </Layout>
   );
 };

@@ -719,15 +719,6 @@ const Expenses = () => {
                   </div>
                 )}
 
-                {/* Export Button */}
-                {deductibleExpenses.length > 0 && (
-                  <div className="pt-4 border-t">
-                    <Button variant="outline" className="w-full">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Tax Summary
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
 

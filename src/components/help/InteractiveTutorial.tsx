@@ -63,7 +63,7 @@ const tutorials: TutorialConfig[] = [
         target: '[data-tour="profile-overview"]',
         position: 'bottom',
         navigateTo: '/profile',
-        delay: 800
+        delay: 1500
       },
       {
         id: 'care-recipients-section',

@@ -59,23 +59,23 @@ const EnhancedExpenseTable: React.FC<EnhancedExpenseTableProps> = ({
     switch (triageStatus) {
       case 'kept':
         return (
-          <Badge variant="default" className="text-xs bg-green-100 text-green-700 border-green-300">
-            <CheckCircle className="h-3 w-3 mr-1" />
+          <Badge variant="default" className="text-xs bg-green-100 text-green-700 border-green-300 px-2 py-1">
+            <CheckCircle className="h-3 w-3 mr-1.5" />
             Kept
           </Badge>
         );
       case 'skipped':
         return (
-          <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-            <XCircle className="h-3 w-3 mr-1" />
+          <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700 px-2 py-1">
+            <XCircle className="h-3 w-3 mr-1.5" />
             Skipped
           </Badge>
         );
       case 'pending':
       default:
         return (
-          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300">
-            <Clock className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300 px-2 py-1">
+            <Clock className="h-3 w-3 mr-1.5" />
             Needs Review
           </Badge>
         );
@@ -320,62 +320,64 @@ const EnhancedExpenseTable: React.FC<EnhancedExpenseTableProps> = ({
                       expense.triage_status === 'skipped' && "opacity-60"
                     )}
                   >
-                    <TableCell>
+                    <TableCell className="py-4">
                       <Checkbox
                         checked={selectedExpenses.includes(expense.id)}
                         onCheckedChange={(checked) => handleSelectExpense(expense.id, checked as boolean)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium py-4">
                       <div onClick={(e) => e.stopPropagation()}>
                         {renderEditableField(expense, 'date', expense.date, 'date')}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="max-w-[200px] space-y-1">
+                    <TableCell className="py-4">
+                      <div className="max-w-[200px] space-y-3">
                         <div onClick={(e) => e.stopPropagation()}>
                           {renderEditableField(expense, 'description', expense.description || expense.category)}
                         </div>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center">
                           {isAutoImported(expense) ? (
-                            <Badge variant="secondary" className="text-xs flex items-center">
-                              <CreditCard className="h-3 w-3 mr-1" />
+                            <Badge variant="secondary" className="text-xs flex items-center px-2 py-1">
+                              <CreditCard className="h-3 w-3 mr-1.5" />
                               <span className="hidden sm:inline">Auto-imported</span>
                               <span className="sm:hidden">Auto</span>
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-xs flex items-center">
-                              <PenTool className="h-3 w-3 mr-1" />
+                            <Badge variant="outline" className="text-xs flex items-center px-2 py-1">
+                              <PenTool className="h-3 w-3 mr-1.5" />
                               Manual
                             </Badge>
                           )}
                         </div>
-                        <div className="block sm:hidden">
-                          <Badge variant="outline" className="text-xs mr-1">
-                            {expense.category}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
+                        <div className="block sm:hidden space-y-2">
+                          <div>
+                            <Badge variant="outline" className="text-xs px-2 py-1">
+                              {expense.category}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
                             {getRecipientName(expense.careRecipientId)}
-                          </span>
+                          </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">
+                    <TableCell className="hidden sm:table-cell py-4">
                       <div onClick={(e) => e.stopPropagation()}>
                         {renderEditableField(expense, 'category', expense.category, 'select')}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">
+                    <TableCell className="hidden md:table-cell text-sm py-4">
                       {getRecipientName(expense.careRecipientId)}
                     </TableCell>
-                    <TableCell className="font-semibold text-right">
+                    <TableCell className="font-semibold text-right py-4">
                       <div onClick={(e) => e.stopPropagation()}>
                         {renderEditableField(expense, 'amount', expense.amount, 'number')}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex gap-1 flex-wrap">
+                    <TableCell className="hidden lg:table-cell py-4">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {getTriageStatusBadge(expense.triage_status)}
                           <button
                             onClick={(e) => {
@@ -383,74 +385,76 @@ const EnhancedExpenseTable: React.FC<EnhancedExpenseTableProps> = ({
                               handleQuickToggle(expense.id, 'is_tax_deductible', expense.is_tax_deductible || false);
                             }}
                             className={cn(
-                              "text-xs px-2 py-1 rounded-full border transition-colors",
+                              "text-xs px-3 py-1.5 rounded-full border transition-colors",
                               expense.is_tax_deductible 
                                 ? "bg-yellow-100 text-yellow-800 border-yellow-300" 
                                 : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-yellow-50"
                             )}
                           >
-                            <Star className={cn("h-3 w-3 mr-1 inline", expense.is_tax_deductible && "fill-current")} />
+                            <Star className={cn("h-3 w-3 mr-1.5 inline", expense.is_tax_deductible && "fill-current")} />
                             {expense.is_tax_deductible ? 'Tax Deductible' : 'Not Deductible'}
                           </button>
                           {expense.is_reimbursed && (
-                            <Badge variant="default" className="text-xs">
+                            <Badge variant="default" className="text-xs px-2 py-1">
                               Reimbursed
                             </Badge>
                           )}
                         </div>
                         {isAutoImported(expense) && (
-                          <div className="text-xs text-blue-600 flex items-center">
-                            <CreditCard className="h-3 w-3 mr-1" />
+                          <div className="text-xs text-blue-600 flex items-center mt-1">
+                            <CreditCard className="h-3 w-3 mr-1.5" />
                             Bank sync
                           </div>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {expense.receiptUrl && (
-                          <Receipt className="h-4 w-4 text-primary" />
-                        )}
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onExpenseClick(expense.id);
-                          }}
-                          className="h-8 px-2"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                    <TableCell className="py-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="flex items-center gap-2">
+                          {expense.receiptUrl && (
+                            <Receipt className="h-4 w-4 text-primary" />
+                          )}
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onExpenseClick(expense.id);
+                            }}
+                            className="h-8 px-3"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
                         
                         {/* Triage Actions */}
                         {expense.triage_status === 'pending' && onTriageAction && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 px-2 text-xs bg-green-50 hover:bg-green-100 border-green-200"
+                              className="h-8 px-3 text-xs bg-green-50 hover:bg-green-100 border-green-200"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onTriageAction(expense.id, 'keep');
                               }}
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Keep
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs bg-gray-50 hover:bg-gray-100 border-gray-200"
+                             >
+                               <CheckCircle className="h-3 w-3 mr-1.5" />
+                               Keep
+                             </Button>
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               className="h-8 px-3 text-xs bg-red-50 hover:bg-red-100 border-red-200"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onTriageAction(expense.id, 'skip');
-                              }}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Skip
-                            </Button>
+                               }}
+                             >
+                               <XCircle className="h-3 w-3 mr-1.5" />
+                               Skip
+                             </Button>
                           </div>
                         )}
                         

@@ -236,7 +236,7 @@ export function EnhancedRecentActivity() {
         isOpen={isModalOpen}
         onClose={handleModalClose}
         expense={selectedExpense}
-        onExpenseUpdated={handleExpenseUpdated}
+        recipients={[]}
       />
     </div>
   );

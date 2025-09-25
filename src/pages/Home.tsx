@@ -55,6 +55,8 @@ const Home = () => {
     sessionStorage.setItem('hasSeenLoadingExperience', 'true');
   };
 
+  console.log('Home component - user:', user, 'profile:', profile);
+  
   if (!profile || !user) {
     return (
       <Layout>
@@ -62,6 +64,7 @@ const Home = () => {
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
             <p className="text-gray-600">Loading your dashboard...</p>
+            <p className="text-xs text-gray-500">User: {user ? 'Found' : 'Not found'}, Profile: {profile ? 'Found' : 'Not found'}</p>
           </div>
         </div>
       </Layout>

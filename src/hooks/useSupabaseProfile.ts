@@ -23,19 +23,26 @@ export function useSupabaseProfile() {
 
   const loadProfile = async () => {
     if (!user) {
+      console.log('useSupabaseProfile: No user available');
       setProfile(null);
       setLoading(false);
       return;
     }
 
     try {
+      console.log('useSupabaseProfile: Loading profile for user:', user.id);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('useSupabaseProfile: Database error:', error);
+        throw error;
+      }
+      
+      console.log('useSupabaseProfile: Profile data received:', data);
       setProfile(data);
     } catch (err) {
       console.error('Error loading profile:', err);

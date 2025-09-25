@@ -142,6 +142,29 @@ const Expenses = () => {
 
   // Handle triage actions
   const handleTriageAction = async (expenseId: string, action: 'keep' | 'skip') => {
+    const expense = expenses.find(e => e.id === expenseId);
+    
+    if (action === 'keep' && expense) {
+      // Navigate to expense form with pre-populated data
+      const params = new URLSearchParams({
+        prefill: 'true',
+        external_id: expense.id || expenseId,
+        date: expense.date,
+        amount: expense.amount.toString(),
+        currency: 'USD',
+        merchant: expense.vendor || expense.description || '',
+        memo: expense.notes || '',
+        category_guess: expense.category,
+        payment_channel: 'online',
+        status: 'posted',
+        is_refund: 'false',
+        is_medical_related: expense.is_tax_deductible ? 'true' : 'false'
+      });
+      
+      navigate(`/expenses/new?${params.toString()}`);
+      return;
+    }
+    
     const dbAction = action === 'keep' ? 'kept' : 'skipped';
     
     try {

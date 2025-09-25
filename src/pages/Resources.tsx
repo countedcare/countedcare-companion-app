@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, BookOpen, Info } from 'lucide-react';
+import { Plus, BookOpen, Info, FileText, ExternalLink } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useResourcesSystem, ResourceCategory } from '@/hooks/useResourcesSystem';
 import { useAuth } from '@/contexts/AuthContext';
@@ -120,6 +120,29 @@ const Resources = () => {
               <Plus className="h-4 w-4 mr-2" />
               Suggest Resource
             </Button>
+          </div>
+        </div>
+
+        {/* IRS Publication 502 Reference */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <FileText className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-medium text-green-900 mb-1">Official IRS Medical Expense Guide</h3>
+              <p className="text-sm text-green-800 mb-3">
+                Review IRS Publication 502 for the complete list of qualifying medical and dental expenses that can be deducted.
+              </p>
+              <a
+                href="https://www.irs.gov/pub/irs-pdf/p502.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800 underline"
+              >
+                <FileText className="h-4 w-4" />
+                View IRS Publication 502 (PDF)
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
           </div>
         </div>
 

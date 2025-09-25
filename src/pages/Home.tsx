@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import Layout from '@/components/Layout';
-import { WelcomeHeader } from '@/components/home/WelcomeHeader';
+import { EnhancedWelcomeHeader } from '@/components/home/EnhancedWelcomeHeader';
 import { ProgressTracker } from '@/components/home/ProgressTracker';
 import { TransactionTriage } from '@/components/home/TransactionTriage';
 import { QuickAddGrid } from '@/components/home/QuickAddGrid';
-import { AITipCard } from '@/components/home/AITipCard';
-import { RecentActivity } from '@/components/home/RecentActivity';
+import { InteractiveDashboard } from '@/components/home/InteractiveDashboard';
+import { EnhancedRecentActivity } from '@/components/home/EnhancedRecentActivity';
+import { PersonalizedInsights } from '@/components/home/PersonalizedInsights';
+import { SignInLoadingExperience } from '@/components/home/SignInLoadingExperience';
 import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
 
 const Home = () => {
@@ -16,6 +18,7 @@ const Home = () => {
   const { user } = useAuth();
   const { profile } = useSupabaseProfile();
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showLoadingExperience, setShowLoadingExperience] = useState(true);
 
   // Redirect to onboarding if not completed (only after profile loads)
   React.useEffect(() => {
@@ -31,37 +34,63 @@ const Home = () => {
     if (meta) meta.setAttribute('content', 'Track caregiving expenses, manage tax deductions, and review transactions in one place.');
   }, []);
 
+  // Show loading experience on first load
+  React.useEffect(() => {
+    if (user && profile) {
+      const hasSeenLoading = sessionStorage.getItem('hasSeenLoadingExperience');
+      if (hasSeenLoading) {
+        setShowLoadingExperience(false);
+      }
+    }
+  }, [user, profile]);
+
+  const handleLoadingComplete = () => {
+    setShowLoadingExperience(false);
+    sessionStorage.setItem('hasSeenLoadingExperience', 'true');
+  };
+
   if (!profile || !user) {
     return (
       <Layout>
         <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="text-gray-600">Loading your dashboard...</p>
+          </div>
         </div>
       </Layout>
     );
   }
 
+  // Show engaging loading experience for first-time or returning users
+  if (showLoadingExperience) {
+    return <SignInLoadingExperience onComplete={handleLoadingComplete} />;
+  }
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="space-y-6 pb-24">
-          {/* Welcome Header */}
-          <WelcomeHeader profile={profile} />
+          {/* Enhanced Welcome Header */}
+          <EnhancedWelcomeHeader profile={profile} />
           
           {/* Progress Tracker */}
           <ProgressTracker profile={profile} />
           
+          {/* Interactive Dashboard */}
+          <InteractiveDashboard />
+          
           {/* Transaction Triage */}
           <TransactionTriage />
+          
+          {/* Personalized Insights */}
+          <PersonalizedInsights />
           
           {/* Quick Add Grid */}
           <QuickAddGrid onOpenReceiptModal={() => setShowReceiptModal(true)} />
           
-          {/* AI Tip of the Day */}
-          <AITipCard />
-          
-          {/* Recent Activity */}
-          <RecentActivity />
+          {/* Enhanced Recent Activity */}
+          <EnhancedRecentActivity />
         </div>
       </div>
       

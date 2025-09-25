@@ -174,14 +174,71 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   const isLastStep = currentStepIndex === totalSteps - 1;
   const isFirstStep = currentStepIndex === 0;
 
+  const handleNext = useCallback(async () => {
+    console.log(`🎯 Moving from step ${currentStepIndex + 1} to ${currentStepIndex + 2}`);
+    
+    if (isLastStep) {
+      // Complete the tutorial
+      document.body.classList.remove('tutorial-active');
+      onComplete?.();
+      return;
+    }
+
+    const nextStep = tutorial.steps[currentStepIndex + 1];
+    
+    // Handle navigation if needed
+    if (nextStep.navigateTo) {
+      console.log(`🎯 Navigating to: ${nextStep.navigateTo}`);
+      setIsNavigating(true);
+      navigate(nextStep.navigateTo);
+      
+      // Wait for navigation and optional delay
+      setTimeout(() => {
+        setIsNavigating(false);
+        setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
+      }, (nextStep.delay || 0) + 300); // Add more time for navigation
+    } else {
+      // Go to next step without navigation
+      setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
+    }
+  }, [isLastStep, onComplete, totalSteps, navigate, tutorial.steps, currentStepIndex]);
+
   // Handle element highlighting
   useEffect(() => {
     const highlightElement = () => {
+      console.log(`🎯 Tutorial Step ${currentStepIndex + 1}: Looking for element "${currentStep.target}"`);
+      
       if (currentStep.target !== 'body') {
         const element = document.querySelector(currentStep.target);
-        setHighlightedElement(element);
+        console.log(`🎯 Element found:`, element);
         
-        if (element) {
+        if (!element) {
+          console.warn(`🎯 Element not found for step ${currentStepIndex + 1}: ${currentStep.target}`);
+          // Try multiple times to find the element
+          let attempts = 0;
+          const findElement = () => {
+            attempts++;
+            const retryElement = document.querySelector(currentStep.target);
+            console.log(`🎯 Retry attempt ${attempts}: Element found:`, retryElement);
+            
+            if (retryElement) {
+              setHighlightedElement(retryElement);
+              retryElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'center'
+              });
+            } else if (attempts < 5) {
+              setTimeout(findElement, 300);
+            } else {
+              console.error(`🎯 Failed to find element after ${attempts} attempts: ${currentStep.target}`);
+              // Continue without highlighting if element not found
+              setHighlightedElement(null);
+            }
+          };
+          setTimeout(findElement, 200);
+        } else {
+          setHighlightedElement(element);
           element.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'center',
@@ -194,6 +251,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     };
 
     if (currentStep.delay && !isNavigating) {
+      console.log(`🎯 Waiting ${currentStep.delay}ms before highlighting element`);
       const timer = setTimeout(highlightElement, currentStep.delay);
       return () => clearTimeout(timer);
     } else if (!isNavigating) {
@@ -206,33 +264,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     return () => {
       document.body.classList.remove('tutorial-active');
     };
-  }, [currentStep, isNavigating]);
-
-  const handleNext = useCallback(async () => {
-    if (isLastStep) {
-      // Complete the tutorial
-      document.body.classList.remove('tutorial-active');
-      onComplete?.();
-      return;
-    }
-
-    const nextStep = tutorial.steps[currentStepIndex + 1];
-    
-    // Handle navigation if needed
-    if (nextStep.navigateTo) {
-      setIsNavigating(true);
-      navigate(nextStep.navigateTo);
-      
-      // Wait for navigation and optional delay
-      setTimeout(() => {
-        setIsNavigating(false);
-        setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
-      }, (nextStep.delay || 0) + 100); // Add 100ms for navigation
-    } else {
-      // Go to next step without navigation
-      setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
-    }
-  }, [isLastStep, onComplete, totalSteps, navigate, tutorial.steps, currentStepIndex]);
+  }, [currentStep, isNavigating, currentStepIndex]);
 
   const handlePrevious = useCallback(() => {
     if (!isFirstStep) {

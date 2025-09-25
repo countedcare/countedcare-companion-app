@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,6 +12,8 @@ interface TutorialStep {
   target: string; // CSS selector for the element to highlight
   position: 'top' | 'bottom' | 'left' | 'right' | 'center';
   action?: 'click' | 'hover' | 'none';
+  navigateTo?: string; // Optional page to navigate to before showing this step
+  delay?: number; // Optional delay in ms before showing the step after navigation
 }
 
 interface TutorialConfig {
@@ -28,49 +31,140 @@ interface InteractiveTutorialProps {
 
 const tutorials: TutorialConfig[] = [
   {
-    id: 'home-overview',
-    name: 'Home Dashboard Tour',
-    description: 'Learn about your dashboard and quick actions',
+    id: 'complete-onboarding',
+    name: 'Complete App Tour',
+    description: 'Complete walkthrough of CountedCare features',
     steps: [
       {
         id: 'welcome',
         title: 'Welcome to CountedCare!',
-        content: 'This tour will show you around your dashboard and help you get started tracking caregiving expenses.',
+        content: 'Let\'s take a complete tour of your caregiving companion. We\'ll show you how to set up your profile, add care recipients, and track expenses effectively.',
         target: 'body',
         position: 'center'
       },
       {
-        id: 'progress-tracker',
-        title: 'Progress Tracker',
-        content: 'Track your caregiving journey and see your accomplishments. This shows your level, streaks, and achievements.',
-        target: '[data-tour="progress-tracker"]',
-        position: 'bottom'
+        id: 'profile-overview',
+        title: 'Your Profile Dashboard',
+        content: 'This is your home dashboard where you can see your recent activity, quick actions, and progress tracking.',
+        target: '[data-tour="dashboard-content"]',
+        position: 'center'
       },
       {
-        id: 'quick-actions',
-        title: 'Quick Actions',
-        content: 'Use these buttons to quickly add expenses, scan receipts, or access common features.',
+        id: 'profile-setup',
+        title: 'Profile Management',
+        content: 'Click here to access your profile settings where you can update your information and manage your caregiving details.',
+        target: '[data-tour="profile-link"]',
+        position: 'top',
+        navigateTo: '/profile'
+      },
+      {
+        id: 'profile-details',
+        title: 'Your Profile Information',
+        content: 'Here you can update your personal information, household income, and other details that help us provide better insights.',
+        target: '[data-tour="profile-form"]',
+        position: 'bottom',
+        delay: 500
+      },
+      {
+        id: 'care-recipients-section',
+        title: 'Care Recipients',
+        content: 'This section shows the people you care for. Adding care recipients helps organize your expenses and provides better tracking.',
+        target: '[data-tour="care-recipients"]',
+        position: 'top'
+      },
+      {
+        id: 'add-care-recipient',
+        title: 'Add Someone You Care For',
+        content: 'Click this button to add a new care recipient. You can add their name, relationship, and optional medical conditions.',
+        target: '[data-tour="add-care-recipient"]',
+        position: 'bottom',
+        navigateTo: '/care-recipients/new'
+      },
+      {
+        id: 'care-recipient-form',
+        title: 'Care Recipient Details',
+        content: 'Fill out their basic information. Medical conditions are optional but help us provide more relevant resources and expense categories.',
+        target: '[data-tour="care-recipient-form"]',
+        position: 'center',
+        delay: 500
+      },
+      {
+        id: 'back-to-home',
+        title: 'Quick Actions Hub',
+        content: 'Now let\'s return to your dashboard to see the quick actions for expense tracking.',
         target: '[data-tour="quick-actions"]',
-        position: 'top'
+        position: 'top',
+        navigateTo: '/home'
       },
       {
-        id: 'navigation',
-        title: 'Main Navigation',
-        content: 'Navigate between different sections using the bottom menu. Tap any icon to explore expenses, transactions, resources, and your profile.',
+        id: 'add-expense-options',
+        title: 'Add Expenses Quickly',
+        content: 'These buttons let you add expenses in multiple ways: scan receipts with your camera, add manual entries, or track mileage.',
+        target: '[data-tour="quick-actions"]',
+        position: 'bottom',
+        delay: 500
+      },
+      {
+        id: 'expense-tracking',
+        title: 'View All Expenses',
+        content: 'Click here to see all your tracked expenses, filter them, and analyze your spending patterns.',
+        target: '[data-tour="expenses-link"]',
+        position: 'top',
+        navigateTo: '/expenses'
+      },
+      {
+        id: 'expense-list',
+        title: 'Expense Management',
+        content: 'Here you can view, edit, and organize all your caregiving expenses. Use filters to find specific transactions and see tax-deductible amounts.',
+        target: '[data-tour="expense-list"]',
+        position: 'center',
+        delay: 500
+      },
+      {
+        id: 'transaction-triage',
+        title: 'Smart Transaction Review',
+        content: 'Back on your home page, this section shows imported transactions from linked accounts that you can quickly categorize.',
+        target: '[data-tour="transaction-triage"]',
+        position: 'top',
+        navigateTo: '/home'
+      },
+      {
+        id: 'resources-section',
+        title: 'Helpful Resources',
+        content: 'Find financial assistance programs, discounts, and caregiving resources tailored to your location and needs.',
+        target: '[data-tour="resources-link"]',
+        position: 'top',
+        navigateTo: '/resources'
+      },
+      {
+        id: 'resources-overview',
+        title: 'Browse Resources',
+        content: 'Search and filter through hundreds of resources including government programs, local support, and financial assistance options.',
+        target: '[data-tour="resources-content"]',
+        position: 'center',
+        delay: 500
+      },
+      {
+        id: 'navigation-complete',
+        title: 'Navigation & Next Steps',
+        content: 'Use the bottom navigation to move between sections. You\'re now ready to start tracking your caregiving expenses and finding helpful resources!',
         target: '[data-tour="navigation"]',
-        position: 'top'
+        position: 'top',
+        navigateTo: '/home'
       }
     ]
   }
 ];
 
 const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({ 
-  tutorialId = 'home-overview',
+  tutorialId = 'complete-onboarding',
   onComplete,
   onClose 
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [highlightedElement, setHighlightedElement] = useState<Element | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const navigate = useNavigate();
   
   const tutorial = tutorials.find(t => t.id === tutorialId);
   if (!tutorial) return null;
@@ -82,19 +176,28 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
   // Handle element highlighting
   useEffect(() => {
-    if (currentStep.target !== 'body') {
-      const element = document.querySelector(currentStep.target);
-      setHighlightedElement(element);
-      
-      if (element) {
-        element.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center',
-          inline: 'center'
-        });
+    const highlightElement = () => {
+      if (currentStep.target !== 'body') {
+        const element = document.querySelector(currentStep.target);
+        setHighlightedElement(element);
+        
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'center'
+          });
+        }
+      } else {
+        setHighlightedElement(null);
       }
-    } else {
-      setHighlightedElement(null);
+    };
+
+    if (currentStep.delay && !isNavigating) {
+      const timer = setTimeout(highlightElement, currentStep.delay);
+      return () => clearTimeout(timer);
+    } else if (!isNavigating) {
+      highlightElement();
     }
 
     // Add overlay class to body
@@ -103,24 +206,52 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     return () => {
       document.body.classList.remove('tutorial-active');
     };
-  }, [currentStep]);
+  }, [currentStep, isNavigating]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (isLastStep) {
       // Complete the tutorial
       document.body.classList.remove('tutorial-active');
       onComplete?.();
+      return;
+    }
+
+    const nextStep = tutorial.steps[currentStepIndex + 1];
+    
+    // Handle navigation if needed
+    if (nextStep.navigateTo) {
+      setIsNavigating(true);
+      navigate(nextStep.navigateTo);
+      
+      // Wait for navigation and optional delay
+      setTimeout(() => {
+        setIsNavigating(false);
+        setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
+      }, (nextStep.delay || 0) + 100); // Add 100ms for navigation
     } else {
-      // Go to next step
+      // Go to next step without navigation
       setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
     }
-  }, [isLastStep, onComplete, totalSteps]);
+  }, [isLastStep, onComplete, totalSteps, navigate, tutorial.steps, currentStepIndex]);
 
   const handlePrevious = useCallback(() => {
     if (!isFirstStep) {
-      setCurrentStepIndex(prev => Math.max(prev - 1, 0));
+      const prevStep = tutorial.steps[currentStepIndex - 1];
+      
+      // Handle navigation if the previous step had navigation
+      if (prevStep.navigateTo) {
+        setIsNavigating(true);
+        navigate(prevStep.navigateTo);
+        
+        setTimeout(() => {
+          setIsNavigating(false);
+          setCurrentStepIndex(prev => Math.max(prev - 1, 0));
+        }, (prevStep.delay || 0) + 100);
+      } else {
+        setCurrentStepIndex(prev => Math.max(prev - 1, 0));
+      }
     }
-  }, [isFirstStep]);
+  }, [isFirstStep, navigate, tutorial.steps, currentStepIndex]);
 
   const handleClose = useCallback(() => {
     document.body.classList.remove('tutorial-active');
@@ -139,8 +270,8 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     }
 
     const rect = highlightedElement.getBoundingClientRect();
-    const tooltipWidth = 320;
-    const tooltipHeight = 200;
+    const tooltipWidth = 360;
+    const tooltipHeight = 250;
     const margin = 16;
 
     let style: React.CSSProperties = {
@@ -171,6 +302,18 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     return style;
   };
 
+  // Don't render if navigating
+  if (isNavigating) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center">
+        <div className="bg-white rounded-lg p-6 shadow-2xl">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-sm text-muted-foreground text-center">Loading next step...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Overlay */}
@@ -195,7 +338,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
       {/* Tutorial Tooltip */}
       <Card 
-        className="w-full max-w-sm shadow-2xl border-primary/20 bg-white"
+        className="w-full max-w-md shadow-2xl border-primary/20 bg-white"
         style={getTooltipPosition()}
       >
         <CardContent className="p-6">
@@ -219,7 +362,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
           {/* Content */}
           <div className="mb-6">
-            <h3 className="font-semibold text-lg mb-2">
+            <h3 className="font-semibold text-lg mb-3">
               {currentStep.title}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -228,14 +371,14 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           </div>
 
           {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+          <div className="mb-6">
+            <div className="flex justify-between text-xs text-muted-foreground mb-2">
               <span>{tutorial.name}</span>
               <span>{Math.round(((currentStepIndex + 1) / totalSteps) * 100)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                className="bg-primary h-2 rounded-full transition-all duration-500"
                 style={{
                   width: `${((currentStepIndex + 1) / totalSteps) * 100}%`
                 }}
@@ -270,7 +413,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
                 onClick={handleNext}
                 className="flex items-center gap-1"
               >
-                {isLastStep ? 'Complete' : 'Next'}
+                {isLastStep ? 'Complete Tour' : 'Next'}
                 {!isLastStep && <ChevronRight className="h-3 w-3" />}
               </Button>
             </div>

@@ -412,7 +412,7 @@ const Expenses = () => {
   return (
     <>
       <Layout>
-        <div className="container-padding py-3 sm:py-6">
+        <div className="container-padding py-3 sm:py-6" data-tour="expense-list">
         {/* Mobile-optimized header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
           <div>

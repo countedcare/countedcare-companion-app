@@ -102,7 +102,7 @@ const Resources = () => {
 
   return (
     <Layout>
-      <div className="container-padding py-6">
+      <div className="container-padding py-6" data-tour="resources-content">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>

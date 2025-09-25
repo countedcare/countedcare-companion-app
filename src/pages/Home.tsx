@@ -84,48 +84,50 @@ const Home = () => {
             </div>
           )}
           
-          {/* Enhanced Welcome Header */}
-          <EnhancedWelcomeHeader profile={profile} />
-          
-          {/* Tutorial Trigger */}
-          <div className="container-padding">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTutorial(true)}
-              className="mb-4 flex items-center gap-2"
-            >
-              <Play className="h-4 w-4" />
-              Take a Tour
-            </Button>
-          </div>
-          
-          {/* Progress Tracker */}
-          <div data-tour="progress-tracker">
-            <ProgressTracker profile={profile} />
-          </div>
-          
-          {/* Interactive Dashboard */}
-          <div data-tour="dashboard">
-            <InteractiveDashboard />
-          </div>
-          
-          {/* Transaction Triage */}
-          <div data-tour="transaction-triage">
-            <TransactionTriage />
-          </div>
-          
-          {/* Personalized Insights */}
-          <PersonalizedInsights />
-          
-          {/* Quick Add Grid */}
-          <div data-tour="quick-actions">
-            <QuickAddGrid onOpenReceiptModal={() => setShowReceiptModal(true)} />
-          </div>
-          
-          {/* Enhanced Recent Activity */}
-          <div data-tour="recent-activity">
-            <EnhancedRecentActivity />
+          <div data-tour="dashboard-content">
+            {/* Enhanced Welcome Header */}
+            <EnhancedWelcomeHeader profile={profile} />
+            
+            {/* Tutorial Trigger */}
+            <div className="container-padding">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTutorial(true)}
+                className="mb-4 flex items-center gap-2"
+              >
+                <Play className="h-4 w-4" />
+                Take a Complete Tour
+              </Button>
+            </div>
+            
+            {/* Progress Tracker */}
+            <div data-tour="progress-tracker">
+              <ProgressTracker profile={profile} />
+            </div>
+            
+            {/* Interactive Dashboard */}
+            <div data-tour="dashboard">
+              <InteractiveDashboard />
+            </div>
+            
+            {/* Transaction Triage */}
+            <div data-tour="transaction-triage">
+              <TransactionTriage />
+            </div>
+            
+            {/* Personalized Insights */}
+            <PersonalizedInsights />
+            
+            {/* Quick Add Grid */}
+            <div data-tour="quick-actions">
+              <QuickAddGrid onOpenReceiptModal={() => setShowReceiptModal(true)} />
+            </div>
+            
+            {/* Enhanced Recent Activity */}
+            <div data-tour="recent-activity">
+              <EnhancedRecentActivity />
+            </div>
           </div>
         </div>
       </div>
@@ -139,7 +141,7 @@ const Home = () => {
       {/* Interactive Tutorial */}
       {showTutorial && (
         <InteractiveTutorial
-          tutorialId="home-overview"
+          tutorialId="complete-onboarding"
           onComplete={() => setShowTutorial(false)}
           onClose={() => setShowTutorial(false)}
         />

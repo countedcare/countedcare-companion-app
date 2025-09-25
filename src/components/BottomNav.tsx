@@ -6,10 +6,10 @@ import FloatingActionButton from './FloatingActionButton';
 
 const BottomNav: React.FC = () => {
   const navItems = [
-    { icon: Home, text: 'Home', path: '/home' },
-    { icon: TrendingUp, text: 'Expenses', path: '/expenses' },
-    { icon: BookOpen, text: 'Resources', path: '/resources' },
-    { icon: User, text: 'Profile', path: '/profile' },
+    { icon: Home, text: 'Home', path: '/home', tourId: '' },
+    { icon: TrendingUp, text: 'Expenses', path: '/expenses', tourId: 'expenses-link' },
+    { icon: BookOpen, text: 'Resources', path: '/resources', tourId: 'resources-link' },
+    { icon: User, text: 'Profile', path: '/profile', tourId: 'profile-link' },
   ];
 
   return (
@@ -26,6 +26,7 @@ const BottomNav: React.FC = () => {
                   isActive ? 'text-primary' : 'text-gray-500 hover:text-primary'
                 }`
               }
+              data-tour={item.tourId || undefined}
             >
               {React.createElement(item.icon, { size: 20 })}
               <span className="text-xs mt-1">{item.text}</span>
@@ -49,6 +50,7 @@ const BottomNav: React.FC = () => {
                   isActive ? 'text-primary' : 'text-gray-500 hover:text-primary'
                 }`
               }
+              data-tour={item.tourId || undefined}
             >
               {React.createElement(item.icon, { size: 20 })}
               <span className="text-xs mt-1">{item.text}</span>

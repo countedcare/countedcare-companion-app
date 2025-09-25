@@ -163,7 +163,7 @@ const CareRecipientForm = () => {
         </h1>
         
         <form onSubmit={handleSubmit}>
-          <Card>
+          <Card data-tour="care-recipient-form">
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <div className="space-y-2">

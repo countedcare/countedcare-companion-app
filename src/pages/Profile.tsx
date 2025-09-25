@@ -283,6 +283,7 @@ const Profile = () => {
                 <Button 
                   onClick={() => setShowComprehensiveForm(true)}
                   className="w-full mobile-button"
+                  data-tour="profile-form"
                 >
                   <User className="mr-2 h-4 w-4" />
                   {profileCompletion < 100 ? 'Complete Your Profile' : 'Update Profile Information'}
@@ -295,7 +296,7 @@ const Profile = () => {
           <LinkedAccountsSection />
 
           {/* Care Recipients Management Section */}
-          <Card>
+          <Card data-tour="care-recipients">
             <CardHeader className="mobile-card-padding">
               <CardTitle className="mobile-text">People I Care For</CardTitle>
               <CardDescription className="text-xs sm:text-sm">Manage profiles of people you are caring for</CardDescription>
@@ -344,6 +345,7 @@ const Profile = () => {
                 onClick={() => navigate('/care-recipients/new')} 
                 className="w-full mobile-button"
                 variant="outline"
+                data-tour="add-care-recipient"
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Someone

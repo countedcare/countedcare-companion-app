@@ -172,31 +172,55 @@ export function InteractiveDashboard() {
             </TabsContent>
 
             <TabsContent value="categories" className="mt-6">
-              <div className="h-64">
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={categoryChartData}
                       cx="50%"
                       cy="50%"
-                      outerRadius={80}
+                      labelLine={false}
+                      label={({ name, percent }) => 
+                        percent > 0.05 ? `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%` : ''
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
                       {categoryChartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip 
-                      formatter={(value: number) => [`$${value.toLocaleString()}`, 'Amount']}
+                      formatter={(value: number, name: string) => [
+                        `$${value.toLocaleString()}`, 
+                        name
+                      ]}
+                      labelFormatter={(label) => `Category: ${label}`}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        fontSize: '14px'
                       }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
+              </div>
+              
+              {/* Category Legend */}
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {categoryChartData.map((entry, index) => (
+                  <div key={entry.name} className="flex items-center space-x-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    ></div>
+                    <span className="text-sm text-gray-600 truncate">
+                      {entry.name}: ${entry.value.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
               </div>
             </TabsContent>
 

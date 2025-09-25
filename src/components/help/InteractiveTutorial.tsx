@@ -58,10 +58,10 @@ const tutorials: TutorialConfig[] = [
         navigateTo: '/profile'
       },
       {
-        id: 'profile-details',
-        title: 'Your Profile Information',
-        content: 'Here you can update your personal information, household income, and other details that help us provide better insights.',
-        target: '[data-tour="profile-form"]',
+        id: 'profile-overview',
+        title: 'Your Profile Overview',
+        content: 'Here you can see your profile completion status and basic information. Complete your profile to get personalized insights.',
+        target: '[data-tour="profile-overview"]',
         position: 'bottom',
         delay: 500
       },

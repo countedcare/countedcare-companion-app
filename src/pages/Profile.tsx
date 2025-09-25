@@ -246,51 +246,53 @@ const Profile = () => {
         
         <div className="space-y-4 sm:space-y-6">
           {/* Profile Completion Card */}
-          <Card>
-            <CardHeader className="mobile-card-padding">
-              <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between space-y-1 sm:space-y-0">
-                <span className="mobile-text font-medium">Profile Overview</span>
-                <span className="text-xs sm:text-sm font-normal text-muted-foreground">
-                  {profileCompletion}% Complete
-                </span>
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Complete your profile to unlock personalized tax insights and caregiver resources
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="mobile-card-padding pt-0">
-              <div className="space-y-3 sm:space-y-4">
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${profileCompletion}%` }}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 gap-3 sm:gap-4 text-xs sm:text-sm">
-                  <div className="space-y-1 sm:space-y-2">
-                    <p><strong>Name:</strong> {profile?.name || 'Not provided'}</p>
-                    <p><strong>Email:</strong> {profile?.email || 'Not provided'}</p>
-                    <p><strong>ZIP Code:</strong> {profile?.zip_code || 'Not provided'}</p>
+          <div data-tour="profile-overview">
+            <Card>
+              <CardHeader className="mobile-card-padding">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between space-y-1 sm:space-y-0">
+                  <span className="mobile-text font-medium">Profile Overview</span>
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground">
+                    {profileCompletion}% Complete
+                  </span>
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Complete your profile to unlock personalized tax insights and caregiver resources
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="mobile-card-padding pt-0">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${profileCompletion}%` }}
+                    />
                   </div>
-                  <div className="space-y-1 sm:space-y-2">
-                    <p><strong>Caregiver:</strong> {profile?.is_caregiver ? 'Yes' : 'No'}</p>
-                    <p><strong>Care Recipients:</strong> {recipients.length} person(s)</p>
-                    <p><strong>Household AGI:</strong> {profile?.household_agi ? `$${profile.household_agi.toLocaleString()}` : 'Not specified'}</p>
+                  
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 text-xs sm:text-sm">
+                    <div className="space-y-1 sm:space-y-2">
+                      <p><strong>Name:</strong> {profile?.name || 'Not provided'}</p>
+                      <p><strong>Email:</strong> {profile?.email || 'Not provided'}</p>
+                      <p><strong>ZIP Code:</strong> {profile?.zip_code || 'Not provided'}</p>
+                    </div>
+                    <div className="space-y-1 sm:space-y-2">
+                      <p><strong>Caregiver:</strong> {profile?.is_caregiver ? 'Yes' : 'No'}</p>
+                      <p><strong>Care Recipients:</strong> {recipients.length} person(s)</p>
+                      <p><strong>Household AGI:</strong> {profile?.household_agi ? `$${profile.household_agi.toLocaleString()}` : 'Not specified'}</p>
+                    </div>
                   </div>
+                  
+                  <Button 
+                    onClick={() => setShowComprehensiveForm(true)}
+                    className="w-full mobile-button"
+                    data-tour="profile-form"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    {profileCompletion < 100 ? 'Complete Your Profile' : 'Update Profile Information'}
+                  </Button>
                 </div>
-                
-                <Button 
-                  onClick={() => setShowComprehensiveForm(true)}
-                  className="w-full mobile-button"
-                  data-tour="profile-form"
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  {profileCompletion < 100 ? 'Complete Your Profile' : 'Update Profile Information'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Linked Financial Accounts Section */}
           <LinkedAccountsSection />

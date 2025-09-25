@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -61,35 +61,6 @@ const tutorials: TutorialConfig[] = [
         position: 'top'
       }
     ]
-  },
-  {
-    id: 'expense-tracking',
-    name: 'Expense Tracking',
-    description: 'Learn how to add and manage expenses',
-    steps: [
-      {
-        id: 'add-expense',
-        title: 'Adding Expenses',
-        content: 'Click this button to manually add a new caregiving expense. You can also upload receipt photos here.',
-        target: '[data-tour="add-expense"]',
-        position: 'bottom',
-        action: 'click'
-      },
-      {
-        id: 'expense-list',
-        title: 'Your Expense List',
-        content: 'All your tracked expenses appear here. You can filter, search, and organize them by category or date.',
-        target: '[data-tour="expense-list"]',
-        position: 'top'
-      },
-      {
-        id: 'filters',
-        title: 'Smart Filters',
-        content: 'Use these filters to find specific expenses. Filter by category, date range, tax status, or care recipient.',
-        target: '[data-tour="filters"]',
-        position: 'bottom'
-      }
-    ]
   }
 ];
 
@@ -99,17 +70,17 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   onClose 
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
-  const [isCompleted, setIsCompleted] = useState(false);
   const [highlightedElement, setHighlightedElement] = useState<Element | null>(null);
-
+  
   const tutorial = tutorials.find(t => t.id === tutorialId);
   if (!tutorial) return null;
 
+  const totalSteps = tutorial.steps.length;
   const currentStep = tutorial.steps[currentStepIndex];
-  const isLastStep = currentStepIndex === tutorial.steps.length - 1;
+  const isLastStep = currentStepIndex === totalSteps - 1;
   const isFirstStep = currentStepIndex === 0;
 
+  // Handle element highlighting
   useEffect(() => {
     if (currentStep.target !== 'body') {
       const element = document.querySelector(currentStep.target);
@@ -134,33 +105,27 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     };
   }, [currentStep]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (isLastStep) {
-      handleComplete();
+      // Complete the tutorial
+      document.body.classList.remove('tutorial-active');
+      onComplete?.();
     } else {
-      setCurrentStepIndex(prev => prev + 1);
+      // Go to next step
+      setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
     }
-  };
+  }, [isLastStep, onComplete, totalSteps]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (!isFirstStep) {
-      setCurrentStepIndex(prev => prev - 1);
+      setCurrentStepIndex(prev => Math.max(prev - 1, 0));
     }
-  };
+  }, [isFirstStep]);
 
-  const handleComplete = () => {
-    setIsCompleted(true);
-    setIsVisible(false);
-    document.body.classList.remove('tutorial-active');
-    onComplete?.();
-  };
-
-  const handleClose = () => {
-    setIsCompleted(true);
-    setIsVisible(false);
+  const handleClose = useCallback(() => {
     document.body.classList.remove('tutorial-active');
     onClose?.();
-  };
+  }, [onClose]);
 
   const getTooltipPosition = () => {
     if (!highlightedElement || currentStep.position === 'center') {
@@ -206,9 +171,6 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     return style;
   };
 
-  // Prevent rendering if completed or not visible
-  if (!isVisible || isCompleted) return null;
-
   return (
     <>
       {/* Overlay */}
@@ -233,7 +195,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
       {/* Tutorial Tooltip */}
       <Card 
-        className="w-full max-w-sm shadow-2xl border-primary/20"
+        className="w-full max-w-sm shadow-2xl border-primary/20 bg-white"
         style={getTooltipPosition()}
       >
         <CardContent className="p-6">
@@ -242,7 +204,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
             <div className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
               <Badge variant="secondary" className="text-xs">
-                Step {currentStepIndex + 1} of {tutorial.steps.length}
+                Step {currentStepIndex + 1} of {totalSteps}
               </Badge>
             </div>
             <Button
@@ -269,13 +231,13 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           <div className="mb-4">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
               <span>{tutorial.name}</span>
-              <span>{Math.round(((currentStepIndex + 1) / tutorial.steps.length) * 100)}%</span>
+              <span>{Math.round(((currentStepIndex + 1) / totalSteps) * 100)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5">
               <div
                 className="bg-primary h-1.5 rounded-full transition-all duration-300"
                 style={{
-                  width: `${((currentStepIndex + 1) / tutorial.steps.length) * 100}%`
+                  width: `${((currentStepIndex + 1) / totalSteps) * 100}%`
                 }}
               />
             </div>

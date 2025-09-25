@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, TrendingUp, BookOpen, User, HelpCircle } from 'lucide-react';
+import { Home, TrendingUp, BookOpen, User } from 'lucide-react';
 import FloatingActionButton from './FloatingActionButton';
 
 const BottomNav: React.FC = () => {
@@ -9,7 +9,6 @@ const BottomNav: React.FC = () => {
     { icon: Home, text: 'Home', path: '/home' },
     { icon: TrendingUp, text: 'Expenses', path: '/expenses' },
     { icon: BookOpen, text: 'Resources', path: '/resources' },
-    { icon: HelpCircle, text: 'Help', path: '/help' },
     { icon: User, text: 'Profile', path: '/profile' },
   ];
 
@@ -41,7 +40,7 @@ const BottomNav: React.FC = () => {
 
         {/* Right side nav items */}
         <div className="flex flex-1 justify-around">
-          {navItems.slice(2, 5).map((item, index) => (
+          {navItems.slice(2, 4).map((item, index) => (
             <NavLink
               key={index + 2}
               to={item.path}

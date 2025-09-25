@@ -7,10 +7,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
+import { supabase } from '@/integrations/supabase/client';
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 import WelcomeStep from '@/components/onboarding/WelcomeStep';
 import UserInfoStep from '@/components/onboarding/UserInfoStep';
-import CaregiverRoleStep from '@/components/onboarding/CaregiverRoleStep';
+import CareRecipientsStep from '@/components/onboarding/CareRecipientsStep';
 import TrackingGoalsStep from '@/components/onboarding/TrackingGoalsStep';
 import CompletionStep from '@/components/onboarding/CompletionStep';
 import OnboardingControls from '@/components/onboarding/OnboardingControls';
@@ -24,13 +25,16 @@ const Onboarding = () => {
   const [tempProfileData, setTempProfileData] = useState({
     name: '',
     email: '',
-    isCaregiver: true,
-    caregivingFor: [] as string[],
     zipCode: '',
     householdAGI: undefined as number | undefined
   });
   
-  const [selectedRelationship, setSelectedRelationship] = useState<string>("");
+  const [careRecipients, setCareRecipients] = useState<Array<{
+    name: string;
+    relationship: string;
+    tempId: string;
+  }>>([]);
+  
   const totalSteps = 5;
 
   // Check authentication and onboarding status
@@ -65,36 +69,40 @@ const Onboarding = () => {
       }
     }
     
-    if (step === 2) {
-      const updatedData = {
-        ...tempProfileData,
-        caregivingFor: tempProfileData.caregivingFor || []
-      };
-      
-      if (selectedRelationship && !updatedData.caregivingFor.includes(selectedRelationship)) {
-        updatedData.caregivingFor = [...updatedData.caregivingFor, selectedRelationship];
-      }
-      
-      setTempProfileData(updatedData);
-      setSelectedRelationship("");
-    }
-    
     if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
       try {
         // Map camelCase UI fields to snake_case database fields
         const dbData = {
-          name: tempProfileData.name,
-          email: tempProfileData.email,
-          is_caregiver: tempProfileData.isCaregiver,
-          caregiving_for: tempProfileData.caregivingFor,
+          name: tempProfileData.name || user?.user_metadata?.name || user?.user_metadata?.full_name,
+          email: tempProfileData.email || user?.email,
+          is_caregiver: careRecipients.length > 0, // Set based on whether they added care recipients
+          caregiving_for: careRecipients.map(r => `${r.name} (${r.relationship})`),
           zip_code: tempProfileData.zipCode,
           household_agi: tempProfileData.householdAGI,
           onboarding_complete: true
         };
         
         await updateProfile(dbData);
+        
+        // Save care recipients to the care_recipients table
+        if (careRecipients.length > 0) {
+          const careRecipientInserts = careRecipients.map(recipient => ({
+            user_id: user?.id,
+            name: recipient.name,
+            relationship: recipient.relationship
+          }));
+          
+          const { error: careRecipientsError } = await supabase
+            .from('care_recipients')
+            .insert(careRecipientInserts);
+          
+          if (careRecipientsError) {
+            console.error('Error saving care recipients:', careRecipientsError);
+            throw careRecipientsError;
+          }
+        }
         
         toast({
           title: "Welcome to CountedCare! 🎉",
@@ -120,17 +128,17 @@ const Onboarding = () => {
         return <UserInfoStep user={tempProfileData as any} setUser={setTempProfileData as any} />;
       case 2:
         return (
-          <CaregiverRoleStep 
-            user={tempProfileData as any} 
-            setUser={setTempProfileData as any}
-            selectedRelationship={selectedRelationship}
-            setSelectedRelationship={setSelectedRelationship}
+          <CareRecipientsStep 
+            careRecipients={careRecipients}
+            setCareRecipients={setCareRecipients}
+            householdAGI={tempProfileData.householdAGI}
+            setHouseholdAGI={(agi) => setTempProfileData({...tempProfileData, householdAGI: agi})}
           />
         );
       case 3:
         return <TrackingGoalsStep user={tempProfileData as any} setUser={setTempProfileData as any} />;
       case 4:
-        return <CompletionStep userName={tempProfileData.name} />;
+        return <CompletionStep userName={tempProfileData.name || user?.user_metadata?.name || user?.user_metadata?.full_name || 'there'} />;
       default:
         return <WelcomeStep />;
     }
@@ -140,7 +148,7 @@ const Onboarding = () => {
     switch (step) {
       case 0: return "Welcome";
       case 1: return "Your Information";
-      case 2: return "Caregiver Details";
+      case 2: return "Care Recipients";
       case 3: return "Tracking Goals";
       case 4: return "All Set!";
       default: return "Setup";

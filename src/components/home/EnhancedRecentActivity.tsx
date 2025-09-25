@@ -5,12 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Receipt, Calendar, MapPin, DollarSign, Star, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useExpenseData } from '@/hooks/useExpenseData';
+import { ExpenseDetailsModal } from '@/components/expenses/ExpenseDetailsModal';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
+import { Expense } from '@/types/User';
 
 export function EnhancedRecentActivity() {
   const navigate = useNavigate();
-  const { getRecentExpenses, loading, stats } = useExpenseData();
+  const { getRecentExpenses, loading, stats, reloadExpenses } = useExpenseData();
   const [hoveredExpense, setHoveredExpense] = useState<string | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const recentExpenses = getRecentExpenses(5);
 
   const formatCurrency = (amount: number) => {
@@ -53,6 +57,20 @@ export function EnhancedRecentActivity() {
       default: Receipt
     };
     return icons[category] || icons.default;
+  };
+
+  const handleExpenseClick = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const handleExpenseUpdated = () => {
+    reloadExpenses(); // Refresh the expense data
   };
 
   // Enhanced loading skeleton
@@ -141,7 +159,7 @@ export function EnhancedRecentActivity() {
                         ? 'bg-gradient-to-r from-blue-50 to-purple-50 shadow-md transform scale-[1.02]' 
                         : 'bg-gray-50 hover:bg-gray-100'
                     }`}
-                    onClick={() => navigate(`/expenses`)}
+                    onClick={() => handleExpenseClick(expense)}
                     onMouseEnter={() => setHoveredExpense(expense.id)}
                     onMouseLeave={() => setHoveredExpense(null)}
                     style={{
@@ -212,6 +230,14 @@ export function EnhancedRecentActivity() {
           )}
         </CardContent>
       </Card>
+
+      {/* Expense Details Modal */}
+      <ExpenseDetailsModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        expense={selectedExpense}
+        onExpenseUpdated={handleExpenseUpdated}
+      />
     </div>
   );
 }

@@ -192,11 +192,13 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       setIsNavigating(true);
       navigate(nextStep.navigateTo);
       
-      // Wait for navigation and optional delay
+      // Wait for navigation and optional delay - longer timeout for profile page
+      const navigationDelay = nextStep.navigateTo === '/profile' ? 1200 : 500;
       setTimeout(() => {
+        console.log(`🎯 Navigation complete, moving to step ${currentStepIndex + 2}`);
         setIsNavigating(false);
         setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
-      }, (nextStep.delay || 0) + 300); // Add more time for navigation
+      }, (nextStep.delay || 0) + navigationDelay);
     } else {
       // Go to next step without navigation
       setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));

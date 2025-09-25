@@ -66,7 +66,9 @@ const Expenses = () => {
       expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesCategory = !filterCategory || filterCategory === 'all-categories' || expense.category === filterCategory;
-    const matchesRecipient = !filterRecipient || filterRecipient === 'all-recipients' || expense.careRecipientId === filterRecipient;
+    const matchesRecipient = !filterRecipient || filterRecipient === 'all-recipients' || 
+      (filterRecipient === 'self' && (!expense.careRecipientId || expense.careRecipientId === '')) ||
+      (filterRecipient !== 'self' && expense.careRecipientId === filterRecipient);
     
     const matchesDeductible = !filterDeductible || filterDeductible === 'all' || 
       (filterDeductible === 'deductible' && expense.is_tax_deductible) ||

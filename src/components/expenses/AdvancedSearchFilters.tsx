@@ -235,12 +235,32 @@ const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all-recipients">All Recipients</SelectItem>
-                    <SelectItem value="self">Self</SelectItem>
-                    {recipients.map(recipient => (
-                      <SelectItem key={recipient.id} value={recipient.id}>{recipient.name}</SelectItem>
-                    ))}
+                    <SelectItem value="self">
+                      <div className="flex items-center justify-between w-full">
+                        <span>Self (Personal)</span>
+                      </div>
+                    </SelectItem>
+                    {recipients.length > 0 && (
+                      <>
+                        {recipients.map(recipient => (
+                          <SelectItem key={recipient.id} value={recipient.id}>
+                            <div className="flex items-center justify-between w-full">
+                              <span>{recipient.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {recipient.relationship}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
+                {recipients.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Add care recipients in your profile to filter expenses by person
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

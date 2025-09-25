@@ -424,7 +424,7 @@ const Expenses = () => {
               <span className="hidden sm:inline">Refresh</span>
               <span className="sm:hidden">Sync</span>
             </Button>
-            <Button variant="outline" onClick={() => navigate('/linked-accounts')} className="mobile-button">
+            <Button variant="outline" onClick={() => navigate('/profile')} className="mobile-button">
               <CreditCard className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Link Bank Account</span>
               <span className="sm:hidden">Link Bank</span>
@@ -639,7 +639,7 @@ const Expenses = () => {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Your First Expense
                   </Button>
-                  <Button variant="outline" onClick={() => navigate('/linked-accounts')} className="mobile-button">
+                  <Button variant="outline" onClick={() => navigate('/profile')} className="mobile-button">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Connect Bank Account
                   </Button>

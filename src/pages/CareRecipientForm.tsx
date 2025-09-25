@@ -45,7 +45,6 @@ const CareRecipientForm = () => {
   const [name, setName] = useState('');
   const [relationship, setRelationship] = useState('');
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
-  const [insuranceInfo, setInsuranceInfo] = useState('');
   
   // For editing mode
   useEffect(() => {
@@ -54,16 +53,12 @@ const CareRecipientForm = () => {
       if (recipientToEdit) {
         setName(recipientToEdit.name);
         setRelationship(recipientToEdit.relationship);
-        // Parse conditions and insurance from notes field
+        // Parse conditions from notes field
         const notes = recipientToEdit.notes || '';
         const conditionsMatch = notes.match(/Conditions: ([^\\n]*)/);
-        const insuranceMatch = notes.match(/Insurance: ([^\\n]*)/);
         
         if (conditionsMatch) {
           setSelectedConditions(conditionsMatch[1].split(', '));
-        }
-        if (insuranceMatch) {
-          setInsuranceInfo(insuranceMatch[1]);
         }
       }
     }
@@ -85,7 +80,7 @@ const CareRecipientForm = () => {
     const recipientData = {
       name,
       relationship,
-      notes: selectedConditions.length > 0 ? `Conditions: ${selectedConditions.join(', ')}${insuranceInfo ? `\nInsurance: ${insuranceInfo}` : ''}` : insuranceInfo
+      notes: selectedConditions.length > 0 ? `Conditions: ${selectedConditions.join(', ')}` : undefined
     };
     
     try {
@@ -201,7 +196,11 @@ const CareRecipientForm = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Medical Conditions</Label>
+                  <Label>Medical Conditions (Optional)</Label>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    You can optionally select medical conditions if you'd like, but you don't need to share this information. 
+                    This helps us provide more relevant resources and expense tracking.
+                  </p>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {commonConditions.map(condition => (
                       <div key={condition} className="flex items-center space-x-2">
@@ -219,16 +218,6 @@ const CareRecipientForm = () => {
                       </div>
                     ))}
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="insurance">Insurance Information</Label>
-                  <Textarea
-                    id="insurance"
-                    placeholder="Enter insurance details, policy numbers, etc."
-                    value={insuranceInfo}
-                    onChange={(e) => setInsuranceInfo(e.target.value)}
-                  />
                 </div>
               </div>
               

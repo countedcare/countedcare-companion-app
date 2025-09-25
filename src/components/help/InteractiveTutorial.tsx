@@ -100,6 +100,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [highlightedElement, setHighlightedElement] = useState<Element | null>(null);
 
   const tutorial = tutorials.find(t => t.id === tutorialId);
@@ -148,12 +149,14 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   };
 
   const handleComplete = () => {
+    setIsCompleted(true);
     setIsVisible(false);
     document.body.classList.remove('tutorial-active');
     onComplete?.();
   };
 
   const handleClose = () => {
+    setIsCompleted(true);
     setIsVisible(false);
     document.body.classList.remove('tutorial-active');
     onClose?.();
@@ -203,7 +206,8 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     return style;
   };
 
-  if (!isVisible) return null;
+  // Prevent rendering if completed or not visible
+  if (!isVisible || isCompleted) return null;
 
   return (
     <>

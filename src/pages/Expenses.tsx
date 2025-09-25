@@ -30,6 +30,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useExpenseData } from '@/hooks/useExpenseData';
 
 const Expenses = () => {
+  // Force rebuild after git revert
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
   const { profile } = useSupabaseProfile();

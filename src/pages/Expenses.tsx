@@ -19,6 +19,8 @@ import { Expense } from '@/types/User';
 import { SyncedTransaction } from '@/types/FinancialAccount';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import ExpenseTable from '@/components/expenses/ExpenseTable';
+import EnhancedExpenseTable from '@/components/expenses/EnhancedExpenseTable';
+import { QuickFilters } from '@/components/expenses/QuickFilters';
 import AutoImportedTransactions from '@/components/expenses/AutoImportedTransactions';
 import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
 import { TaxExportSection } from '@/components/expenses/TaxExportSection';
@@ -136,6 +138,131 @@ const Expenses = () => {
 
   const handleRefresh = () => {
     reloadExpenses();
+  };
+
+  // Handle bulk operations
+  const handleBulkAction = async (expenseIds: string[], action: 'delete' | 'tax-deductible' | 'category', value?: any) => {
+    if (!authUser) return;
+
+    try {
+      if (action === 'delete') {
+        const { error } = await supabase
+          .from('expenses')
+          .delete()
+          .in('id', expenseIds)
+          .eq('user_id', authUser.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Expenses Deleted",
+          description: `${expenseIds.length} expense${expenseIds.length !== 1 ? 's' : ''} deleted successfully.`
+        });
+      } else if (action === 'tax-deductible') {
+        const { error } = await supabase
+          .from('expenses')
+          .update({ is_tax_deductible: value, is_potentially_deductible: value })
+          .in('id', expenseIds)
+          .eq('user_id', authUser.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Expenses Updated",
+          description: `${expenseIds.length} expense${expenseIds.length !== 1 ? 's' : ''} marked as tax deductible.`
+        });
+      } else if (action === 'category') {
+        const { error } = await supabase
+          .from('expenses')
+          .update({ category: value })
+          .in('id', expenseIds)
+          .eq('user_id', authUser.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Category Updated",
+          description: `${expenseIds.length} expense${expenseIds.length !== 1 ? 's' : ''} updated to ${value}.`
+        });
+      }
+
+      reloadExpenses();
+    } catch (error) {
+      console.error('Error with bulk action:', error);
+      toast({
+        title: "Error",
+        description: "Failed to perform bulk action. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle individual expense updates
+  const handleExpenseUpdate = async (expenseId: string, updates: Partial<Expense>) => {
+    if (!authUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update(updates)
+        .eq('id', expenseId)
+        .eq('user_id', authUser.id);
+
+      if (error) throw error;
+      
+      reloadExpenses();
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      throw error;
+    }
+  };
+
+  // Handle quick filter applications
+  const handleQuickFilterApply = (filterType: string, value?: any) => {
+    switch (filterType) {
+      case 'dateRange':
+        setDateRange(value);
+        break;
+      case 'filterDeductible':
+        setFilterDeductible(value);
+        break;
+      case 'triageFilter':
+        setTriageFilter(value);
+        break;
+      case 'missingReceipts':
+        // This would need custom logic to filter expenses without receipts
+        setFilterSource('no-receipt');
+        break;
+      case 'largeExpenses':
+        // This would need custom logic to filter large expenses (e.g., > $100)
+        setSortBy('amount-desc');
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handle clearing individual filters
+  const handleClearFilter = (filterType: string) => {
+    switch (filterType) {
+      case 'dateRange':
+        setDateRange(undefined);
+        break;
+      case 'filterDeductible':
+        setFilterDeductible('');
+        break;
+      case 'triageFilter':
+        setTriageFilter('all');
+        break;
+      case 'filterCategory':
+        setFilterCategory('');
+        break;
+      case 'searchTerm':
+        setSearchTerm('');
+        break;
+      default:
+        break;
+    }
   };
 
   // Get stats for expenses overview - using the centralized stats
@@ -391,12 +518,26 @@ const Expenses = () => {
           </TabsList>
           
           <TabsContent value="list" className="space-y-4 sm:space-y-6">
+            {/* Quick Filters */}
+            <QuickFilters
+              onFilterApply={handleQuickFilterApply}
+              activeFilters={{
+                dateRange,
+                filterDeductible,
+                triageFilter,
+                filterCategory,
+                searchTerm
+              }}
+              onClearFilter={handleClearFilter}
+              expenseStats={expenseStats}
+            />
+
             {/* Enhanced Filters */}
             <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Filter className="w-5 h-5" />
-                  Filter & Sort Expenses
+                  Advanced Filters
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -564,12 +705,14 @@ const Expenses = () => {
               </Popover>
             </div>
             
-            {/* Expense Table */}
-            <ExpenseTable 
+            {/* Enhanced Expense Table */}
+            <EnhancedExpenseTable 
               expenses={sortedExpenses}
               recipients={recipients}
               onExpenseClick={(expenseId) => navigate(`/expenses/${expenseId}`)}
               onTriageAction={handleTriageAction}
+              onExpenseUpdate={handleExpenseUpdate}
+              onBulkAction={handleBulkAction}
             />
             
             {/* Mobile-optimized empty state */}

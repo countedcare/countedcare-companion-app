@@ -171,11 +171,11 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
       <CardContent className="pb-4">
         <div className="relative">
           <Carousel className="w-full" opts={{ align: "start", loop: false }}>
-            <CarouselContent>
+            <CarouselContent className="-ml-2 md:-ml-4">
               {items.map((item) => (
-                <CarouselItem key={item.id} className="basis-full">
+                <CarouselItem key={item.id} className="pl-2 md:pl-4 basis-full md:basis-1/2 lg:basis-1/3">
                   <div
-                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors h-20 ${
                       item.completed 
                         ? 'bg-green-50 border border-green-200' 
                         : item.action 
@@ -197,12 +197,12 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h4 className={`font-medium ${
+                      <h4 className={`font-medium text-sm leading-tight ${
                         item.completed ? 'text-green-800' : 'text-gray-900'
                       }`}>
                         {item.title}
                       </h4>
-                      <p className={`text-sm ${
+                      <p className={`text-xs leading-tight ${
                         item.completed ? 'text-green-600' : 'text-gray-600'
                       }`}>
                         {item.description}
@@ -216,8 +216,8 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
+            <CarouselPrevious className="hidden md:flex" />
+            <CarouselNext className="hidden md:flex" />
           </Carousel>
         </div>
 

@@ -29,6 +29,7 @@ import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import { useToast } from '@/hooks/use-toast';
+import LinkFinancialAccountModal from '@/components/LinkFinancialAccountModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useExpenseData } from '@/hooks/useExpenseData';
 
@@ -52,6 +53,7 @@ const Expenses = () => {
   const [triageFilter, setTriageFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [amountRange, setAmountRange] = useState<[number, number]>([0, 10000]);
+  const [showLinkAccountModal, setShowLinkAccountModal] = useState(false);
 
   // Filter only unconfirmed potential medical transactions for the review section
   const unconfirmedTransactions = syncedTransactions.filter(
@@ -408,8 +410,9 @@ const Expenses = () => {
   }
 
   return (
-    <Layout>
-      <div className="container-padding py-3 sm:py-6">
+    <>
+      <Layout>
+        <div className="container-padding py-3 sm:py-6">
         {/* Mobile-optimized header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
           <div>
@@ -424,7 +427,7 @@ const Expenses = () => {
               <span className="hidden sm:inline">Refresh</span>
               <span className="sm:hidden">Sync</span>
             </Button>
-            <Button variant="outline" onClick={() => navigate('/profile')} className="mobile-button">
+            <Button variant="outline" onClick={() => setShowLinkAccountModal(true)} className="mobile-button">
               <CreditCard className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Link Bank Account</span>
               <span className="sm:hidden">Link Bank</span>
@@ -639,7 +642,7 @@ const Expenses = () => {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Your First Expense
                   </Button>
-                  <Button variant="outline" onClick={() => navigate('/profile')} className="mobile-button">
+                  <Button variant="outline" onClick={() => setShowLinkAccountModal(true)} className="mobile-button">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Connect Bank Account
                   </Button>
@@ -823,8 +826,15 @@ const Expenses = () => {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
-    </Layout>
+        </div>
+      </Layout>
+      
+      {/* Link Account Modal */}
+      <LinkFinancialAccountModal
+        open={showLinkAccountModal}
+        onOpenChange={setShowLinkAccountModal}
+      />
+    </>
   );
 };
 

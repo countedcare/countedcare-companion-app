@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, X } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 import { useToast } from '@/hooks/use-toast';
 import { ACCOUNT_TYPES } from '@/types/FinancialAccount';
@@ -83,17 +83,7 @@ const LinkFinancialAccountModal: React.FC<LinkFinancialAccountModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>Link Financial Account</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle>Link Financial Account</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Connect your bank account to import and categorize transactions automatically.
           </p>

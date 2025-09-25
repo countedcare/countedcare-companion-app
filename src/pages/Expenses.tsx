@@ -21,6 +21,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import ExpenseTable from '@/components/expenses/ExpenseTable';
 import AutoImportedTransactions from '@/components/expenses/AutoImportedTransactions';
 import TaxDeductionProgress from '@/components/expenses/TaxDeductionProgress';
+import { TaxExportSection } from '@/components/expenses/TaxExportSection';
 import EnhancedSmartFilters from '@/components/expenses/EnhancedSmartFilters';
 import { useSyncedTransactions } from '@/hooks/useSyncedTransactions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -729,6 +730,9 @@ const Expenses = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Tax Export Section */}
+            <TaxExportSection expenses={expenses} />
 
             {/* Tax Tips */}
             <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, Calculator } from 'lucide-react';
+import { Download, FileText, Calculator, FileArchive, Receipt } from 'lucide-react';
 import { Expense } from '@/types/User';
 import { useTaxExport } from '@/hooks/useTaxExport';
 
@@ -33,8 +33,8 @@ export function TaxExportSection({ expenses }: TaxExportSectionProps) {
   const totalAmount = yearExpenses.reduce((sum, exp) => sum + exp.amount, 0);
   const withReceipts = yearExpenses.filter(e => e.receiptUrl || e.receipt_url).length;
 
-  const handleExport = () => {
-    exportTaxData(expenses, year);
+  const handleExport = (format: 'all' | 'pdf' | 'csv' | 'receipts' = 'all') => {
+    exportTaxData(expenses, year, format);
   };
 
   if (availableYears.length === 0) {
@@ -113,25 +113,59 @@ export function TaxExportSection({ expenses }: TaxExportSectionProps) {
         )}
 
         <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">
-            <p className="mb-2">Export includes:</p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>CSV file compatible with tax software</li>
-              <li>Detailed JSON file with receipt information</li>
-              <li>Summary by category</li>
-              <li>Receipt availability status</li>
-              <li>Reimbursement tracking</li>
-            </ul>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="font-medium text-green-900 mb-2">For Schedule A Line 1:</h4>
+            <p className="text-2xl font-bold text-green-800">
+              ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-sm text-green-700 mt-1">
+              Enter this amount on Form 1040 Schedule A, Line 1 (Medical and Dental Expenses)
+            </p>
           </div>
 
-          <Button 
-            onClick={handleExport}
-            disabled={isExporting || yearExpenses.length === 0}
-            className="w-full"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {isExporting ? 'Exporting...' : `Export ${selectedYear} Tax Data`}
-          </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button 
+              onClick={() => handleExport('pdf')}
+              disabled={isExporting || yearExpenses.length === 0}
+              variant="outline"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Schedule A Summary
+            </Button>
+            
+            <Button 
+              onClick={() => handleExport('receipts')}
+              disabled={isExporting || yearExpenses.length === 0}
+              variant="outline"
+            >
+              <FileArchive className="h-4 w-4 mr-2" />
+              All Receipts
+            </Button>
+            
+            <Button 
+              onClick={() => handleExport('csv')}
+              disabled={isExporting || yearExpenses.length === 0}
+              variant="outline"
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              Detailed List
+            </Button>
+            
+            <Button 
+              onClick={() => handleExport('all')}
+              disabled={isExporting || yearExpenses.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Complete Package
+            </Button>
+          </div>
+
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p><strong>Schedule A Summary:</strong> Clean PDF for tax filing</p>
+            <p><strong>All Receipts:</strong> ZIP file with all receipt images</p>
+            <p><strong>Detailed List:</strong> CSV with full expense details</p>
+            <p><strong>Complete Package:</strong> All files above + backup data</p>
+          </div>
         </div>
       </CardContent>
     </Card>

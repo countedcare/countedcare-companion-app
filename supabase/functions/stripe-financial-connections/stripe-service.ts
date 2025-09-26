@@ -28,19 +28,23 @@ export async function createStripeCustomer(stripeSecretKey: string, user: any): 
 }
 
 export async function createFinancialConnectionsSession(stripeSecretKey: string, customerId: string) {
-  const response = await fetch('https://api.stripe.com/v1/financial_connections/sessions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${stripeSecretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
+    const params = new URLSearchParams({
       'account_holder[type]': 'customer',
       'account_holder[customer]': customerId,
-      'permissions[]': 'balances',
-      'permissions[]': 'transactions',
       'filters[countries][]': 'US',
-    }),
+    });
+    
+    // Add multiple permissions properly
+    params.append('permissions[]', 'balances');
+    params.append('permissions[]', 'transactions');
+    
+    const response = await fetch('https://api.stripe.com/v1/financial_connections/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${stripeSecretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
   });
 
   const session = await response.json();

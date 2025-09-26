@@ -60,9 +60,10 @@ serve(async (req) => {
         })
     }
   } catch (error) {
-    logStep('ERROR in main function', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('ERROR in main function', { error: errorMessage });
     console.error('Stripe Financial Connections error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

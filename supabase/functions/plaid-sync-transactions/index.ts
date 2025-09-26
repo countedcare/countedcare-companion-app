@@ -224,7 +224,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in plaid-sync-transactions:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

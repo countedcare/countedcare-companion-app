@@ -73,7 +73,7 @@ serve(async (req) => {
     });
 
     // Look for successful payments with our beta access price and user
-    const betaPayment = payments.data.find(payment => 
+    const betaPayment = payments.data.find((payment: any) => 
       payment.status === 'succeeded' &&
       payment.metadata?.user_id === user.id &&
       payment.metadata?.product_type === 'beta_access'
@@ -96,7 +96,7 @@ serve(async (req) => {
       limit: 100,
     });
 
-    const betaSession = sessions.data.find(session =>
+    const betaSession = sessions.data.find((session: any) =>
       session.payment_status === 'paid' &&
       session.metadata?.user_id === user.id &&
       session.metadata?.product_type === 'beta_access'
@@ -117,12 +117,12 @@ serve(async (req) => {
     logStep("No beta access found");
     
     // Get expense count for payment wall display
-    const { data: expenseData } = await supabaseClient
+    const { data: finalExpenseData } = await supabaseClient
       .from('expenses')
       .select('id', { count: 'exact' })
       .eq('user_id', user.id);
     
-    const expenseCount = expenseData?.length || 0;
+    const expenseCount = finalExpenseData?.length || 0;
     
     return new Response(JSON.stringify({ 
       hasBetaAccess: false,

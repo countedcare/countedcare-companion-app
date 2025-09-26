@@ -45,7 +45,7 @@ const Help = () => {
 2. **Link Your Bank Account**: Connect your bank to automatically import medical transactions
 3. **Add Care Recipients**: Set up profiles for family members you're caring for
 4. **Start Tracking**: Begin adding expenses either manually or through bank imports
-5. **Set Tax Goals**: Configure your household AGI for accurate tax deduction tracking
+5. **Set Tax Goals**: Configure your projected AGI for accurate tax deduction tracking
 
 Your dashboard will show you everything at a glance once you've completed these steps.`,
           tags: ['setup', 'profile', 'bank', 'recipients']
@@ -143,7 +143,7 @@ Choose the most specific category for accurate tax reporting.`,
 - Long-term care insurance premiums (with limits)
 
 **How CountedCare Helps**:
-1. Set your household AGI in your profile
+1. Set your projected AGI in your profile
 2. Track medical expenses throughout the year
 3. View your progress toward the 7.5% threshold
 4. Generate Schedule A reports for tax filing

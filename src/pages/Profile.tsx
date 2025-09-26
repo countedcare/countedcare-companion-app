@@ -277,7 +277,7 @@ const Profile = () => {
                     <div className="space-y-1 sm:space-y-2">
                       <p><strong>Caregiver:</strong> {profile?.is_caregiver ? 'Yes' : 'No'}</p>
                       <p><strong>Care Recipients:</strong> {recipients.length} person(s)</p>
-                      <p><strong>Household AGI:</strong> {profile?.household_agi ? `$${profile.household_agi.toLocaleString()}` : 'Not specified'}</p>
+                      <p><strong>Projected AGI:</strong> {profile?.household_agi ? `$${profile.household_agi.toLocaleString()}` : 'Not specified'}</p>
                     </div>
                   </div>
                   

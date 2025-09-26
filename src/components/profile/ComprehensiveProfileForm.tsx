@@ -97,13 +97,13 @@ const ComprehensiveProfileForm = ({ user, onSave }: ComprehensiveProfileFormProp
   const renderFinancialSection = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="householdAGI">Annual Household Income (Optional)</Label>
+        <Label htmlFor="householdAGI">Projected Annual Income (Optional)</Label>
         <Input
           id="householdAGI"
           type="number"
           value={formData.householdAGI || ''}
           onChange={(e) => updateField('householdAGI', parseFloat(e.target.value) || undefined)}
-          placeholder="Enter your adjusted gross income"
+          placeholder="Enter your projected adjusted gross income"
         />
         <p className="text-sm text-muted-foreground">
           This helps us calculate your potential tax deduction threshold and find relevant financial assistance programs.

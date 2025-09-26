@@ -91,7 +91,7 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
       {
         id: 'tax-settings',
         title: 'Set Tax Information',
-        description: 'Configure your household AGI for tax deduction tracking',
+        description: 'Configure your projected AGI for tax deduction tracking',
         icon: <FileText className="h-5 w-5" />,
         completed: !!(profile?.household_agi && profile?.household_agi > 0),
         action: {

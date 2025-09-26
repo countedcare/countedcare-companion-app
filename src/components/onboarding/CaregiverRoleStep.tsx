@@ -70,11 +70,11 @@ const CaregiverRoleStep: React.FC<CaregiverRoleStepProps> = ({
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="householdAGI">Annual Household Income (Optional)</Label>
+          <Label htmlFor="householdAGI">Projected Annual Income (Optional)</Label>
           <Input 
             id="householdAGI" 
             type="number"
-            placeholder="Enter your adjusted gross income" 
+            placeholder="Enter your projected adjusted gross income" 
             value={user.householdAGI || ''} 
             onChange={(e) => setUser({...user, householdAGI: parseFloat(e.target.value) || undefined})}
           />

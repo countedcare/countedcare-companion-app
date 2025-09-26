@@ -117,8 +117,8 @@ export const profileSchema = z.object({
   zipCode: zipCodeSchema,
   householdAgi: z
     .number()
-    .min(0, 'Household AGI must be positive')
-    .max(9999999, 'Household AGI must be less than $10,000,000')
+    .min(0, 'Projected AGI must be positive')
+    .max(9999999, 'Projected AGI must be less than $10,000,000')
     .optional(),
 });
 

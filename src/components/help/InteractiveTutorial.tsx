@@ -193,12 +193,15 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       navigate(nextStep.navigateTo);
       
       // Wait for navigation and optional delay - longer timeout for profile page
-      const navigationDelay = nextStep.navigateTo === '/profile' ? 1200 : 500;
+      const navigationDelay = nextStep.navigateTo === '/profile' ? 2000 : 800;
+      const totalDelay = (nextStep.delay || 0) + navigationDelay;
+      console.log(`🎯 Waiting ${totalDelay}ms for navigation and DOM to be ready`);
+      
       setTimeout(() => {
         console.log(`🎯 Navigation complete, moving to step ${currentStepIndex + 2}`);
         setIsNavigating(false);
         setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
-      }, (nextStep.delay || 0) + navigationDelay);
+      }, totalDelay);
     } else {
       // Go to next step without navigation
       setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
@@ -216,7 +219,7 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
         
         if (!element) {
           console.warn(`🎯 Element not found for step ${currentStepIndex + 1}: ${currentStep.target}`);
-          // Try multiple times to find the element
+          // Try multiple times to find the element with exponential backoff
           let attempts = 0;
           const findElement = () => {
             attempts++;
@@ -225,39 +228,51 @@ const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
             
             if (retryElement) {
               setHighlightedElement(retryElement);
-              retryElement.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center',
-                inline: 'center'
-              });
-            } else if (attempts < 5) {
-              setTimeout(findElement, 300);
+              setTimeout(() => {
+                retryElement.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'center',
+                  inline: 'center'
+                });
+              }, 100);
+            } else if (attempts < 8) {
+              // Exponential backoff: 200ms, 400ms, 800ms, etc.
+              const delay = Math.min(200 * Math.pow(2, attempts - 1), 2000);
+              console.log(`🎯 Will retry in ${delay}ms`);
+              setTimeout(findElement, delay);
             } else {
               console.error(`🎯 Failed to find element after ${attempts} attempts: ${currentStep.target}`);
               // Continue without highlighting if element not found
               setHighlightedElement(null);
             }
           };
-          setTimeout(findElement, 200);
+          setTimeout(findElement, 300);
         } else {
           setHighlightedElement(element);
-          element.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
-            inline: 'center'
-          });
+          setTimeout(() => {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'center'
+            });
+          }, 100);
         }
       } else {
         setHighlightedElement(null);
       }
     };
 
-    if (currentStep.delay && !isNavigating) {
-      console.log(`🎯 Waiting ${currentStep.delay}ms before highlighting element`);
-      const timer = setTimeout(highlightElement, currentStep.delay);
-      return () => clearTimeout(timer);
-    } else if (!isNavigating) {
-      highlightElement();
+    if (!isNavigating) {
+      const delay = currentStep.delay || 0;
+      if (delay > 0) {
+        console.log(`🎯 Waiting ${delay}ms before highlighting element`);
+        const timer = setTimeout(highlightElement, delay);
+        return () => clearTimeout(timer);
+      } else {
+        // Add a small delay even when no explicit delay is set to ensure DOM is ready
+        const timer = setTimeout(highlightElement, 100);
+        return () => clearTimeout(timer);
+      }
     }
 
     // Add overlay class to body

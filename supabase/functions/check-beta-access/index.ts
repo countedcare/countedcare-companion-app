@@ -39,6 +39,31 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check expense count first - allow up to 10 free expenses
+    const { data: expenseData, error: expenseError } = await supabaseClient
+      .from('expenses')
+      .select('id', { count: 'exact' })
+      .eq('user_id', user.id);
+    
+    if (expenseError) {
+      logStep("Error checking expense count", { error: expenseError.message });
+    } else {
+      const expenseCount = expenseData?.length || 0;
+      logStep("Expense count checked", { count: expenseCount });
+      
+      if (expenseCount < 10) {
+        logStep("Under expense limit, granting access");
+        return new Response(JSON.stringify({ 
+          hasBetaAccess: true,
+          freeTrialExpenses: expenseCount,
+          freeTrialLimit: 10
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     
     // Check for successful payments for beta access
@@ -58,7 +83,8 @@ serve(async (req) => {
       logStep("Beta access payment found", { paymentId: betaPayment.id });
       return new Response(JSON.stringify({ 
         hasBetaAccess: true,
-        paymentDate: new Date(betaPayment.created * 1000).toISOString()
+        paymentDate: new Date(betaPayment.created * 1000).toISOString(),
+        isPaid: true
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -80,7 +106,8 @@ serve(async (req) => {
       logStep("Beta access session found", { sessionId: betaSession.id });
       return new Response(JSON.stringify({ 
         hasBetaAccess: true,
-        paymentDate: new Date(betaSession.created * 1000).toISOString()
+        paymentDate: new Date(betaSession.created * 1000).toISOString(),
+        isPaid: true
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -88,7 +115,20 @@ serve(async (req) => {
     }
 
     logStep("No beta access found");
-    return new Response(JSON.stringify({ hasBetaAccess: false }), {
+    
+    // Get expense count for payment wall display
+    const { data: expenseData } = await supabaseClient
+      .from('expenses')
+      .select('id', { count: 'exact' })
+      .eq('user_id', user.id);
+    
+    const expenseCount = expenseData?.length || 0;
+    
+    return new Response(JSON.stringify({ 
+      hasBetaAccess: false,
+      freeTrialExpenses: expenseCount,
+      freeTrialLimit: 10
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

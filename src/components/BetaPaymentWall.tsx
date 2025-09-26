@@ -8,9 +8,15 @@ import { useToast } from '@/hooks/use-toast';
 
 interface BetaPaymentWallProps {
   onPaymentSuccess?: () => void;
+  freeTrialExpenses?: number;
+  freeTrialLimit?: number;
 }
 
-const BetaPaymentWall: React.FC<BetaPaymentWallProps> = ({ onPaymentSuccess }) => {
+const BetaPaymentWall: React.FC<BetaPaymentWallProps> = ({ 
+  onPaymentSuccess, 
+  freeTrialExpenses = 10,
+  freeTrialLimit = 10 
+}) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -69,7 +75,7 @@ const BetaPaymentWall: React.FC<BetaPaymentWallProps> = ({ onPaymentSuccess }) =
             </Badge>
             <CardTitle className="text-2xl">Join CountedCare Beta</CardTitle>
             <CardDescription>
-              Be among the first to experience the future of medical expense tracking
+              You've used {freeTrialExpenses} of {freeTrialLimit} free expenses. Upgrade to continue tracking medical expenses.
             </CardDescription>
           </div>
         </CardHeader>

@@ -7,6 +7,9 @@ export interface BetaAccessStatus {
   paymentDate?: string;
   loading: boolean;
   error?: string;
+  freeTrialExpenses?: number;
+  freeTrialLimit?: number;
+  isPaid?: boolean;
 }
 
 export function useBetaAccess() {
@@ -36,6 +39,9 @@ export function useBetaAccess() {
       setStatus({
         hasBetaAccess: data.hasBetaAccess || false,
         paymentDate: data.paymentDate,
+        freeTrialExpenses: data.freeTrialExpenses,
+        freeTrialLimit: data.freeTrialLimit,
+        isPaid: data.isPaid,
         loading: false
       });
     } catch (error) {

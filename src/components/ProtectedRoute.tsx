@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { hasBetaAccess, loading: betaLoading, refreshBetaAccess } = useBetaAccess();
+  const { hasBetaAccess, loading: betaLoading, refreshBetaAccess, ...status } = useBetaAccess();
 
   if (authLoading || betaLoading) {
     return (
@@ -31,7 +31,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!hasBetaAccess) {
-    return <BetaPaymentWall onPaymentSuccess={refreshBetaAccess} />;
+    return <BetaPaymentWall 
+      onPaymentSuccess={refreshBetaAccess} 
+      freeTrialExpenses={status.freeTrialExpenses}
+      freeTrialLimit={status.freeTrialLimit}
+    />;
   }
 
   return <>{children}</>;

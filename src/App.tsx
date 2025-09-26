@@ -36,6 +36,7 @@ const Transactions = lazy(() => import("./pages/Transactions"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Help = lazy(() => import("./pages/Help"));
+const BetaSuccess = lazy(() => import("./pages/BetaSuccess"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -197,6 +198,11 @@ const App = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/help" element={<Help />} />
+              <Route path="/beta-success" element={
+                <ProtectedRoute>
+                  <BetaSuccess />
+                </ProtectedRoute>
+              } />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

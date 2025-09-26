@@ -5,7 +5,6 @@ import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
 import { useExpenseData } from '@/hooks/useExpenseData';
 import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 import Layout from '@/components/Layout';
-import BetaBanner from '@/components/BetaBanner';
 import { EnhancedWelcomeHeader } from '@/components/home/EnhancedWelcomeHeader';
 import { ProgressTracker } from '@/components/home/ProgressTracker';
 import { TransactionTriage } from '@/components/home/TransactionTriage';
@@ -92,7 +91,6 @@ const Home = () => {
 
   return (
     <Layout>
-      <BetaBanner />
       <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
         <div className="space-y-4 pb-24 animate-fade-in">
           {/* Getting Started Checklist - More compact and contextual */}

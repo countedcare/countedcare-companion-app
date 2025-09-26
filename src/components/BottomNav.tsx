@@ -6,7 +6,7 @@ import FloatingActionButton from './FloatingActionButton';
 
 const BottomNav: React.FC = () => {
   const navItems = [
-    { icon: Home, text: 'Home', path: '/home', tourId: '' },
+    { icon: Home, text: 'Home', path: '/home', tourId: 'home-link' },
     { icon: TrendingUp, text: 'Expenses', path: '/expenses', tourId: 'expenses-link' },
     { icon: BookOpen, text: 'Resources', path: '/resources', tourId: 'resources-link' },
     { icon: User, text: 'Profile', path: '/profile', tourId: 'profile-link' },

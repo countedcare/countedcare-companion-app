@@ -38,119 +38,51 @@ const tutorials: TutorialConfig[] = [
       {
         id: 'welcome',
         title: 'Welcome to CountedCare!',
-        content: 'Let\'s take a complete tour of your caregiving companion. We\'ll show you how to set up your profile, add care recipients, and track expenses effectively.',
+        content: 'Let\'s take a complete tour of your caregiving companion. We\'ll show you the key features to help you track expenses and find resources.',
         target: 'body',
         position: 'center'
       },
       {
-        id: 'profile-overview',
-        title: 'Your Profile Dashboard',
+        id: 'dashboard-overview',
+        title: 'Your Dashboard',
         content: 'This is your home dashboard where you can see your recent activity, quick actions, and progress tracking.',
         target: '[data-tour="dashboard-content"]',
         position: 'center'
       },
       {
-        id: 'profile-setup',
-        title: 'Navigate to Profile',
-        content: 'Click on the Profile tab in the bottom navigation to access your profile settings and manage your caregiving information.',
+        id: 'quick-actions',
+        title: 'Quick Actions',
+        content: 'These buttons let you quickly add expenses by scanning receipts, manual entry, or tracking mileage.',
+        target: '[data-tour="quick-actions"]',
+        position: 'bottom'
+      },
+      {
+        id: 'profile-nav',
+        title: 'Profile Section',
+        content: 'Click the Profile tab to manage your information and care recipients.',
         target: '[data-tour="profile-link"]',
         position: 'top'
       },
       {
-        id: 'profile-overview',
-        title: 'Your Profile Overview',
-        content: 'Here you can see your profile completion status and basic information. Complete your profile to get personalized insights.',
-        target: '[data-tour="profile-overview"]',
-        position: 'bottom',
-        navigateTo: '/profile',
-        delay: 1500
-      },
-      {
-        id: 'care-recipients-section',
-        title: 'Care Recipients',
-        content: 'This section shows the people you care for. Adding care recipients helps organize your expenses and provides better tracking.',
-        target: '[data-tour="care-recipients"]',
+        id: 'expenses-nav',
+        title: 'Expense Tracking',
+        content: 'The Expenses tab shows all your tracked expenses with filtering and analysis tools.',
+        target: '[data-tour="expenses-link"]',
         position: 'top'
       },
       {
-        id: 'add-care-recipient',
-        title: 'Add Someone You Care For',
-        content: 'Click this button to add a new care recipient. You can add their name, relationship, and optional medical conditions.',
-        target: '[data-tour="add-care-recipient"]',
-        position: 'bottom',
-        navigateTo: '/care-recipients/new'
-      },
-      {
-        id: 'care-recipient-form',
-        title: 'Care Recipient Details',
-        content: 'Fill out their basic information. Medical conditions are optional but help us provide more relevant resources and expense categories.',
-        target: '[data-tour="care-recipient-form"]',
-        position: 'center',
-        delay: 500
-      },
-      {
-        id: 'back-to-home',
-        title: 'Quick Actions Hub',
-        content: 'Now let\'s return to your dashboard to see the quick actions for expense tracking.',
-        target: '[data-tour="quick-actions"]',
-        position: 'top',
-        navigateTo: '/home'
-      },
-      {
-        id: 'add-expense-options',
-        title: 'Add Expenses Quickly',
-        content: 'These buttons let you add expenses in multiple ways: scan receipts with your camera, add manual entries, or track mileage.',
-        target: '[data-tour="quick-actions"]',
-        position: 'bottom',
-        delay: 500
-      },
-      {
-        id: 'expense-tracking',
-        title: 'View All Expenses',
-        content: 'Click here to see all your tracked expenses, filter them, and analyze your spending patterns.',
-        target: '[data-tour="expenses-link"]',
-        position: 'top',
-        navigateTo: '/expenses'
-      },
-      {
-        id: 'expense-list',
-        title: 'Expense Management',
-        content: 'Here you can view, edit, and organize all your caregiving expenses. Use filters to find specific transactions and see tax-deductible amounts.',
-        target: '[data-tour="expense-list"]',
-        position: 'center',
-        delay: 500
-      },
-      {
-        id: 'transaction-triage',
-        title: 'Smart Transaction Review',
-        content: 'Back on your home page, this section shows imported transactions from linked accounts that you can quickly categorize.',
-        target: '[data-tour="transaction-triage"]',
-        position: 'top',
-        navigateTo: '/home'
-      },
-      {
-        id: 'resources-section',
+        id: 'resources-nav',
         title: 'Helpful Resources',
-        content: 'Find financial assistance programs, discounts, and caregiving resources tailored to your location and needs.',
+        content: 'Find financial assistance programs and caregiving resources in the Resources section.',
         target: '[data-tour="resources-link"]',
-        position: 'top',
-        navigateTo: '/resources'
+        position: 'top'
       },
       {
-        id: 'resources-overview',
-        title: 'Browse Resources',
-        content: 'Search and filter through hundreds of resources including government programs, local support, and financial assistance options.',
-        target: '[data-tour="resources-content"]',
-        position: 'center',
-        delay: 500
-      },
-      {
-        id: 'navigation-complete',
-        title: 'Navigation & Next Steps',
-        content: 'Use the bottom navigation to move between sections. You\'re now ready to start tracking your caregiving expenses and finding helpful resources!',
-        target: '[data-tour="navigation"]',
-        position: 'top',
-        navigateTo: '/home'
+        id: 'tour-complete',
+        title: 'Tour Complete!',
+        content: 'You\'re all set! Start by adding your first expense or exploring the available resources. You can access this tour anytime from the Help section.',
+        target: 'body',
+        position: 'center'
       }
     ]
   }

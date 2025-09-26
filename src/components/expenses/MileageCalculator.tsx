@@ -35,7 +35,7 @@ interface MileageResult {
 const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculated }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { apiKey, isConfigured } = useGoogleMapsAPI();
+  const { apiKey, isConfigured, isLoading, error: mapsError } = useGoogleMapsAPI();
 
   const [fromAddress, setFromAddress] = useState('');
   const [toAddress, setToAddress] = useState('');
@@ -44,6 +44,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
   const [result, setResult] = useState<MileageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [mapsApiError, setMapsApiError] = useState<boolean>(false);
 
   const [fromIsGPS, setFromIsGPS] = useState(false);
   const [toIsGPS, setToIsGPS] = useState(false);
@@ -71,13 +72,18 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         const coords = `${latitude},${longitude}`;
 
         // Try to reverse geocode if Google Maps API is available
-        if (isConfigured && apiKey && window.google?.maps) {
+        if (isConfigured && apiKey && window.google?.maps && !mapsApiError) {
           try {
             const geocoder = new window.google.maps.Geocoder();
             const result = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                reject(new Error('Geocoding timeout'));
+              }, 5000);
+              
               geocoder.geocode(
                 { location: { lat: latitude, lng: longitude } },
                 (results, status) => {
+                  clearTimeout(timeout);
                   if (status === 'OK' && results) {
                     resolve(results);
                   } else {
@@ -107,6 +113,10 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
             }
           } catch (error) {
             console.warn('Reverse geocoding failed, using coordinates:', error);
+            // Check if this is a Google Maps API error
+            if (error instanceof Error && error.message.includes('RefererNotAllowedMapError')) {
+              setMapsApiError(true);
+            }
             // Fallback to coordinates
             if (target === 'from') {
               setFromAddress(coords);
@@ -205,10 +215,17 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
     } catch (err) {
       let errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      if (typeof errorMessage === 'string' && errorMessage.includes('non-2xx')) {
-        errorMessage =
-          'Mileage service failed. Enable "Distance Matrix API" for your Google project and ensure the GOOGLE_MAPS_API_KEY (server key) is set with API restriction to Distance Matrix only and no application restriction.';
+      
+      // Handle specific Google Maps API errors
+      if (typeof errorMessage === 'string') {
+        if (errorMessage.includes('non-2xx') || errorMessage.includes('RefererNotAllowedMapError')) {
+          setMapsApiError(true);
+          errorMessage = `Google Maps API access restricted for this domain. The calculation service is unavailable, but you can still manually enter addresses and we'll attempt to calculate the distance. Please configure your Google Maps API key to allow requests from: ${window.location.origin}`;
+        } else if (errorMessage.includes('Distance Matrix API') || errorMessage.includes('API restriction')) {
+          errorMessage = 'Please enable the "Distance Matrix API" in Google Cloud Console and ensure your API key has the proper permissions.';
+        }
       }
+      
       setError(errorMessage);
 
       toast({
@@ -265,17 +282,28 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
         <h4 className="font-medium text-blue-900">Track Mileage</h4>
       </div>
 
-      {!isConfigured && (
+      {(!isConfigured || mapsApiError || mapsError) && (
         <Alert variant="destructive">
           <AlertDescription>
             <div className="space-y-2">
-              <p><strong>Google Maps API Configuration Required</strong></p>
-              <p>Add this domain to your Google Maps API restrictions:</p>
+              <p><strong>Google Maps API Configuration Issue</strong></p>
+              {mapsApiError && (
+                <p>Domain not authorized. Add this domain to your Google Maps API restrictions:</p>
+              )}
+              {mapsError && (
+                <p>Maps API Error: {mapsError}</p>
+              )}
+              {!isConfigured && !mapsError && (
+                <p>Add this domain to your Google Maps API restrictions:</p>
+              )}
               <code className="bg-gray-800 text-white px-2 py-1 rounded text-xs block mt-1">
                 {window.location.origin}/*
               </code>
               <p className="text-xs mt-2">
                 Go to Google Cloud Console → APIs & Services → Credentials → Edit your API key → Application restrictions → HTTP referrers
+              </p>
+              <p className="text-xs mt-1 text-yellow-600">
+                <strong>Note:</strong> You can still calculate mileage by entering addresses manually. The calculation will work even without Google Maps autocomplete.
               </p>
             </div>
           </AlertDescription>
@@ -289,7 +317,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       <div className="grid grid-cols-1 gap-4">
         {/* From Address */}
         <div className="space-y-2">
-          {isConfigured ? (
+          {(isConfigured && !mapsApiError && !mapsError) ? (
             <MileageLocationInput
               label="From Address"
               placeholder="Enter starting address"
@@ -305,7 +333,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               <Label htmlFor="from-address" className="text-sm font-medium">From Address</Label>
               <Input
                 id="from-address"
-                placeholder="Enter starting address"
+                placeholder="Enter starting address or coordinates (e.g., '123 Main St' or '34.0522,-118.2437')"
                 value={fromAddress}
                 onChange={(e) => { setFromAddress(e.target.value); setFromPlaceId(null); setResult(null); }}
                 className="bg-white"
@@ -331,7 +359,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
         {/* To Address */}
         <div className="space-y-2">
-          {isConfigured ? (
+          {(isConfigured && !mapsApiError && !mapsError) ? (
             <MileageLocationInput
               label="To Address"
               placeholder="Enter destination address"
@@ -347,7 +375,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
               <Label htmlFor="to-address" className="text-sm font-medium">To Address</Label>
               <Input
                 id="to-address"
-                placeholder="Enter destination address"
+                placeholder="Enter destination address or coordinates (e.g., '456 Oak Ave' or '34.0522,-118.2437')"
                 value={toAddress}
                 onChange={(e) => { setToAddress(e.target.value); setToPlaceId(null); setResult(null); }}
                 className="bg-white"

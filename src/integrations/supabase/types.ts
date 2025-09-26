@@ -652,6 +652,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          client_session_id: string
+          device_id: string | null
+          display_name: string | null
+          email: string | null
+          ended_at: string | null
+          id: string
+          ip: string | null
+          last_seen: string
+          started_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          client_session_id: string
+          device_id?: string | null
+          display_name?: string | null
+          email?: string | null
+          ended_at?: string | null
+          id?: string
+          ip?: string | null
+          last_seen?: string
+          started_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          client_session_id?: string
+          device_id?: string | null
+          display_name?: string | null
+          email?: string | null
+          ended_at?: string | null
+          id?: string
+          ip?: string | null
+          last_seen?: string
+          started_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_triage_stats: {
         Row: {
           created_at: string | null
@@ -721,6 +763,19 @@ export type Database = {
           triage_decision: string
         }[]
       }
+      get_online_user_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      get_online_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          display_name: string
+          email: string
+          last_seen: string
+          user_id: string
+        }[]
+      }
       get_pending_triage_transactions: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: {
@@ -760,6 +815,12 @@ export type Database = {
       gtrgm_out: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      is_session_active: {
+        Args: {
+          session_row: Database["public"]["Tables"]["user_sessions"]["Row"]
+        }
+        Returns: boolean
       }
       search_resources: {
         Args: {

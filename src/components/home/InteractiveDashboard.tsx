@@ -10,8 +10,64 @@ import { format, subMonths, eachMonthOfInterval } from 'date-fns';
 const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 export function InteractiveDashboard() {
-  const { expenses, stats } = useExpenseData();
+  const { expenses, stats, loading } = useExpenseData();
   const [activeTab, setActiveTab] = useState('overview');
+  const [isChartReady, setIsChartReady] = useState(false);
+
+  // Debounced chart updates for better performance
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIsChartReady(true), 300);
+    return () => clearTimeout(timer);
+  }, [expenses]);
+
+  if (loading || !isChartReady) {
+    return (
+      <div className="px-4 space-y-6">
+        {/* Loading skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-4">
+                <div className="h-16 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
+        <Card className="border-0 shadow-lg animate-pulse">
+          <CardContent className="p-6">
+            <div className="h-80 bg-gray-200 rounded"></div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Only show if there's meaningful data
+  if (expenses.length === 0) {
+    return (
+      <div className="px-4">
+        <Card className="border-dashed border-2 border-gray-200 hover-scale">
+          <CardContent className="p-8 text-center">
+            <div className="max-w-sm mx-auto">
+              <div className="mb-4">
+                <TrendingUp className="h-12 w-12 text-gray-400 mx-auto" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No expense data yet
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Start tracking your caregiving expenses to see beautiful analytics here.
+              </p>
+              <Button onClick={() => window.location.href = '/expenses/new'}>
+                Add Your First Expense
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Calculate category breakdown
   const categoryData = expenses.reduce((acc, expense) => {
@@ -75,13 +131,15 @@ export function InteractiveDashboard() {
     growth?: number;
     color?: string;
   }) => (
-    <Card className="hover-scale transition-all duration-300 hover:shadow-lg">
+    <Card className="hover-scale transition-all duration-300 hover:shadow-lg group">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">{title}</p>
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-            {growth && (
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground mb-1 truncate">{title}</p>
+            <p className={`text-xl md:text-2xl font-bold ${color} group-hover:scale-105 transition-transform`}>
+              {value}
+            </p>
+            {growth !== undefined && (
               <div className="flex items-center mt-1">
                 {growth > 0 ? (
                   <ArrowUp className="h-3 w-3 text-green-500 mr-1" />
@@ -94,8 +152,8 @@ export function InteractiveDashboard() {
               </div>
             )}
           </div>
-          <div className={`p-3 rounded-full bg-primary/10`}>
-            <Icon className={`h-6 w-6 ${color}`} />
+          <div className={`p-2 md:p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors`}>
+            <Icon className={`h-5 w-5 md:h-6 md:w-6 ${color}`} />
           </div>
         </div>
       </CardContent>
@@ -103,9 +161,9 @@ export function InteractiveDashboard() {
   );
 
   return (
-    <div className="px-4 space-y-6">
-      {/* Key Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="px-4 space-y-6 animate-fade-in">
+      {/* Key Metrics Grid - More responsive */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <MetricCard
           title="This Month"
           value={formatCurrency(stats.thisMonthAmount)}
@@ -133,46 +191,62 @@ export function InteractiveDashboard() {
         />
       </div>
 
-      {/* Interactive Charts */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center">
+      {/* Interactive Charts - Performance optimized */}
+      <Card className="border-0 shadow-lg overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center text-lg">
             <TrendingUp className="h-5 w-5 mr-2" />
             Expense Analytics
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="categories">Categories</TabsTrigger>
-              <TabsTrigger value="trends">Trends</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
+              <TabsTrigger value="categories" className="text-sm">Categories</TabsTrigger>
+              <TabsTrigger value="trends" className="text-sm">Trends</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="mt-6">
-              <div className="h-64">
+            <TabsContent value="overview" className="space-y-0">
+              <div className="h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyTrends}>
+                  <BarChart data={monthlyTrends} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `$${value}`} />
+                    <XAxis 
+                      dataKey="month" 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `$${value}`} 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip 
                       formatter={(value: number) => [`$${value.toLocaleString()}`, 'Amount']}
                       labelClassName="text-foreground"
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        fontSize: '14px'
                       }}
                     />
-                    <Bar dataKey="total" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    <Bar 
+                      dataKey="total" 
+                      fill="#22c55e" 
+                      radius={[4, 4, 0, 0]}
+                      className="hover:opacity-80 transition-opacity"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </TabsContent>
 
-            <TabsContent value="categories" className="mt-6">
-              <div className="h-80">
+            <TabsContent value="categories" className="space-y-0">
+              <div className="h-64 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -183,7 +257,7 @@ export function InteractiveDashboard() {
                       label={({ name, percent }) => 
                         percent > 0.05 ? `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%` : ''
                       }
-                      outerRadius={100}
+                      outerRadius={window.innerWidth < 768 ? 80 : 100}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -208,12 +282,12 @@ export function InteractiveDashboard() {
                 </ResponsiveContainer>
               </div>
               
-              {/* Category Legend */}
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {categoryChartData.map((entry, index) => (
-                  <div key={entry.name} className="flex items-center space-x-2">
+              {/* Category Legend - More compact on mobile */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-4">
+                {categoryChartData.slice(0, 6).map((entry, index) => (
+                  <div key={entry.name} className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
                     <div 
-                      className="w-3 h-3 rounded-full" 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     ></div>
                     <span className="text-sm text-gray-600 truncate">
@@ -224,13 +298,23 @@ export function InteractiveDashboard() {
               </div>
             </TabsContent>
 
-            <TabsContent value="trends" className="mt-6">
-              <div className="h-64">
+            <TabsContent value="trends" className="space-y-0">
+              <div className="h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlyTrends}>
+                  <LineChart data={monthlyTrends} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `$${value}`} />
+                    <XAxis 
+                      dataKey="month" 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `$${value}`} 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip 
                       formatter={(value: number, name: string) => [
                         `$${value.toLocaleString()}`, 
@@ -239,7 +323,8 @@ export function InteractiveDashboard() {
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        fontSize: '14px'
                       }}
                     />
                     <Line 
@@ -248,6 +333,7 @@ export function InteractiveDashboard() {
                       stroke="#22c55e" 
                       strokeWidth={3}
                       dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
+                      className="drop-shadow-sm"
                     />
                     <Line 
                       type="monotone" 
@@ -255,6 +341,7 @@ export function InteractiveDashboard() {
                       stroke="#3b82f6" 
                       strokeWidth={2}
                       dot={{ fill: '#3b82f6', strokeWidth: 2, r: 3 }}
+                      className="drop-shadow-sm"
                     />
                   </LineChart>
                 </ResponsiveContainer>

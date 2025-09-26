@@ -38,6 +38,7 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
   const { recipients } = useSupabaseCareRecipients();
   const { expenses } = useExpenseData();
   const { accounts } = useLinkedAccounts();
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const [items, setItems] = useState<ChecklistItem[]>([]);
 
@@ -114,7 +115,7 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
 
   if (completedCount === items.length) {
     return (
-      <Card className="mb-6 border-green-200 bg-green-50">
+      <Card className="mb-4 border-green-200 bg-green-50 animate-scale-in">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -133,7 +134,7 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-green-600 hover:text-green-800"
+                className="text-green-600 hover:text-green-800 h-8 w-8 p-0"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -144,21 +145,65 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
     );
   }
 
+  // Minimized state
+  if (isMinimized) {
+    return (
+      <Card className="mb-4 cursor-pointer hover-scale animate-fade-in" onClick={() => setIsMinimized(false)}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+                <div className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-white text-xs rounded-full flex items-center justify-center">
+                  {items.length - completedCount}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Getting Started</h3>
+                <p className="text-sm text-gray-600">
+                  {completedCount} of {items.length} completed - Click to expand
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="mb-6">
+    <Card className="mb-4 animate-slide-in-right">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Getting Started</CardTitle>
-          {showCloseButton && onClose && (
+          <CardTitle className="text-lg flex items-center gap-2">
+            Getting Started
+            <div className="h-5 w-5 bg-primary text-white text-xs rounded-full flex items-center justify-center">
+              {items.length - completedCount}
+            </div>
+          </CardTitle>
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              onClick={onClose}
-              className="h-6 w-6 p-0"
+              onClick={() => setIsMinimized(true)}
+              className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
             >
-              <X className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
-          )}
+            {showCloseButton && onClose && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-6 w-6 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
@@ -169,25 +214,54 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="relative">
+        {/* More compact mobile view */}
+        <div className="space-y-2 md:hidden">
+          {items.filter(item => !item.completed).slice(0, 2).map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer border border-gray-200 transition-colors"
+              onClick={() => handleItemClick(item)}
+            >
+              <div className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200 text-gray-500">
+                {React.cloneElement(item.icon as React.ReactElement, { className: "h-3 w-3" })}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-sm text-gray-900 truncate">
+                  {item.title}
+                </h4>
+              </div>
+              {item.action && (
+                <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              )}
+            </div>
+          ))}
+          {items.filter(item => !item.completed).length > 2 && (
+            <p className="text-xs text-gray-500 text-center py-2">
+              +{items.filter(item => !item.completed).length - 2} more tasks
+            </p>
+          )}
+        </div>
+
+        {/* Carousel view for desktop */}
+        <div className="relative hidden md:block">
           <Carousel className="w-full" opts={{ align: "start", loop: false }}>
             <CarouselContent className="-ml-2 md:-ml-4">
               {items.map((item) => (
                 <CarouselItem key={item.id} className="pl-2 md:pl-4 basis-full md:basis-1/2 lg:basis-1/3">
                   <div
-                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors h-20 ${
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 h-20 ${
                       item.completed 
                         ? 'bg-green-50 border border-green-200' 
                         : item.action 
-                          ? 'bg-gray-50 hover:bg-gray-100 cursor-pointer border border-gray-200' 
+                          ? 'bg-gray-50 hover:bg-gray-100 cursor-pointer border border-gray-200 hover:border-gray-300 hover:shadow-sm' 
                           : 'bg-gray-50 border border-gray-200'
                     }`}
                     onClick={() => handleItemClick(item)}
                   >
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
                       item.completed 
                         ? 'bg-green-500 text-white' 
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'
                     }`}>
                       {item.completed ? (
                         <Check className="h-4 w-4" />
@@ -216,15 +290,16 @@ const GettingStartedChecklist: React.FC<GettingStartedChecklistProps> = ({
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
+            <CarouselPrevious className="hidden lg:flex" />
+            <CarouselNext className="hidden lg:flex" />
           </Carousel>
         </div>
 
+        {/* Progress encouragement */}
         {completedCount > 0 && completedCount < items.length && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
-              <strong>Great progress!</strong> Complete the remaining {items.length - completedCount} step{items.length - completedCount !== 1 ? 's' : ''} to unlock the full power of CountedCare.
+              <strong>Great progress!</strong> Complete the remaining {items.length - completedCount} step{items.length - completedCount !== 1 ? 's' : ''} to unlock all features.
             </p>
           </div>
         )}

@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseProfile } from '@/hooks/useSupabaseProfile';
+import { useExpenseData } from '@/hooks/useExpenseData';
+import { useLinkedAccounts } from '@/hooks/useLinkedAccounts';
 import Layout from '@/components/Layout';
+import BetaBanner from '@/components/BetaBanner';
 import { EnhancedWelcomeHeader } from '@/components/home/EnhancedWelcomeHeader';
 import { ProgressTracker } from '@/components/home/ProgressTracker';
 import { TransactionTriage } from '@/components/home/TransactionTriage';
@@ -21,10 +24,24 @@ const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useSupabaseProfile();
+  const { expenses, stats } = useExpenseData();
+  const { accounts } = useLinkedAccounts();
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showLoadingExperience, setShowLoadingExperience] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showChecklist, setShowChecklist] = useState(true);
+
+  // Calculate completion for checklist logic
+  const recipients = [];
+  const completedCount = [
+    profile?.name && profile?.email && profile?.household_agi,
+    recipients.length > 0,
+    accounts.length > 0,
+    expenses.length > 0,
+    profile?.household_agi && profile?.household_agi > 0
+  ].filter(Boolean).length;
+  
+  const items = [1, 2, 3, 4, 5]; // Mock for calculation
 
   // Redirect to onboarding if not completed (only after profile loads)
   React.useEffect(() => {
@@ -75,59 +92,74 @@ const Home = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="space-y-6 pb-24">
-          {/* Getting Started Checklist */}
-          {showChecklist && (
-            <div className="container-padding">
+      <BetaBanner />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
+        <div className="space-y-4 pb-24 animate-fade-in">
+          {/* Getting Started Checklist - More compact and contextual */}
+          {showChecklist && (completedCount < items.length) && (
+            <div className="container-padding pt-2">
               <GettingStartedChecklist onClose={() => setShowChecklist(false)} />
             </div>
           )}
           
-          <div data-tour="dashboard-content">
+          <div data-tour="dashboard-content" className="space-y-6">
             {/* Enhanced Welcome Header */}
-            <EnhancedWelcomeHeader profile={profile} />
-            
-            {/* Tutorial Trigger */}
-            <div className="container-padding">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTutorial(true)}
-                className="mb-4 flex items-center gap-2"
-              >
-                <Play className="h-4 w-4" />
-                Take a Complete Tour
-              </Button>
+            <div className="animate-scale-in">
+              <EnhancedWelcomeHeader profile={profile} />
             </div>
             
-            {/* Progress Tracker */}
-            <div data-tour="progress-tracker">
-              <ProgressTracker profile={profile} />
-            </div>
+            {/* Tutorial Trigger - Better positioned */}
+            {!showTutorial && completedCount >= 2 && (
+              <div className="container-padding">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTutorial(true)}
+                  className="mb-2 flex items-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm"
+                >
+                  <Play className="h-4 w-4" />
+                  Take a Complete Tour
+                </Button>
+              </div>
+            )}
             
-            {/* Interactive Dashboard */}
-            <div data-tour="dashboard">
+            {/* Progress Tracker - Only show if user has some progress */}
+            {stats.total > 0 && (
+              <div data-tour="progress-tracker" className="animate-slide-in-right">
+                <ProgressTracker profile={profile} />
+              </div>
+            )}
+            
+            {/* Interactive Dashboard - Optimized for performance */}
+            <div data-tour="dashboard" className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
               <InteractiveDashboard />
             </div>
             
-            {/* Transaction Triage */}
-            <div data-tour="transaction-triage">
-              <TransactionTriage />
-            </div>
+            {/* Transaction Triage - Only show if user has linked accounts */}
+            {accounts.length > 0 && (
+              <div data-tour="transaction-triage" className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                <TransactionTriage />
+              </div>
+            )}
             
-            {/* Personalized Insights */}
-            <PersonalizedInsights />
+            {/* Personalized Insights - Conditional rendering */}
+            {stats.total >= 3 && (
+              <div className="animate-fade-in" style={{ animationDelay: '0.6s' }}>
+                <PersonalizedInsights />
+              </div>
+            )}
             
             {/* Quick Add Grid */}
-            <div data-tour="quick-actions">
+            <div data-tour="quick-actions" className="animate-fade-in" style={{ animationDelay: '0.8s' }}>
               <QuickAddGrid onOpenReceiptModal={() => setShowReceiptModal(true)} />
             </div>
             
-            {/* Enhanced Recent Activity */}
-            <div data-tour="recent-activity">
-              <EnhancedRecentActivity />
-            </div>
+            {/* Enhanced Recent Activity - Only show if there are expenses */}
+            {stats.total > 0 && (
+              <div data-tour="recent-activity" className="animate-fade-in" style={{ animationDelay: '1s' }}>
+                <EnhancedRecentActivity />
+              </div>
+            )}
           </div>
         </div>
       </div>

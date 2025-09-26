@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
-import { Bell, HelpCircle } from 'lucide-react';
+import { Bell, HelpCircle, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import OnlineUsersBadge from './OnlineUsersBadge';
 
@@ -17,6 +17,13 @@ const Header: React.FC = () => {
             <Link to="/help">
               <HelpCircle className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Help</span>
+            </Link>
+          </Button>
+          
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+            <Link to="/metrics">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Metrics</span>
             </Link>
           </Button>
           

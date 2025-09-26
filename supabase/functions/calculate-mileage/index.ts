@@ -1,110 +1,101 @@
-// supabase/functions/calculate-mileage/index.ts
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+const calculateMileage = async () => {
+  const fromTrimmed = fromAddress.trim();
+  const toTrimmed = toAddress.trim();
 
-type DMRow = {
-  elements: Array<{
-    status: string;
-    distance?: { text: string; value: number }; // meters
-    duration?: { text: string; value: number }; // seconds
-  }>;
-};
+  if (!fromTrimmed || !toTrimmed) {
+    toast({
+      title: 'Missing Information',
+      description: "Please enter both 'From' and 'To' addresses.",
+      variant: 'destructive'
+    });
+    return;
+  }
 
-type DMResponse = {
-  status: string;
-  origin_addresses: string[];
-  destination_addresses: string[];
-  rows: DMRow[];
-  error_message?: string;
-};
+  // Same-origin guard (common real-world case)
+  if (fromTrimmed === toTrimmed) {
+    toast({
+      title: 'Same locations',
+      description: 'From and To are the same. Please change one of them.',
+      variant: 'destructive'
+    });
+    return;
+  }
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-};
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  setIsCalculating(true);
+  setError(null);
+  setResult(null);
 
   try {
-    const { from, to, fromPlaceId, toPlaceId } = await req.json().catch(() => ({} as any));
+    // Canonicalize both inputs. If they are coordinates, strip spaces and drop placeId.
+    const fromCanon = canonicalizeOriginDest(fromTrimmed, fromPlaceId);
+    const toCanon = canonicalizeOriginDest(toTrimmed, toPlaceId);
 
-    if ((!from && !fromPlaceId) || (!to && !toPlaceId)) {
-      return json({ error: "Missing 'from'/'to' address or 'fromPlaceId'/'toPlaceId'." }, 400);
-    }
+    // Build payload for the Edge Function. Keep it simple & explicit.
+    const payload: Record<string, any> = {
+      from: fromCanon.fromTo,
+      to: toCanon.fromTo
+    };
+    if (fromCanon.placeId) payload.fromPlaceId = fromCanon.placeId;
+    if (toCanon.placeId) payload.toPlaceId = toCanon.placeId;
 
-    // ✅ Your chosen env var
-    const GOOGLE_MAPS_SERVER_KEY = Deno.env.get("GOOGLE_MAPS_SERVER_API_KEY");
-    if (!GOOGLE_MAPS_SERVER_KEY) {
-      return json({ error: "Server misconfiguration: GOOGLE_MAPS_SERVER_API_KEY not set." }, 500);
-    }
-
-    // IRS rate (default 0.21)
-    const IRS_MILE_RATE = Number(Deno.env.get("IRS_MILE_RATE") ?? "0.21");
-
-    // Prefer place_id when provided
-    const origin = fromPlaceId ? `place_id:${fromPlaceId}` : String(from);
-    const destination = toPlaceId ? `place_id:${toPlaceId}` : String(to);
-
-    const params = new URLSearchParams({
-      key: GOOGLE_MAPS_SERVER_KEY,
-      origins: origin,
-      destinations: destination,
-      mode: "driving",
-      units: "imperial",
+    const { data, error: fnError } = await supabase.functions.invoke('calculate-mileage', {
+      body: payload
     });
 
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?${params.toString()}`;
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      const text = await resp.text();
-      return json(
-        {
-          error: "Distance Matrix request failed (non-2xx). Check key, billing, and API restrictions.",
-          details: text.slice(0, 500),
-        },
-        resp.status
-      );
+    if (fnError) throw new Error(fnError.message || 'Failed to calculate mileage');
+
+    // Expecting: { miles, origin, destination, durationText?, durationMinutes? }
+    const baseMilesRaw = typeof data?.miles === 'number' ? data.miles : NaN;
+    if (!Number.isFinite(baseMilesRaw) || baseMilesRaw < 0) {
+      throw new Error('Distance service returned an invalid distance.');
     }
 
-    const data = (await resp.json()) as DMResponse;
-    if (data.status !== "OK") {
-      return json({ error: "Distance Matrix status not OK.", details: data.error_message || data.status }, 400);
-    }
+    const baseMiles = Math.round(baseMilesRaw * 10) / 10;
+    const appliedMiles = isRoundTrip ? Math.round(baseMiles * 2 * 10) / 10 : baseMiles;
+    const computedDeduction = Math.round(appliedMiles * IRS_RATE_2024 * 100) / 100;
 
-    const elem = data.rows?.[0]?.elements?.[0];
-    if (!elem || elem.status !== "OK" || !elem.distance) {
-      return json(
-        {
-          error: "No route found. Verify addresses/place IDs and that driving is possible.",
-          details: elem?.status || "NO_ELEMENT",
-        },
-        400
-      );
-    }
+    const resolvedFrom =
+      (typeof data?.origin === 'string' && data.origin) || fromTrimmed;
+    const resolvedTo =
+      (typeof data?.destination === 'string' && data.destination) || toTrimmed;
 
-    // meters -> miles (1 decimal)
-    const miles = Math.round((elem.distance.value / 1609.344) * 10) / 10;
-    const deduction = Math.round(miles * IRS_MILE_RATE * 100) / 100;
+    const duration =
+      typeof data?.durationText === 'string' && Number.isFinite(Number(data?.durationMinutes))
+        ? { text: data.durationText, minutes: Number(data.durationMinutes) }
+        : undefined;
 
-    return json({
-      miles,
-      deduction,
-      origin: data.origin_addresses?.[0] ?? from ?? "",
-      destination: data.destination_addresses?.[0] ?? to ?? "",
-      durationText: elem.duration?.text,
-      durationMinutes: elem.duration ? Math.round(elem.duration.value / 60) : undefined,
-      rate: IRS_MILE_RATE,
+    const resultPayload: MileageResult = {
+      from: resolvedFrom,
+      to: resolvedTo,
+      distance: { miles: appliedMiles, text: `${appliedMiles} miles` },
+      duration,
+      estimatedDeduction: computedDeduction,
+      irsRate: IRS_RATE_2024
+    };
+
+    setResult(resultPayload);
+    onAmountCalculated(computedDeduction);
+
+    toast({
+      title: 'Mileage Calculated!',
+      description: `Distance: ${appliedMiles} miles • Total: $${computedDeduction}${isRoundTrip ? ' (round trip)' : ''}`
     });
-  } catch (e) {
-    console.error("calculate-mileage error:", e);
-    return json({ error: "Unhandled error in calculate-mileage.", details: String(e) }, 500);
+  } catch (err) {
+    let errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+
+    // Map known back-end/Maps errors to clear guidance.
+    if (/RefererNotAllowedMapError/i.test(errorMessage)) {
+      setMapsApiError(true);
+      errorMessage = `Google Maps API access is restricted for this domain. Please add ${window?.location?.origin}/* to your HTTP referrer restrictions in Google Cloud Console (APIs & Services → Credentials → API key).`;
+    } else if (/DISTANCE_MATRIX|Distance Matrix API|API restriction/i.test(errorMessage)) {
+      errorMessage = 'Please enable the “Distance Matrix API” and confirm billing is active for your key in Google Cloud Console.';
+    } else if (/invalid distance/i.test(errorMessage)) {
+      errorMessage = 'The distance service returned an invalid result. Double-check both addresses (or coordinates).';
+    }
+
+    setError(errorMessage);
+    toast({ title: 'Calculation Failed', description: errorMessage, variant: 'destructive' });
+  } finally {
+    setIsCalculating(false);
   }
-});
-
-function json(payload: unknown, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
-}
+};

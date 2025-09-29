@@ -75,7 +75,6 @@ const SignInForm = ({
       window.location.assign(data.url);
       // Do not setLoading(false) here—navigation is in progress.
     } catch (err: any) {
-      console.error("Google sign-in error:", err);
       toast({
         title: "Google sign in failed",
         description: err?.message || "Please try again.",
@@ -111,16 +110,9 @@ const SignInForm = ({
     setLoading(true);
 
     try {
-      console.log("🔐 Calling signInWithPassword...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
-      });
-
-      console.log("🔐 Sign-in response:", { 
-        hasUser: !!data?.user, 
-        hasSession: !!data?.session, 
-        error: error?.message 
       });
 
       if (error) {
@@ -153,7 +145,6 @@ const SignInForm = ({
         // Navigation handled by your global auth listener
       }
     } catch (err) {
-      console.error("Unexpected sign in error:", err);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -213,7 +204,6 @@ const SignInForm = ({
       setResetDialogOpen(false);
       setResetEmail("");
     } catch (err) {
-      console.error("Unexpected reset error:", err);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",

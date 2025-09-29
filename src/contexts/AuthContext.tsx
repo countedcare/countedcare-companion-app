@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const mountedRef = useRef(false);
   const unsubRef = useRef<(() => void) | null>(null);
-  const initializedRef = useRef(false); // ensure we don’t re-run init in StrictMode
+  const initializedRef = useRef(false); // ensure we don't re-run init in StrictMode
 
   useEffect(() => {
     if (initializedRef.current) return; // StrictMode guard
@@ -68,10 +68,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     };
 
-    // 2) Subscribe to auth changes (don’t toggle loading here)
     // 2) Subscribe to auth changes (don't toggle loading here)
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
-      console.log("🔐 AuthContext - auth state change:", { event, hasUser: !!s?.user, userEmail: s?.user?.email });
       if (!mountedRef.current) return;
       setSession(s);
       setUser(s?.user ?? null);
@@ -100,7 +98,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Memoize so consumers (tabs/pages) don’t re-render unnecessarily
+  // Memoize so consumers (tabs/pages) don't re-render unnecessarily
   const value = useMemo<AuthContextType>(
     () => ({ user, session, loading, signOut }),
     [user, session, loading]
@@ -113,4 +111,3 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     </AuthContext.Provider>
   );
 };
-

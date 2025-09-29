@@ -49,7 +49,6 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
       window.location.assign(data.url);
       // Do not setLoading(false) here—navigation is in progress.
     } catch (err: any) {
-      console.error("Google sign-up error:", err);
       toast({
         title: "Google sign up failed",
         description: err?.message || "Please try again.",
@@ -80,10 +79,25 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
       return;
     }
     
-    if (password.length < 6) {
+    if (password.length < 8) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters long.",
+        title: "Password too weak",
+        description: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate password complexity
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      toast({
+        title: "Password too weak",
+        description: "Password must include uppercase, lowercase, number, and special character.",
         variant: "destructive",
       });
       return;
@@ -113,8 +127,6 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
       });
 
       if (error) {
-        console.error('Signup error:', error);
-        
         if (error.message.includes('User already registered')) {
           toast({
             title: "Account exists",
@@ -155,7 +167,6 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
         setName('');
       }
     } catch (error: any) {
-      console.error('Unexpected signup error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -205,13 +216,16 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
             <Input
               id="signup-password"
               type="password"
-              placeholder="Create a password (min 6 characters)"
+              placeholder="Min 8 chars with uppercase, number, special char"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               disabled={loading}
             />
+            <p className="text-xs text-muted-foreground">
+              Must be 8+ characters with uppercase, lowercase, number, and special character
+            </p>
           </div>
           <div className="flex items-start space-x-2">
             <Checkbox

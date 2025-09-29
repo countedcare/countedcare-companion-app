@@ -19,7 +19,6 @@ export const useAutoLogout = ({ user, signOut }: UseAutoLogoutProps) => {
       }
 
       timeoutRef.current = setTimeout(() => {
-        console.log('Auto-logout: User inactive for 10 minutes');
         signOut();
       }, INACTIVITY_TIMEOUT);
     };

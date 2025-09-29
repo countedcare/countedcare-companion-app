@@ -12,8 +12,8 @@ const SecuritySection = () => {
               Your data, protected
             </h2>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              We take privacy seriously. Role-based access, encrypted storage, and secure 
-              infrastructure keep your data safe. You're always in control of what you share.
+              Secure authentication and access controls keep your financial data private. 
+              You're always in control of what you share.
             </p>
           </div>
           
@@ -24,9 +24,9 @@ const SecuritySection = () => {
                 <Lock className="w-3 h-3 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">Encrypted at rest and in transit</h3>
+                <h3 className="font-semibold text-foreground">Secure authentication required</h3>
                 <p className="text-sm text-muted-foreground">
-                  All data is protected with bank-level encryption both when stored and transmitted
+                  Only authenticated users can access financial data through row-level security policies
                 </p>
               </div>
             </div>
@@ -36,9 +36,9 @@ const SecuritySection = () => {
                 <UserCheck className="w-3 h-3 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">Authenticated user access only</h3>
+                <h3 className="font-semibold text-foreground">Access control</h3>
                 <p className="text-sm text-muted-foreground">
-                  Secure authentication ensures only you can access your financial data
+                  You can only view and modify your own data - no one else can access it
                 </p>
               </div>
             </div>
@@ -48,9 +48,9 @@ const SecuritySection = () => {
                 <Download className="w-3 h-3 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">One-click export & delete</h3>
+                <h3 className="font-semibold text-foreground">Export your data</h3>
                 <p className="text-sm text-muted-foreground">
-                  Export your data anytime for tax filing or easily delete your account
+                  Download your financial records anytime for tax filing or personal backup
                 </p>
               </div>
             </div>
@@ -63,13 +63,13 @@ const SecuritySection = () => {
             <CardHeader className="pb-3">
               <div className="flex items-center space-x-2">
                 <Shield className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Compliance-ready posture</CardTitle>
+                <CardTitle className="text-lg">SOC 2 Type 2 infrastructure</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <CardDescription className="text-sm">
-                Architected with SOC-2 principles in mind; we continuously improve 
-                controls as we scale.
+                Built on Supabase, a SOC 2 Type 2 certified platform that undergoes 
+                regular security audits.
               </CardDescription>
             </CardContent>
           </Card>
@@ -83,8 +83,8 @@ const SecuritySection = () => {
             </CardHeader>
             <CardContent>
               <CardDescription className="text-sm">
-                Categories match IRS definitions for medical expense deductions, 
-                making tax preparation seamless.
+                Expense categories align with IRS Publication 502 definitions for 
+                medical expense deductions.
               </CardDescription>
             </CardContent>
           </Card>
@@ -98,8 +98,8 @@ const SecuritySection = () => {
             </CardHeader>
             <CardContent>
               <CardDescription className="text-sm">
-                You control what's stored, exported, or deleted — anytime. 
-                Your data belongs to you, not us.
+                Your data belongs to you. Export it anytime for tax purposes or 
+                contact support for account deletion.
               </CardDescription>
             </CardContent>
           </Card>

@@ -387,15 +387,15 @@ const Profile = () => {
               <div className="space-y-3">
                 <div className="flex items-center space-x-2 text-xs sm:text-sm">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-700">Bank-level encryption (256-bit)</span>
+                  <span className="text-gray-700">Authentication required for all data access</span>
                 </div>
                 <div className="flex items-center space-x-2 text-xs sm:text-sm">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-700">Authenticated access only</span>
+                  <span className="text-gray-700">Row-level security policies active</span>
                 </div>
                 <div className="flex items-center space-x-2 text-xs sm:text-sm">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-700">SOC-2 compliant infrastructure</span>
+                  <span className="text-gray-700">SOC 2 Type 2 certified infrastructure</span>
                 </div>
               </div>
               

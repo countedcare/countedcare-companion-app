@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
@@ -21,6 +22,7 @@ interface SignUpFormProps {
 
 const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loading, setLoading }: SignUpFormProps) => {
   const { toast } = useToast();
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleGoogleSignUp = async () => {
     if (loading) return;
@@ -82,6 +84,15 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
       toast({
         title: "Password too short",
         description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!agreedToTerms) {
+      toast({
+        title: "Terms required",
+        description: "Please agree to the Terms & Conditions to continue.",
         variant: "destructive",
       });
       return;
@@ -201,6 +212,28 @@ const SignUpForm = ({ email, setEmail, password, setPassword, name, setName, loa
               minLength={6}
               disabled={loading}
             />
+          </div>
+          <div className="flex items-start space-x-2">
+            <Checkbox
+              id="terms"
+              checked={agreedToTerms}
+              onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+              disabled={loading}
+            />
+            <label
+              htmlFor="terms"
+              className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              I agree to the{' '}
+              <a
+                href="https://countedcare.com/terms-and-conditions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:no-underline"
+              >
+                Terms & Conditions
+              </a>
+            </label>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

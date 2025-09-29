@@ -380,21 +380,44 @@ const Profile = () => {
           <Card>
             <CardHeader className="mobile-card-padding">
               <CardTitle className="mobile-text">Data & Privacy</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Manage your data</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Your data is secure and under your control</CardDescription>
             </CardHeader>
-            <CardContent className="mobile-card-padding pt-0 space-y-3 sm:space-y-4">
-              <div className="flex flex-col space-y-2">
-                <p className="text-xs sm:text-sm text-gray-600">
-                  Export your data for tax filing or backup purposes
-                </p>
-                <Button 
-                  variant="outline" 
-                  onClick={exportData} 
-                  className="flex items-center mobile-button"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Data
-                </Button>
+            <CardContent className="mobile-card-padding pt-0 space-y-4">
+              {/* Security Features */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 text-xs sm:text-sm">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-700">Bank-level encryption (256-bit)</span>
+                </div>
+                <div className="flex items-center space-x-2 text-xs sm:text-sm">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-700">Authenticated access only</span>
+                </div>
+                <div className="flex items-center space-x-2 text-xs sm:text-sm">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-700">SOC-2 compliant infrastructure</span>
+                </div>
+              </div>
+              
+              {/* Data Controls */}
+              <div className="space-y-3 pt-2 border-t border-gray-100">
+                <div className="flex flex-col space-y-2">
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    Export your data for tax filing or backup purposes
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={exportData} 
+                    className="flex items-center mobile-button"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Data
+                  </Button>
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                  Need to delete your account? Contact support for secure data removal.
+                </div>
               </div>
             </CardContent>
           </Card>

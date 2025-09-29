@@ -346,6 +346,21 @@ const ExpenseForm = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                {/* Receipt Upload - Moved to Top with OCR */}
+                <div className="space-y-2">
+                  <Label>Upload Receipt (OCR Enabled)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a receipt and we'll automatically extract the information
+                  </p>
+                  <ReceiptUpload
+                    expenseId={id}
+                    existingReceipts={receiptUrls}
+                    onReceiptsChange={setReceiptUrls}
+                    onReceiptProcessed={handleReceiptProcessed}
+                    maxFiles={5}
+                  />
+                </div>
+
                 {/* Basic Information */}
                 <ExpenseBasicFields
                   title={title}
@@ -358,17 +373,6 @@ const ExpenseForm = () => {
                   date={date}
                   setDate={setDate}
                 />
-
-                {/* Receipt Upload */}
-                <div className="space-y-2">
-                  <Label>Receipts</Label>
-                  <ReceiptUpload
-                    expenseId={id}
-                    existingReceipts={receiptUrls}
-                    onReceiptsChange={setReceiptUrls}
-                    maxFiles={5}
-                  />
-                </div>
                 
                 {/* Vendor */}
                 <div className="space-y-2">

@@ -18,6 +18,7 @@ interface ReceiptUploadProps {
   expenseId?: string;
   existingReceipts?: string[];
   onReceiptsChange?: (receipts: string[]) => void;
+  onReceiptProcessed?: (data: any) => void;
   maxFiles?: number;
   className?: string;
 }
@@ -35,6 +36,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
   expenseId,
   existingReceipts = [],
   onReceiptsChange,
+  onReceiptProcessed,
   maxFiles = 5,
   className
 }) => {
@@ -44,19 +46,20 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [receipts, setReceipts] = useState<string[]>(existingReceipts);
   const [dragActive, setDragActive] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
 
   // Handle file selection
   const handleFileSelect = (files: FileList | null) => {
     if (!files || !user) return;
 
     const validFiles = Array.from(files).filter(file => {
-      const isValidType = file.type.startsWith('image/') || file.type === 'application/pdf';
+      const isValidType = file.type.startsWith('image/');
       const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB limit
 
       if (!isValidType) {
         toast({
           title: "Invalid file type",
-          description: "Please upload images (PNG, JPG, WebP) or PDF files only.",
+          description: "Please upload images (PNG, JPG, WebP) only for OCR processing.",
           variant: "destructive"
         });
         return false;
@@ -99,6 +102,64 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     });
   };
 
+  // Process receipt with OCR
+  const processReceiptOCR = async (imageUrl: string) => {
+    if (!onReceiptProcessed) return;
+    
+    setIsProcessingOCR(true);
+    
+    try {
+      // Fetch the image and convert to base64
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      
+      await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+      });
+      
+      const base64Data = (reader.result as string).split(',')[1];
+      
+      // Call OCR edge function
+      const { data: ocrResult, error: ocrError } = await supabase.functions.invoke('gemini-receipt-ocr', {
+        body: { imageBase64: base64Data }
+      });
+      
+      if (ocrError) throw ocrError;
+      
+      if (ocrResult?.success && ocrResult?.data) {
+        // Pass extracted data to parent component
+        onReceiptProcessed({
+          merchant: ocrResult.data.vendor,
+          vendor: ocrResult.data.vendor,
+          amount: ocrResult.data.amount,
+          date: ocrResult.data.date,
+          category: ocrResult.data.category,
+          description: `Receipt from ${ocrResult.data.vendor}`,
+        });
+        
+        toast({
+          title: "Receipt Processed!",
+          description: "Information extracted successfully. Please review and adjust as needed.",
+        });
+      } else {
+        throw new Error('OCR processing failed');
+      }
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast({
+        title: "OCR Processing Failed",
+        description: "Could not extract information from receipt. Please enter manually.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingOCR(false);
+    }
+  };
+
   // Upload file to Supabase storage
   const uploadFile = async (fileObj: UploadedFile, index: number) => {
     if (!user) return;
@@ -120,7 +181,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       if (error) throw error;
 
       // Update progress
-      updateFileStatus(index, { progress: 80 });
+      updateFileStatus(index, { progress: 60 });
 
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -140,8 +201,13 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
 
       toast({
         title: "Receipt uploaded",
-        description: "Your receipt has been uploaded successfully.",
+        description: "Processing with OCR...",
       });
+
+      // Process with OCR (only for images, not PDFs)
+      if (fileObj.file.type.startsWith('image/') && onReceiptProcessed) {
+        await processReceiptOCR(urlData.publicUrl);
+      }
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -253,6 +319,14 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
 
   return (
     <div className={cn("space-y-4", className)}>
+      {/* OCR Processing Indicator */}
+      {isProcessingOCR && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+          <span className="text-sm text-blue-800">Extracting information from receipt...</span>
+        </div>
+      )}
+      
       {/* Upload Area */}
       <Card 
         className={cn(
@@ -274,12 +348,15 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
               <Upload className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h3 className="font-medium">Upload Receipt</h3>
+              <h3 className="font-medium">Upload Receipt with OCR</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 Drag & drop files here, or click to browse
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Supports: JPG, PNG, WebP, PDF (max 10MB each)
+                Supports: JPG, PNG, WebP (max 10MB each)
+              </p>
+              <p className="text-xs text-primary font-medium mt-2">
+                ✨ Auto-fills form fields using AI
               </p>
             </div>
             <Badge variant="outline">
@@ -290,7 +367,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
           <Input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.pdf"
+            accept="image/*"
             multiple
             className="hidden"
             onChange={(e) => handleFileSelect(e.target.files)}

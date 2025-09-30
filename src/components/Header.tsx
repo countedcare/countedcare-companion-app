@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import { Bell, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import OnlineUsersBadge from './OnlineUsersBadge';
 
 const Header: React.FC = () => {
   return (
@@ -19,8 +18,6 @@ const Header: React.FC = () => {
               <span className="hidden sm:inline">Help</span>
             </Link>
           </Button>
-          
-          <OnlineUsersBadge />
           
           <button className="p-2 rounded-full hover:bg-neutral-100">
             <Bell size={20} className="text-primary" />

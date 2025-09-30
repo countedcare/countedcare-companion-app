@@ -53,13 +53,15 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     if (!files || !user) return;
 
     const validFiles = Array.from(files).filter(file => {
-      const isValidType = file.type.startsWith('image/');
+      const isImage = file.type.startsWith('image/');
+      const isPDF = file.type === 'application/pdf';
+      const isValidType = isImage || isPDF;
       const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB limit
 
       if (!isValidType) {
         toast({
           title: "Invalid file type",
-          description: "Please upload images (PNG, JPG, WebP) only for OCR processing.",
+          description: "Please upload images (PNG, JPG, WebP) or PDF files.",
           variant: "destructive"
         });
         return false;
@@ -353,10 +355,10 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                 Drag & drop files here, or click to browse
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Supports: JPG, PNG, WebP (max 10MB each)
+                Supports: JPG, PNG, WebP, PDF (max 10MB each)
               </p>
               <p className="text-xs text-primary font-medium mt-2">
-                ✨ Auto-fills form fields using AI
+                ✨ Images: Auto-fills with AI | PDFs: Attach for records
               </p>
             </div>
             <Badge variant="outline">
@@ -367,7 +369,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
           <Input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             className="hidden"
             onChange={(e) => handleFileSelect(e.target.files)}

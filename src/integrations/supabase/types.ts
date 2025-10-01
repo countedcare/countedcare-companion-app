@@ -412,6 +412,7 @@ export type Database = {
           state_code: string | null
           tags: string[] | null
           title: string
+          university_ids: string[] | null
           updated_at: string | null
         }
         Insert: {
@@ -435,6 +436,7 @@ export type Database = {
           state_code?: string | null
           tags?: string[] | null
           title: string
+          university_ids?: string[] | null
           updated_at?: string | null
         }
         Update: {
@@ -458,6 +460,7 @@ export type Database = {
           state_code?: string | null
           tags?: string[] | null
           title?: string
+          university_ids?: string[] | null
           updated_at?: string | null
         }
         Relationships: []
@@ -571,6 +574,30 @@ export type Database = {
           id?: string
           transaction_id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      universities: {
+        Row: {
+          county: string | null
+          created_at: string | null
+          id: string
+          name: string
+          state_code: string | null
+        }
+        Insert: {
+          county?: string | null
+          created_at?: string | null
+          id: string
+          name: string
+          state_code?: string | null
+        }
+        Update: {
+          county?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          state_code?: string | null
         }
         Relationships: []
       }

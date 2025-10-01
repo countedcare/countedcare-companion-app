@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Heart, ExternalLink, DollarSign, MapPin, Tag } from 'lucide-react';
-import { Resource } from '@/hooks/useResourcesSystem';
+import { ResourceItem } from '@/types/resources';
 
 interface ResourceCardProps {
-  resource: Resource;
+  resource: ResourceItem;
   onToggleBookmark: (resourceId: string) => void;
   onViewDetails: (resourceId: string) => void;
   showLocationInfo?: boolean;

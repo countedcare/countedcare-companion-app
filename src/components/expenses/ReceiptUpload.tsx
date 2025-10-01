@@ -206,8 +206,8 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
         description: "Processing with OCR...",
       });
 
-      // Process with OCR (only for images, not PDFs)
-      if (fileObj.file.type.startsWith('image/') && onReceiptProcessed) {
+      // Process with OCR for both images and PDFs
+      if (onReceiptProcessed) {
         await processReceiptOCR(urlData.publicUrl);
       }
 

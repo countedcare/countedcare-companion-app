@@ -216,12 +216,7 @@ serve(async (req) => {
     }
 
     const mimeType = detectMimeFromBase64(imageBase64);
-    if (mimeType === "application/pdf") {
-      return new Response(
-        JSON.stringify({ success: false, error: "PDF receipts are not yet supported. Please upload a photo (JPG or PNG) or a screenshot of the receipt." }),
-        { status: 415, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Gemini supports PDF, PNG, JPEG processing
 
     const genAI = new GoogleGenerativeAI(apiKey);
 

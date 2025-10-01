@@ -26,6 +26,14 @@
     
     <!-- Start of countedcare Zendesk Widget script -->
     <script id="ze-snippet" src="https://static.zdassets.com/ekr/snippet.js?key=9e8468e0-c956-4723-8498-19caacac2b63"> </script>
+    <script>
+      // Hide Zendesk widget by default - only shown on Help page
+      window.addEventListener('load', function() {
+        if (window.zE) {
+          window.zE('messenger', 'hide');
+        }
+      });
+    </script>
     <!-- End of countedcare Zendesk Widget script -->
   </body>
 </html>

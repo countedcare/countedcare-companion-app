@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ChevronRight, Book, MessageCircle, Video, FileText, DollarSign, Users, Camera, CreditCard } from 'lucide-react';
+
+// Zendesk widget type declaration
+declare global {
+  interface Window {
+    zE?: (command: string, action: string) => void;
+  }
+}
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,6 +34,21 @@ interface HelpArticle {
 const Help = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+
+  // Show Zendesk widget on this page only
+  useEffect(() => {
+    // Show Zendesk when component mounts
+    if (window.zE) {
+      window.zE('messenger', 'show');
+    }
+
+    // Hide Zendesk when component unmounts
+    return () => {
+      if (window.zE) {
+        window.zE('messenger', 'hide');
+      }
+    };
+  }, []);
 
   const helpTopics: HelpTopic[] = [
     {

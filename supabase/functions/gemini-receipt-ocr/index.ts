@@ -158,7 +158,7 @@ async function callGeminiOnce(
 }
 ${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-002", systemInstruction });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
 
   const result = await model.generateContent({
     contents: [

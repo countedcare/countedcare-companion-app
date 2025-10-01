@@ -1,19 +1,13 @@
 /**
  * Supabase Edge Function: gemini-receipt-ocr
- * 
- * Description:
- *  - Accepts a base64-encoded receipt image (JPG/PNG)
- *  - Extracts vendor, amount, date, and category using Google Gemini
- *  - Enforces strict JSON output (retries once if parsing fails)
- *  - Normalizes and validates fields, returning confidences per field
  *
- * CURL example:
- *  curl -X POST \
- *    -H "Content-Type: application/json" \
- *    -H "apikey: $SUPABASE_ANON_KEY" \
- *    -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
- *    -d '{"imageBase64":"/9j/4AAQSkZJRgABAQAAAQABAAD..."}' \
- *    https://YOUR-PROJECT-REF.functions.supabase.co/gemini-receipt-ocr
+ * Key fixes:
+ *  - Accepts raw base64 OR data URLs (e.g. "data:image/png;base64,....")
+ *  - Auto-detects/overrides mime type from data URL when present
+ *  - Trims whitespace/newlines from base64 payload (common on mobile)
+ *  - Better CORS preflight (204) + echoes Content-Type on OPTIONS
+ *  - More defensive JSON parsing & model error handling
+ *  - Safer numeric parsing for "amount" and stricter output validation
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -23,6 +17,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
 };
 
 // Allowed categories (must match EXACT strings)
@@ -44,12 +39,11 @@ const ALLOWED_CATEGORIES = [
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 function detectMimeFromBase64(b64: string): string {
-  // Detect common signatures
-  const head = b64.slice(0, 16);
-  if (head.startsWith("JVBERi0x")) return "application/pdf"; // PDF (%PDF)
+  const head = b64.slice(0, 32);
+  if (head.startsWith("JVBERi0x")) return "application/pdf"; // %PDF
   if (head.startsWith("iVBORw0KGgo")) return "image/png";    // PNG
   if (head.startsWith("/9j/")) return "image/jpeg";            // JPEG
-  return "image/jpeg"; // default fallback to image
+  return "image/jpeg";
 }
 
 function clamp01(n: unknown, fallback = 0.6): number {
@@ -87,26 +81,24 @@ function normalizeDate(raw: unknown): string {
   const s = String(raw).trim();
   const today = new Date();
 
-  // Already ISO YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // ISO
 
   // MM/DD/YY(YY) or MM-DD-YY(YY)
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
-    let [_, mm, dd, yy] = m;
+    let [, mm, dd, yy] = m;
     let year = Number(yy.length === 2 ? (Number(yy) + 2000) : yy);
     const month = Number(mm);
     const day = Number(dd);
-    // If resulting date is in the future, move to previous year
     const d = new Date(year, month - 1, day);
     if (d > today) year -= 1;
     return `${year}-${pad2(month)}-${pad2(day)}`;
   }
 
-  // DD MMM YYYY or DD MMM YY (e.g., 05 Aug 2025)
+  // DD MMM YYYY or DD MMM YY
   m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{2,4})$/);
   if (m) {
-    const [_, dStr, monStr, yStr] = m;
+    const [, dStr, monStr, yStr] = m;
     const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
     const idx = months.indexOf(monStr.slice(0,3).toLowerCase());
     if (idx === -1) throw new Error("Unrecognized month in date");
@@ -117,17 +109,17 @@ function normalizeDate(raw: unknown): string {
     return `${year}-${pad2(idx + 1)}-${pad2(day)}`;
   }
 
-  // Fallback attempt: MMM DD, YYYY
+  // MMM DD, YYYY
   m = s.match(/^([A-Za-z]{3,})\s+(\d{1,2}),\s*(\d{2,4})$/);
   if (m) {
-    const [_, monStr, dStr, yStr] = m;
+    const [, monStr, dStr, yStr] = m;
     const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
     const idx = months.indexOf(monStr.slice(0,3).toLowerCase());
     if (idx === -1) throw new Error("Unrecognized month in date");
     let year = Number(yStr.length === 2 ? (Number(yStr) + 2000) : yStr);
     const day = Number(dStr);
     const date = new Date(year, idx, day);
-    if (date > new Date()) year -= 1;
+    if (date > today) year -= 1;
     return `${year}-${pad2(idx + 1)}-${pad2(day)}`;
   }
 
@@ -135,9 +127,10 @@ function normalizeDate(raw: unknown): string {
 }
 
 function safeParseJSONFromText(text: string): any | null {
-  // Try direct parse
+  if (!text) return null;
+  // Try strict parse first
   try { return JSON.parse(text); } catch {}
-  // Try to extract the first {...} block
+  // Extract first balanced {...} block
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
     try { return JSON.parse(match[0]); } catch {}
@@ -145,14 +138,28 @@ function safeParseJSONFromText(text: string): any | null {
   return null;
 }
 
-async function callGeminiOnce(genAI: GoogleGenerativeAI, imageBase64: string, mimeType: string, strongerJsonOnly = false) {
+async function callGeminiOnce(
+  genAI: GoogleGenerativeAI,
+  imageBase64: string,
+  mimeType: string,
+  strongerJsonOnly = false
+) {
   const systemInstruction = "You extract data from U.S. receipts. Output only valid JSON matching the schema.";
 
-  const allowed = ALLOWED_CATEGORIES.map(c => `\"${c}\"`).join(", ");
-
-  const userInstruction = `Extract ONLY these fields as JSON with this exact schema (no extra fields):\n{\n  \"vendor\": string,\n  \"category\": one of [${allowed}],\n  \"amount\": number (total paid, no currency symbol),\n  \"date\": string (ISO YYYY-MM-DD),\n  \"fieldConfidence\": { \"vendor\": number, \"category\": number, \"amount\": number, \"date\": number }\n}\n${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
+  const allowed = ALLOWED_CATEGORIES.map(c => `"${c}"`).join(", ");
+  const userInstruction =
+    `Extract ONLY these fields as JSON with this exact schema (no extra fields):
+{
+  "vendor": string,
+  "category": one of [${allowed}],
+  "amount": number (total paid, no currency symbol),
+  "date": string (ISO YYYY-MM-DD),
+  "fieldConfidence": { "vendor": number, "category": number, "amount": number, "date": number }
+}
+${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
 
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
+
   const result = await model.generateContent({
     contents: [
       {
@@ -169,13 +176,34 @@ async function callGeminiOnce(genAI: GoogleGenerativeAI, imageBase64: string, mi
     },
   });
 
-  const text = result.response?.text?.() ?? "";
-  return text;
+  const text = typeof result?.response?.text === "function" ? result.response.text() : "";
+  return text ?? "";
+}
+
+/** Parses payload.imageBase64 supporting raw base64 or data URLs. */
+function parseImagePayload(imageBase64: string): { cleanBase64: string; mimeType: string } {
+  let base64 = imageBase64.trim();
+  let mimeType: string | null = null;
+
+  // Data URL?
+  const dataUrlMatch = base64.match(/^data:([^;]+);base64,(.*)$/i);
+  if (dataUrlMatch) {
+    mimeType = dataUrlMatch[1].toLowerCase();
+    base64 = dataUrlMatch[2];
+  }
+
+  // Remove whitespace/newlines that sometimes get introduced by mobile scanners
+  base64 = base64.replace(/\s+/g, "");
+
+  // Autodetect MIME if data URL didn’t specify one
+  if (!mimeType) mimeType = detectMimeFromBase64(base64);
+
+  return { cleanBase64: base64, mimeType };
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ success: false, error: "Method not allowed" }), {
@@ -215,18 +243,30 @@ serve(async (req) => {
       });
     }
 
-    const mimeType = detectMimeFromBase64(imageBase64);
-    // Gemini supports PDF, PNG, JPEG processing
+    // Handle data URLs, strip whitespace/newlines, detect MIME reliably
+    const { cleanBase64, mimeType } = parseImagePayload(imageBase64);
+
+    // Optional: guard rail on payload size (Supabase default function payload limit is generous but keep some sanity)
+    // ~10MB base64 ≈ 7.5MB binary
+    if (cleanBase64.length > 14_000_000) {
+      return new Response(JSON.stringify({ success: false, error: "Image too large; please upload a smaller file (< ~10MB base64)" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
     // First attempt
     let text: string;
     try {
-      text = await callGeminiOnce(genAI, imageBase64, mimeType, false);
+      text = await callGeminiOnce(genAI, cleanBase64, mimeType, false);
     } catch (e) {
       console.error("Gemini API error (first attempt):", e);
-      throw new Error("Gemini API request failed");
+      return new Response(JSON.stringify({ success: false, error: "Gemini API request failed" }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let json = safeParseJSONFromText(text);
@@ -234,7 +274,7 @@ serve(async (req) => {
     // Retry once with stronger constraint if parsing failed
     if (!json) {
       try {
-        const retryText = await callGeminiOnce(genAI, imageBase64, mimeType, true);
+        const retryText = await callGeminiOnce(genAI, cleanBase64, mimeType, true);
         json = safeParseJSONFromText(retryText);
       } catch (e) {
         console.error("Gemini API error (retry):", e);
@@ -253,15 +293,19 @@ serve(async (req) => {
 
     // Category validation/normalization
     let category: AllowedCategory;
-    if (typeof json.category === "string" && ALLOWED_CATEGORIES.includes(json.category as AllowedCategory)) {
+    if (typeof json.category === "string" && (ALLOWED_CATEGORIES as readonly string[]).includes(json.category)) {
       category = json.category as AllowedCategory;
     } else {
       category = normalizeCategory(vendor, typeof json.category === "string" ? json.category : undefined);
     }
 
     // Amount coercion
-    const amountNum = typeof json.amount === "number" ? json.amount : Number(String(json.amount ?? "").replace(/[^0-9.\-]/g, ""));
-    if (Number.isNaN(amountNum)) {
+    const amountStr = String(json.amount ?? "").trim();
+    const amountNum =
+      typeof json.amount === "number"
+        ? json.amount
+        : Number(amountStr.replace(/[^0-9.\-]/g, ""));
+    if (!Number.isFinite(amountNum)) {
       return new Response(JSON.stringify({ success: false, error: "Model returned invalid amount" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -274,7 +318,7 @@ serve(async (req) => {
       isoDate = normalizeDate(json.date);
     } catch (e) {
       return new Response(JSON.stringify({ success: false, error: `Invalid date: ${e instanceof Error ? e.message : String(e)}` }), {
-        status: 500,
+        status: 422,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -288,6 +332,7 @@ serve(async (req) => {
       date: clamp01(fc.date, 0.6),
     };
 
+    // Final response
     const responseBody = {
       success: true,
       data: {

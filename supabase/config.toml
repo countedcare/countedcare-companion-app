@@ -1,5 +1,8 @@
 project_id = "beekrnfusoksullylvld"
 
+[functions.gemini-receipt-ocr]
+verify_jwt = true
+
 [functions.get-google-maps-browser-key]
 verify_jwt = false
 

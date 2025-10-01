@@ -20,7 +20,7 @@ export function useBetaAccess() {
   });
 
   const checkBetaAccess = async () => {
-    if (!user) {
+    if (!user || !session) {
       setStatus({ hasBetaAccess: false, loading: false });
       return;
     }
@@ -28,22 +28,9 @@ export function useBetaAccess() {
     try {
       setStatus(prev => ({ ...prev, loading: true }));
       
-      // Refresh session to get valid token
-      const { data: { session: freshSession }, error: sessionError } = await supabase.auth.refreshSession();
-      
-      if (sessionError || !freshSession) {
-        console.error('Session refresh failed:', sessionError);
-        setStatus({
-          hasBetaAccess: false,
-          loading: false,
-          error: 'Session expired. Please sign in again.'
-        });
-        return;
-      }
-      
       const { data, error } = await supabase.functions.invoke('check-beta-access', {
         headers: {
-          Authorization: `Bearer ${freshSession.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 

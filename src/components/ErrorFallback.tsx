@@ -2,7 +2,6 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 interface ErrorFallbackProps {
   error: Error;
@@ -14,11 +13,8 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   error, 
   resetErrorBoundary 
 }) => {
-  const navigate = useNavigate();
-
   const handleGoHome = () => {
-    navigate('/home');
-    resetErrorBoundary();
+    window.location.href = '/home';
   };
 
   const isNetworkError = error.message.includes('fetch') || 

@@ -90,19 +90,30 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
       {/* State Selection */}
       <div className="space-y-2">
         <Label htmlFor="state-select">State</Label>
-        <Select value={filters.state || ""} onValueChange={onStateChange}>
-          <SelectTrigger id="state-select">
-            <SelectValue placeholder="Select state" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All States</SelectItem>
-            {US_STATES.map((state) => (
-              <SelectItem key={state.code} value={state.code}>
-                {state.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-2">
+          <Select value={filters.state || undefined} onValueChange={onStateChange}>
+            <SelectTrigger id="state-select">
+              <SelectValue placeholder="All States" />
+            </SelectTrigger>
+            <SelectContent>
+              {US_STATES.map((state) => (
+                <SelectItem key={state.code} value={state.code}>
+                  {state.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {filters.state && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onStateChange(null)}
+              className="w-full"
+            >
+              Clear State
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* County Multi-Select */}

@@ -213,12 +213,9 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey =
-      Deno.env.get("GOOGLE_API_KEY") ||
-      Deno.env.get("GEMINI_API_KEY") ||
-      Deno.env.get("GEMINI_API");
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
-      console.error("Gemini OCR: Missing API key. Expected one of GOOGLE_API_KEY, GEMINI_API_KEY, GEMINI_API");
+      console.error("Gemini OCR: Missing API key. Expected GEMINI_API_KEY");
       return new Response(JSON.stringify({ success: false, error: "Gemini API key not configured on the server" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

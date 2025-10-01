@@ -152,7 +152,7 @@ async function callGeminiOnce(genAI: GoogleGenerativeAI, imageBase64: string, mi
 
   const userInstruction = `Extract ONLY these fields as JSON with this exact schema (no extra fields):\n{\n  \"vendor\": string,\n  \"category\": one of [${allowed}],\n  \"amount\": number (total paid, no currency symbol),\n  \"date\": string (ISO YYYY-MM-DD),\n  \"fieldConfidence\": { \"vendor\": number, \"category\": number, \"amount\": number, \"date\": number }\n}\n${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", systemInstruction });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
   const result = await model.generateContent({
     contents: [
       {

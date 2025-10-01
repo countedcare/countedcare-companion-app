@@ -23,13 +23,17 @@ const BetaPaymentWall: React.FC<BetaPaymentWallProps> = ({
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      // Refresh session to get a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      
+      if (sessionError || !session) {
         toast({
-          title: "Authentication required",
-          description: "Please sign in to continue",
+          title: "Session expired",
+          description: "Please sign in again to continue",
           variant: "destructive",
         });
+        // Redirect to auth page
+        window.location.href = '/auth';
         return;
       }
 
@@ -42,19 +46,14 @@ const BetaPaymentWall: React.FC<BetaPaymentWallProps> = ({
       if (error) throw error;
 
       if (data?.url) {
-        // Open Stripe checkout in new tab
-        window.open(data.url, '_blank');
-        
-        toast({
-          title: "Redirecting to payment",
-          description: "Complete your payment in the new tab, then refresh this page",
-        });
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
       }
     } catch (error) {
       console.error('Payment error:', error);
       toast({
         title: "Payment failed",
-        description: "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {

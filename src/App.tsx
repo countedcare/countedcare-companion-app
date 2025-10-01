@@ -38,6 +38,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Help = lazy(() => import("./pages/Help"));
 const BetaSuccess = lazy(() => import("./pages/BetaSuccess"));
 const Metrics = lazy(() => import("./pages/Metrics"));
+const OcrTest = lazy(() => import("./pages/OcrTest"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -209,6 +210,7 @@ const App = () => {
                   <Metrics />
                 </ProtectedRoute>
               } />
+              <Route path="/ocr-test" element={<OcrTest />} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

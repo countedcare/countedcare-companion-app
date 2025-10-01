@@ -212,9 +212,10 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
       }
     } catch (err) {
       console.error("OCR processing error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Could not extract data. Please enter details manually.";
       toast({
         title: "OCR failed",
-        description: "Could not extract data. Please enter details manually.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -152,9 +152,10 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       }
     } catch (error) {
       console.error('OCR error:', error);
+      const errorMessage = error instanceof Error ? error.message : "Could not extract information from receipt. Please enter manually.";
       toast({
         title: "OCR Processing Failed",
-        description: "Could not extract information from receipt. Please enter manually.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

@@ -206,9 +206,10 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       }
     } catch (err) {
       console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Could not extract data. You can still enter it manually.';
       toast({
         title: 'Processing Error',
-        description: 'Could not extract data. You can still enter it manually.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

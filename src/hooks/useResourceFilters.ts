@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ResourceFilters } from "@/types/resources";
 
@@ -143,8 +143,22 @@ export function useResourceFilters() {
     setFiltersState((prev) => ({ ...prev, page }));
   }, []);
 
+  // Memoize the filters object to prevent infinite re-renders
+  const memoizedFilters = useMemo(() => ({
+    ...filters,
+    q: debouncedQ
+  }), [
+    filters.state, 
+    JSON.stringify(filters.counties), 
+    JSON.stringify(filters.universities), 
+    JSON.stringify(filters.categories), 
+    filters.sort, 
+    filters.page, 
+    debouncedQ
+  ]);
+
   return {
-    filters: { ...filters, q: debouncedQ }, // Use debounced q for queries
+    filters: memoizedFilters,
     rawFilters: filters, // Expose raw filters for input binding
     setFilters,
     resetFilters,

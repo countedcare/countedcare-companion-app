@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
@@ -9,22 +10,33 @@ interface ErrorFallbackProps {
   resetKeys?: string[];
 }
 
-export const ErrorFallback: React.FC<ErrorFallbackProps> = ({ 
-  error, 
-  resetErrorBoundary 
+export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
+  error,
+  resetErrorBoundary,
 }) => {
-  const handleGoHome = () => {
-    window.location.href = '/home';
-  };
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const isNetworkError = error.message.includes('fetch') || 
-                        error.message.includes('network') || 
-                        error.message.includes('Failed to fetch');
+  // ✅ Safe dev-mode check for Vite/Lovable (no runtime throw)
+  const isDev =
+    (typeof import.meta !== 'undefined' &&
+      (import.meta as any)?.env?.MODE === 'development') ||
+    (typeof process !== 'undefined' &&
+      (process as any)?.env?.NODE_ENV === 'development');
 
-  const isAuthError = error.message.includes('auth') || 
-                     error.message.includes('unauthorized') ||
-                     error.message.includes('403') ||
-                     error.message.includes('401');
+  const message = String(error?.message ?? '');
+  const isNetworkError = /fetch|network|Failed to fetch/i.test(message);
+  const isAuthError = /auth|unauthorized|403|401/i.test(message);
+
+  const handleGoHome = React.useCallback(() => {
+    // ✅ SPA navigation (no full reload)
+    try {
+      navigate('/home', { replace: true, state: { from: location } });
+    } catch {
+      // fallback if router not available
+      window.location.assign('/home');
+    }
+  }, [navigate, location]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -36,27 +48,30 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
             </div>
           </div>
           <CardTitle className="text-lg">
-            {isNetworkError && "Connection Error"}
-            {isAuthError && "Authentication Error"}
-            {!isNetworkError && !isAuthError && "Something went wrong"}
+            {isNetworkError && 'Connection Error'}
+            {isAuthError && 'Authentication Error'}
+            {!isNetworkError && !isAuthError && 'Something went wrong'}
           </CardTitle>
           <CardDescription>
-            {isNetworkError && "Please check your internet connection and try again."}
-            {isAuthError && "You may need to sign in again."}
-            {!isNetworkError && !isAuthError && "An unexpected error occurred. Our team has been notified."}
+            {isNetworkError && 'Please check your internet connection and try again.'}
+            {isAuthError && 'You may need to sign in again.'}
+            {!isNetworkError &&
+              !isAuthError &&
+              'An unexpected error occurred. Our team has been notified.'}
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
-          {process.env.NODE_ENV === 'development' && (
+          {isDev && (
             <details className="text-xs text-muted-foreground bg-muted p-3 rounded-md">
               <summary className="cursor-pointer font-medium mb-2">Error Details</summary>
               <pre className="whitespace-pre-wrap break-words">
-                {error.message}
-                {error.stack && `\n\n${error.stack}`}
+                {message}
+                {error?.stack ? `\n\n${error.stack}` : ''}
               </pre>
             </details>
           )}
-          
+
           <div className="flex flex-col gap-2">
             <Button onClick={resetErrorBoundary} className="w-full">
               <RefreshCw className="h-4 w-4 mr-2" />

@@ -35,7 +35,6 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
   onDoctorPrescriptionChange
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [searchResults, setSearchResults] = useState<Array<{category: MedicalCategory, subcategory?: MedicalSubcategory, relevance: number}>>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showPrescriptionPrompt, setShowPrescriptionPrompt] = useState(false);
@@ -43,6 +42,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
   const [categorySelectOpen, setCategorySelectOpen] = useState(false);
   const [subcategorySelectOpen, setSubcategorySelectOpen] = useState(false);
   const [browseSelectOpen, setBrowseSelectOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     if (searchTerm.trim()) {
@@ -71,7 +71,7 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
       onSubcategoryChange(result.subcategory.userFriendlyLabel);
     }
     setSearchTerm('');
-    setShowSearch(false);
+    setIsSearchFocused(false);
     
     // Check if this is a conditional deductible category
     if (result.category.id === 'doctor-prescribed-only') {
@@ -140,76 +140,123 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Search and Browse Controls */}
-      <div className="flex items-center space-x-3">
-        <Button
-          type="button"
-          variant={showSearch ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowSearch(!showSearch)}
-          className="flex items-center space-x-2"
-        >
-          <Search className="h-4 w-4" />
-          <span>Search Expenses</span>
-        </Button>
+      {/* Search Input - Always Visible */}
+      <div className="space-y-2">
+        <Label htmlFor="expense-search">Expense Category & Details</Label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+          <Input
+            id="expense-search"
+            placeholder="Type any medical expense (e.g., 'hearing aid batteries', 'physical therapy')"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+            className="pl-10 h-12 text-base"
+          />
+        </div>
         
-        <div className="flex-1">
-          <Select 
-            value="" 
-            onValueChange={handleBrowseSelection}
-            open={browseSelectOpen}
-            onOpenChange={setBrowseSelectOpen}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Browse All Categories" />
-            </SelectTrigger>
-            <SelectContent className="max-h-80 bg-background border z-50">
-               {MEDICAL_CATEGORIES.filter(category => category.id?.trim()).map((category) => (
-                <div key={category.id}>
-                  {/* Category Header */}
-                  <SelectItem 
-                    value={category.id} 
-                    className="font-medium py-3 bg-muted/30"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-semibold">{category.userFriendlyLabel}</span>
-                    </div>
-                  </SelectItem>
-                  
-                  {/* Subcategories */}
-                  {category.subcategories.filter(subcategory => subcategory.id?.trim()).map((subcategory) => (
-                    <SelectItem 
-                      key={`${category.id}|${subcategory.id}`}
-                      value={`${category.id}|${subcategory.id}`}
-                      className="pl-6 py-2"
+        {/* Live Recommendations Dropdown */}
+        {searchTerm && isSearchFocused && (
+          <Card className="absolute z-50 w-full mt-1 shadow-lg border-2 border-primary/20">
+            <CardContent className="p-0">
+              {searchResults.length > 0 ? (
+                <div className="max-h-80 overflow-y-auto">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSearchResultClick(result)}
                     >
-                      <div className="space-y-1">
-                        <div className="text-sm">{subcategory.userFriendlyLabel}</div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">
-                          {subcategory.description}
-                        </div>
-                        {subcategory.examples && (
-                          <div className="text-xs text-muted-foreground">
-                            Examples: {subcategory.examples.slice(0, 2).join(', ')}
-                            {subcategory.examples.length > 2 && '...'}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-1">
+                          <div className="font-medium text-sm">
+                            {result.subcategory?.userFriendlyLabel || result.category.userFriendlyLabel}
                           </div>
-                        )}
+                          <div className="text-xs text-muted-foreground">
+                            {result.category.userFriendlyLabel}
+                            {result.subcategory && ` → ${result.subcategory.userFriendlyLabel}`}
+                          </div>
+                          <div className="text-xs text-muted-foreground line-clamp-2">
+                            {result.subcategory?.description || result.category.description}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
                       </div>
-                    </SelectItem>
+                    </div>
                   ))}
                 </div>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+              ) : (
+                <div className="p-4 text-center text-muted-foreground">
+                  <p className="text-sm">No matches found. Try browsing categories below.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
-        {selectedCategory && (
+      {/* Browse All Categories Dropdown */}
+      <div className="space-y-2">
+        <Label htmlFor="browse-categories">Or Browse All Categories</Label>
+        <Select 
+          value="" 
+          onValueChange={handleBrowseSelection}
+          open={browseSelectOpen}
+          onOpenChange={setBrowseSelectOpen}
+        >
+          <SelectTrigger id="browse-categories" className="h-12">
+            <SelectValue placeholder="Browse All Categories" />
+          </SelectTrigger>
+          <SelectContent className="max-h-80 bg-background border z-50">
+             {MEDICAL_CATEGORIES.filter(category => category.id?.trim()).map((category) => (
+              <div key={category.id}>
+                {/* Category Header */}
+                <SelectItem 
+                  value={category.id} 
+                  className="font-medium py-3 bg-muted/30"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-semibold">{category.userFriendlyLabel}</span>
+                  </div>
+                </SelectItem>
+                
+                {/* Subcategories */}
+                {category.subcategories.filter(subcategory => subcategory.id?.trim()).map((subcategory) => (
+                  <SelectItem 
+                    key={`${category.id}|${subcategory.id}`}
+                    value={`${category.id}|${subcategory.id}`}
+                    className="pl-6 py-2"
+                  >
+                    <div className="space-y-1">
+                      <div className="text-sm">{subcategory.userFriendlyLabel}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        {subcategory.description}
+                      </div>
+                      {subcategory.examples && (
+                        <div className="text-xs text-muted-foreground">
+                          Examples: {subcategory.examples.slice(0, 2).join(', ')}
+                          {subcategory.examples.length > 2 && '...'}
+                        </div>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </div>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* IRS Compliant Badge */}
+      {selectedCategory && (
+        <div className="flex items-center justify-end space-x-1">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center space-x-1">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">IRS Compliant</span>
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground cursor-help">
+                  <FileText className="h-3 w-3" />
+                  <span>IRS Compliant</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -217,65 +264,11 @@ const MedicalCategorySelector: React.FC<MedicalCategorySelectorProps> = ({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        )}
-      </div>
-
-      {/* Search Interface */}
-      {showSearch && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Search Medical Expenses</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Type any medical expense (e.g., 'hearing aid batteries', 'physical therapy')"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            {searchResults.length > 0 && (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {searchResults.map((result, index) => (
-                  <div
-                    key={index}
-                    className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleSearchResultClick(result)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">
-                          {result.subcategory?.userFriendlyLabel || result.category.userFriendlyLabel}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {result.category.userFriendlyLabel}
-                          {result.subcategory && ` → ${result.subcategory.userFriendlyLabel}`}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {result.subcategory?.description || result.category.description}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {searchTerm && searchResults.length === 0 && (
-              <div className="text-center py-4 text-muted-foreground">
-                <p className="text-sm">No matches found. Try browsing categories below or contact support for help categorizing unusual expenses.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        </div>
       )}
 
-      {/* Traditional Category Selection */}
-      {!showSearch && (
+      {/* Manual Category Selection (Hidden when search is active) */}
+      {!searchTerm && (
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="category">Medical Expense Category *</Label>

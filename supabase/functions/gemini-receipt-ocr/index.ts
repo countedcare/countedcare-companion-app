@@ -1,13 +1,14 @@
 /**
  * Supabase Edge Function: gemini-receipt-ocr
  *
- * Key fixes:
- *  - Accepts raw base64 OR data URLs (e.g. "data:image/png;base64,....")
- *  - Auto-detects/overrides mime type from data URL when present
- *  - Trims whitespace/newlines from base64 payload (common on mobile)
- *  - Better CORS preflight (204) + echoes Content-Type on OPTIONS
- *  - More defensive JSON parsing & model error handling
- *  - Safer numeric parsing for "amount" and stricter output validation
+ * Robust version with:
+ *  - Accepts raw base64 OR data URLs
+ *  - Auto-detects mime type
+ *  - Strict JSON output with responseMimeType
+ *  - Model fallback (flash -> pro)
+ *  - Debug mode support (?debug=1)
+ *  - HEIC detection and proper error messages
+ *  - Larger maxOutputTokens for complex receipts
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -43,6 +44,10 @@ function detectMimeFromBase64(b64: string): string {
   if (head.startsWith("JVBERi0x")) return "application/pdf"; // %PDF
   if (head.startsWith("iVBORw0KGgo")) return "image/png";    // PNG
   if (head.startsWith("/9j/")) return "image/jpeg";            // JPEG
+  // HEIC detection
+  if (head.includes("ftyp") && (head.includes("heic") || head.includes("heix"))) {
+    throw new Error("HEIC format not supported. Please convert to JPG or PNG first.");
+  }
   return "image/jpeg";
 }
 
@@ -142,6 +147,7 @@ async function callGeminiOnce(
   genAI: GoogleGenerativeAI,
   imageBase64: string,
   mimeType: string,
+  modelName = "gemini-1.5-flash",
   strongerJsonOnly = false
 ) {
   const systemInstruction = "You extract data from U.S. receipts. Output only valid JSON matching the schema.";
@@ -158,7 +164,7 @@ async function callGeminiOnce(
 }
 ${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
+  const model = genAI.getGenerativeModel({ model: modelName, systemInstruction });
 
   const result = await model.generateContent({
     contents: [
@@ -172,7 +178,8 @@ ${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "R
     ],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 2048,
+      responseMimeType: "application/json",
     },
   });
 
@@ -212,10 +219,13 @@ serve(async (req) => {
     });
   }
 
+  const url = new URL(req.url);
+  const debugMode = url.searchParams.get("debug") === "1";
+
   try {
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API");
     if (!apiKey) {
-      console.error("Gemini OCR: Missing API key. Expected GEMINI_API_KEY");
+      console.error("Gemini OCR: Missing API key. Expected GEMINI_API_KEY, GOOGLE_API_KEY, or GEMINI_API");
       return new Response(JSON.stringify({ success: false, error: "Gemini API key not configured on the server" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -254,16 +264,26 @@ serve(async (req) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // First attempt
+    // First attempt with gemini-1.5-flash
     let text: string;
+    let rawModelOutput = "";
     try {
-      text = await callGeminiOnce(genAI, cleanBase64, mimeType, false);
+      text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash", false);
+      rawModelOutput = text;
     } catch (e) {
-      console.error("Gemini API error (first attempt):", e);
-      return new Response(JSON.stringify({ success: false, error: "Gemini API request failed" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("Gemini API error (first attempt with flash):", e);
+      // Retry with pro model
+      try {
+        console.log("Retrying with gemini-1.5-pro...");
+        text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-pro", false);
+        rawModelOutput = text;
+      } catch (e2) {
+        console.error("Gemini API error (retry with pro):", e2);
+        return new Response(JSON.stringify({ success: false, error: "Gemini API request failed" }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     let json = safeParseJSONFromText(text);
@@ -271,15 +291,22 @@ serve(async (req) => {
     // Retry once with stronger constraint if parsing failed
     if (!json) {
       try {
-        const retryText = await callGeminiOnce(genAI, cleanBase64, mimeType, true);
+        console.log("JSON parse failed, retrying with stronger prompt...");
+        const retryText = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash", true);
         json = safeParseJSONFromText(retryText);
+        rawModelOutput = retryText;
       } catch (e) {
         console.error("Gemini API error (retry):", e);
       }
     }
 
     if (!json) {
-      return new Response(JSON.stringify({ success: false, error: "Failed to parse JSON from model output" }), {
+      const errorResponse: any = { 
+        success: false, 
+        error: "Failed to parse JSON from model output" 
+      };
+      if (debugMode) errorResponse.rawModel = rawModelOutput;
+      return new Response(JSON.stringify(errorResponse), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

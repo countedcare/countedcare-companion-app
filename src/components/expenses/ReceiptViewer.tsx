@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
   Eye, Download, X, ChevronLeft, ChevronRight, 
-  FileText, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw
+  FileText, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import * as pdfjsLib from 'pdfjs-dist';
 
 interface ReceiptViewerProps {
   receipts: string[];
@@ -23,11 +24,58 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
+  const [pdfImage, setPdfImage] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
   if (!receipts.length) return null;
 
   const currentReceipt = receipts[currentIndex];
   const isPdf = currentReceipt?.endsWith('.pdf');
+
+  // Configure PDF.js worker
+  useEffect(() => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  }, []);
+
+  // Load PDF and convert first page to image
+  useEffect(() => {
+    if (!isPdf || !currentReceipt) {
+      setPdfImage(null);
+      return;
+    }
+
+    const loadPdf = async () => {
+      setIsLoadingPdf(true);
+      try {
+        const loadingTask = pdfjsLib.getDocument(currentReceipt);
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        if (!context) throw new Error('Could not get canvas context');
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+
+        setPdfImage(canvas.toDataURL());
+      } catch (error) {
+        console.error('Error loading PDF:', error);
+        setPdfImage(null);
+      } finally {
+        setIsLoadingPdf(false);
+      }
+    };
+
+    loadPdf();
+  }, [currentReceipt, isPdf]);
 
   const nextReceipt = () => {
     setCurrentIndex((prev) => (prev + 1) % receipts.length);
@@ -93,7 +141,7 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = ({
                   <Separator orientation="vertical" className="h-6" />
                 </>
               )}
-              {!isPdf && (
+              {(pdfImage || !isPdf) && (
                 <>
                   <Button size="sm" variant="outline" onClick={zoomOut}>
                     <ZoomOut className="h-4 w-4" />
@@ -123,12 +171,30 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = ({
         <div className="flex-1 p-4 overflow-hidden">
           <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg overflow-auto">
             {isPdf ? (
-              <div className="w-full h-full">
-                <iframe
-                  src={currentReceipt}
-                  className="w-full h-full border-0"
-                  title={`Receipt ${currentIndex + 1}`}
-                />
+              <div className="relative overflow-auto max-h-full max-w-full">
+                {isLoadingPdf ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : pdfImage ? (
+                  <img
+                    src={pdfImage}
+                    alt={`Receipt ${currentIndex + 1}`}
+                    className="max-w-none transition-transform duration-200 ease-in-out"
+                    style={{
+                      transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                      transformOrigin: 'center'
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+                    <FileText className="h-16 w-16 mb-4" />
+                    <p>Could not load PDF preview</p>
+                    <Button onClick={downloadReceipt} variant="outline" className="mt-4">
+                      Download PDF
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="relative overflow-auto max-h-full max-w-full">

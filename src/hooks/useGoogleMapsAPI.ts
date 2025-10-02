@@ -33,7 +33,7 @@ export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
   const [error, setError] = useState<string | null>(null);
 
   const apiKey = useMemo(
-    () => apiKeyOverride || import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    () => apiKeyOverride || import.meta.env.VITE_GOOGLE_MAPS_BROWSER_API_KEY,
     [apiKeyOverride]
   );
 
@@ -45,7 +45,7 @@ export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
       setError(null);
 
       if (!apiKey) {
-        setError("Missing Google Maps API key (VITE_GOOGLE_MAPS_API_KEY).");
+        setError("Missing Google Maps API key (VITE_GOOGLE_MAPS_BROWSER_API_KEY).");
         setLoading(false);
         return;
       }

@@ -303,18 +303,18 @@ serve(async (req) => {
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Try with flash model first
+    // Try with flash model first (using correct versioned model name)
     let text: string;
     let rawModelOutput = "";
     try {
-      text = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-flash-latest", false);
+      text = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-flash-002", false);
       rawModelOutput = text;
     } catch (e) {
       console.error("Gemini flash error:", e);
       // Fallback to pro model
       try {
-        console.log("Retrying with gemini-1.5-pro-latest...");
-        text = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-pro-latest", false);
+        console.log("Retrying with gemini-1.5-pro-002...");
+        text = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-pro-002", false);
         rawModelOutput = text;
       } catch (e2) {
         console.error("Gemini pro error:", e2);
@@ -331,7 +331,7 @@ serve(async (req) => {
     if (!json) {
       try {
         console.log("JSON parse failed, retrying with stricter prompt...");
-        const retryText = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-flash-latest", true);
+        const retryText = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-flash-002", true);
         json = safeParseJSONFromText(retryText);
         rawModelOutput = retryText;
       } catch (e) {

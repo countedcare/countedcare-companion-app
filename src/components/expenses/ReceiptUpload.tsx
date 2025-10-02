@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { fileToDataUrl, runReceiptOcr } from '@/lib/ocrClient';
 
 interface ReceiptUploadProps {
   expenseId?: string;
@@ -105,58 +106,36 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
   };
 
   // Process receipt with OCR
-  const processReceiptOCR = async (imageUrl: string) => {
+  const processReceiptOCR = async (file: File) => {
     if (!onReceiptProcessed) return;
     
     setIsProcessingOCR(true);
     
     try {
-      // Fetch the image and convert to base64
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
+      const dataUrl = await fileToDataUrl(file);
+      const result = await runReceiptOcr(dataUrl);
       
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      
-      await new Promise((resolve, reject) => {
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
+      // Pass extracted data to parent component
+      onReceiptProcessed({
+        merchant: result.vendor,
+        vendor: result.vendor,
+        amount: result.amount,
+        date: result.date,
+        category: result.category,
+        description: `Receipt from ${result.vendor}`,
       });
       
-      const base64Data = (reader.result as string).split(',')[1];
-      
-      // Call OCR edge function
-      const { data: ocrResult, error: ocrError } = await supabase.functions.invoke('gemini-receipt-ocr', {
-        body: { imageBase64: base64Data }
+      toast({
+        title: "Receipt Processed!",
+        description: "Information extracted successfully. Please review and adjust as needed.",
       });
-      
-      if (ocrError) throw ocrError;
-      
-      if (ocrResult?.success && ocrResult?.data) {
-        // Pass extracted data to parent component
-        onReceiptProcessed({
-          merchant: ocrResult.data.vendor,
-          vendor: ocrResult.data.vendor,
-          amount: ocrResult.data.amount,
-          date: ocrResult.data.date,
-          category: ocrResult.data.category,
-          description: `Receipt from ${ocrResult.data.vendor}`,
-        });
-        
-        toast({
-          title: "Receipt Processed!",
-          description: "Information extracted successfully. Please review and adjust as needed.",
-        });
-      } else {
-        throw new Error('OCR processing failed');
-      }
-    } catch (error) {
-      console.error('OCR error:', error);
-      const errorMessage = error instanceof Error ? error.message : "Could not extract information from receipt. Please enter manually.";
+    } catch (err) {
+      console.error('OCR error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Could not extract data. You can still enter it manually.';
       toast({
         title: "OCR Processing Failed",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsProcessingOCR(false);
@@ -209,7 +188,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
 
       // Process with OCR for both images and PDFs
       if (onReceiptProcessed) {
-        await processReceiptOCR(urlData.publicUrl);
+        await processReceiptOCR(fileObj.file);
       }
 
     } catch (error) {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import useGoogleMapsAPI from "@/hooks/useGoogleMapsAPI";
 
 export type SelectedPlace = {
   placeId: string;
@@ -27,13 +28,15 @@ export default function MileageLocationInput({
   const [open, setOpen] = useState(false);
   const [preds, setPreds] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const serviceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const tokenRef = useRef(new google.maps.places.AutocompleteSessionToken());
+  const tokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
 
-  const canUsePlaces = !!(window.google?.maps?.places);
+  const { isConfigured, isLoading } = useGoogleMapsAPI();
+  const canUsePlaces = isConfigured && !!(window.google?.maps?.places);
 
   useEffect(() => {
     if (canUsePlaces && !serviceRef.current) {
       serviceRef.current = new google.maps.places.AutocompleteService();
+      tokenRef.current = new google.maps.places.AutocompleteSessionToken();
     }
   }, [canUsePlaces]);
 
@@ -49,7 +52,7 @@ export default function MileageLocationInput({
       serviceRef.current!.getPlacePredictions(
         {
           input,
-          sessionToken: tokenRef.current,
+          sessionToken: tokenRef.current!,
           componentRestrictions: undefined, // optionally restrict (country: 'us')
         },
         (res, status) => {
@@ -76,12 +79,26 @@ export default function MileageLocationInput({
     tokenRef.current = new google.maps.places.AutocompleteSessionToken();
   }
 
+  if (isLoading) {
+    return (
+      <div className={cn("relative", className)}>
+        <Label className="text-sm font-medium">{label}</Label>
+        <Input
+          placeholder="Loading Google Maps..."
+          disabled
+          className="bg-white"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative", className)}>
       <Label className="text-sm font-medium">{label}</Label>
       <Input
         placeholder={placeholder}
         value={value}
+        disabled={!canUsePlaces}
         onChange={(e) => {
           const t = e.target.value;
           setValue(t);

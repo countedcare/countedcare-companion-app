@@ -264,18 +264,18 @@ serve(async (req) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // First attempt with gemini-1.5-flash-002
+    // First attempt with gemini-1.5-flash
     let text: string;
     let rawModelOutput = "";
     try {
-      text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash-002", false);
+      text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash", false);
       rawModelOutput = text;
     } catch (e) {
       console.error("Gemini API error (first attempt with flash):", e);
       // Retry with pro model
       try {
-        console.log("Retrying with gemini-1.5-pro-002...");
-        text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-pro-002", false);
+        console.log("Retrying with gemini-1.5-pro...");
+        text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-pro", false);
         rawModelOutput = text;
       } catch (e2) {
         console.error("Gemini API error (retry with pro):", e2);
@@ -292,7 +292,7 @@ serve(async (req) => {
     if (!json) {
       try {
         console.log("JSON parse failed, retrying with stronger prompt...");
-        const retryText = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash-002", true);
+        const retryText = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash", true);
         json = safeParseJSONFromText(retryText);
         rawModelOutput = retryText;
       } catch (e) {

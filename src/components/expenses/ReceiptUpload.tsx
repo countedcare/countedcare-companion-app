@@ -360,45 +360,62 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       {/* Existing Receipts */}
       {receipts.length > 0 && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Existing Receipts</Label>
+          <Label className="text-sm font-medium">Uploaded Receipts</Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {receipts.map((receiptUrl, index) => (
-              <Card key={receiptUrl} className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-md bg-green-100">
-                      {receiptUrl.endsWith('.pdf') ? (
-                        <FileText className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <ImageIcon className="h-4 w-4 text-green-600" />
-                      )}
+            {receipts.map((receiptUrl, index) => {
+              const isPdf = receiptUrl.endsWith('.pdf');
+              return (
+                <Card key={receiptUrl} className="overflow-hidden">
+                  {/* Image Preview */}
+                  {!isPdf && (
+                    <div className="relative w-full h-48 bg-muted">
+                      <img 
+                        src={receiptUrl} 
+                        alt={`Receipt ${index + 1}`}
+                        className="w-full h-full object-contain"
+                      />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">Receipt {index + 1}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {receiptUrl.endsWith('.pdf') ? 'PDF Document' : 'Image'}
-                      </p>
+                  )}
+                  
+                  {/* PDF Indicator */}
+                  {isPdf && (
+                    <div className="relative w-full h-48 bg-muted flex items-center justify-center">
+                      <FileText className="h-16 w-16 text-muted-foreground" />
+                    </div>
+                  )}
+                  
+                  {/* Actions */}
+                  <div className="p-3 border-t">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Receipt {index + 1}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isPdf ? 'PDF Document' : 'Image'}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => viewReceipt(receiptUrl)}
+                          title="View full size"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeExistingReceipt(receiptUrl)}
+                          title="Remove receipt"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => viewReceipt(receiptUrl)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeExistingReceipt(receiptUrl)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -406,48 +423,70 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       {/* Uploading Files */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Uploading</Label>
-          <div className="space-y-3">
-            {uploadedFiles.map((fileObj, index) => (
-              <Card key={index} className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-md bg-blue-100">
-                      {fileObj.status === 'uploading' && (
-                        <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-                      )}
-                      {fileObj.status === 'success' && (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      )}
-                      {fileObj.status === 'error' && (
-                        <X className="h-4 w-4 text-red-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium truncate">{fileObj.file.name}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {fileObj.status === 'uploading' && (
-                          <Progress value={fileObj.progress} className="h-2 flex-1" />
-                        )}
-                        {fileObj.status === 'error' && (
-                          <p className="text-xs text-red-600">{fileObj.error}</p>
-                        )}
-                        {fileObj.status === 'success' && (
-                          <p className="text-xs text-green-600">Upload complete</p>
-                        )}
+          <Label className="text-sm font-medium">Processing</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {uploadedFiles.map((fileObj, index) => {
+              const isPdf = fileObj.file.type === 'application/pdf';
+              return (
+                <Card key={index} className="overflow-hidden">
+                  {/* Image Preview or PDF Placeholder */}
+                  <div className="relative w-full h-48 bg-muted">
+                    {!isPdf && fileObj.preview ? (
+                      <img 
+                        src={fileObj.preview} 
+                        alt={fileObj.file.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FileText className="h-16 w-16 text-muted-foreground" />
                       </div>
+                    )}
+                    
+                    {/* Upload Status Overlay */}
+                    {fileObj.status === 'uploading' && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                          <p className="text-sm font-medium">{fileObj.progress}%</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* File Info */}
+                  <div className="p-3 border-t">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{fileObj.file.name}</p>
+                        <div className="mt-1">
+                          {fileObj.status === 'uploading' && (
+                            <Progress value={fileObj.progress} className="h-2" />
+                          )}
+                          {fileObj.status === 'error' && (
+                            <p className="text-xs text-destructive">{fileObj.error}</p>
+                          )}
+                          {fileObj.status === 'success' && (
+                            <p className="text-xs text-green-600 flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              Upload complete
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeFile(index, fileObj.url)}
+                        className="ml-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removeFile(index, fileObj.url)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}

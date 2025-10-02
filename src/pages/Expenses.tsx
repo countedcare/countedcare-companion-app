@@ -55,6 +55,18 @@ const Expenses = () => {
   const [amountRange, setAmountRange] = useState<[number, number]>([0, 10000]);
   const [showLinkAccountModal, setShowLinkAccountModal] = useState(false);
 
+  // Reload expenses when page loads or comes into focus
+  useEffect(() => {
+    reloadExpenses();
+    
+    const handleFocus = () => {
+      reloadExpenses();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [reloadExpenses]);
+
   // Filter only unconfirmed potential medical transactions for the review section
   const unconfirmedTransactions = syncedTransactions.filter(
     transaction => transaction.is_potential_medical && !transaction.is_confirmed_medical

@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import MileageLocationInput from '@/components/MileageLocationInput';
-import { SelectedPlace } from '@/hooks/usePlacesAutocomplete';
 import useGoogleMapsAPI from '@/hooks/useGoogleMapsAPI';
 
 interface MileageCalculatorProps {
@@ -334,10 +333,16 @@ interface MileageResult {
             <MileageLocationInput
               label="From Address"
               placeholder="Enter starting address"
-              onSelected={(place: SelectedPlace) => {
+              onSelected={(place) => {
                 setFromAddress(place.formattedAddress);
                 setFromIsGPS(false);
                 setFromPlaceId(place.placeId);
+                setResult(null);
+              }}
+              onInputChange={(text) => {
+                setFromAddress(text);
+                setFromPlaceId(null);
+                setFromIsGPS(false);
                 setResult(null);
               }}
             />
@@ -381,10 +386,16 @@ interface MileageResult {
             <MileageLocationInput
               label="To Address"
               placeholder="Enter destination address"
-              onSelected={(place: SelectedPlace) => {
+              onSelected={(place) => {
                 setToAddress(place.formattedAddress);
                 setToIsGPS(false);
                 setToPlaceId(place.placeId);
+                setResult(null);
+              }}
+              onInputChange={(text) => {
+                setToAddress(text);
+                setToPlaceId(null);
+                setToIsGPS(false);
                 setResult(null);
               }}
             />

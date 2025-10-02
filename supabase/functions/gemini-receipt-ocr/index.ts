@@ -145,15 +145,17 @@ async function callLovableAI(
     throw new Error("LOVABLE_API_KEY not configured");
   }
 
-  // Validate base64 string
-  console.log(`Image info: mimeType=${mimeType}, base64Length=${imageBase64.length}`);
-  
   // Ensure clean base64 with no whitespace or newlines
-  const cleanBase64 = imageBase64.replace(/[\s\n\r]/g, '');
+  const cleanBase64 = imageBase64.replace(/[\s\n\r\t]/g, '');
   
-  // Validate base64 format (basic check)
-  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
-    throw new Error("Invalid base64 format");
+  console.log(`Preparing to call Lovable AI - MIME: ${mimeType}, base64 length: ${cleanBase64.length}`);
+  
+  // Construct the data URL
+  const dataUrl = `data:${mimeType};base64,${cleanBase64}`;
+  
+  // Validate the data URL format
+  if (!dataUrl.startsWith('data:image/')) {
+    throw new Error(`Invalid MIME type for image: ${mimeType}`);
   }
 
   const allowed = ALLOWED_CATEGORIES.map(c => `"${c}"`).join(", ");
@@ -178,7 +180,7 @@ ${stricterPrompt ? "Return ONLY valid JSON. No explanations or markdown." : "Ret
           {
             type: "image_url",
             image_url: {
-              url: `data:${mimeType};base64,${cleanBase64}`
+              url: dataUrl
             }
           }
         ]
@@ -186,7 +188,7 @@ ${stricterPrompt ? "Return ONLY valid JSON. No explanations or markdown." : "Ret
     ],
   };
 
-  console.log(`Calling Lovable AI with image: ${mimeType}, ${cleanBase64.length} chars`);
+  console.log(`Calling Lovable AI with payload (image URL length: ${dataUrl.length})`);
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -197,17 +199,31 @@ ${stricterPrompt ? "Return ONLY valid JSON. No explanations or markdown." : "Ret
     body: JSON.stringify(payload),
   });
 
+  const responseText = await response.text();
+  console.log(`Lovable AI response status: ${response.status}`);
+
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Lovable AI error:", response.status, errorText);
-    console.error("Request details - mimeType:", mimeType, "base64Length:", cleanBase64.length);
-    throw new Error(`Lovable AI request failed: ${response.status} ${errorText}`);
+    console.error("Lovable AI error response:", responseText);
+    console.error("Request MIME type:", mimeType, "Base64 length:", cleanBase64.length);
+    console.error("Data URL prefix:", dataUrl.substring(0, 100));
+    throw new Error(`Lovable AI request failed: ${response.status} ${responseText}`);
   }
 
-  const data = await response.json();
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    console.error("Failed to parse Lovable AI response:", responseText);
+    throw new Error("Invalid JSON response from Lovable AI");
+  }
+
   const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No content in AI response");
+  if (!text) {
+    console.error("No content in AI response:", JSON.stringify(data));
+    throw new Error("No content in AI response");
+  }
   
+  console.log(`Successfully received AI response, length: ${text.length}`);
   return text;
 }
 
@@ -216,25 +232,40 @@ function parseImagePayload(imageBase64: string): { cleanBase64: string; mimeType
   let base64 = imageBase64.trim();
   let mimeType: string | null = null;
 
+  console.log(`Raw input length: ${base64.length}, first 100 chars: ${base64.substring(0, 100)}`);
+
   // Data URL?
   const dataUrlMatch = base64.match(/^data:([^;]+);base64,(.*)$/i);
   if (dataUrlMatch) {
     mimeType = dataUrlMatch[1].toLowerCase();
     base64 = dataUrlMatch[2];
+    console.log(`Extracted from data URL - MIME: ${mimeType}, base64 length: ${base64.length}`);
   }
 
   // Remove ALL whitespace/newlines/carriage returns
+  const originalLength = base64.length;
   base64 = base64.replace(/[\s\n\r\t]/g, "");
+  if (originalLength !== base64.length) {
+    console.log(`Cleaned whitespace: ${originalLength} -> ${base64.length} chars`);
+  }
 
   // Autodetect MIME if data URL didn't specify one
   if (!mimeType) {
     mimeType = detectMimeFromBase64(base64);
+    console.log(`Auto-detected MIME type: ${mimeType}`);
   }
 
   // Normalize MIME type for AI gateway compatibility
   if (mimeType === "image/jpg") mimeType = "image/jpeg";
 
-  console.log(`Parsed image: ${mimeType}, ${base64.length} chars`);
+  // Ensure proper base64 padding
+  const paddingNeeded = (4 - (base64.length % 4)) % 4;
+  if (paddingNeeded > 0) {
+    base64 += '='.repeat(paddingNeeded);
+    console.log(`Added ${paddingNeeded} padding characters`);
+  }
+
+  console.log(`Final parsed image: ${mimeType}, ${base64.length} chars`);
 
   return { cleanBase64: base64, mimeType };
 }

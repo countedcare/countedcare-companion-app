@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +48,11 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
   const [receipts, setReceipts] = useState<string[]>(existingReceipts);
   const [dragActive, setDragActive] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+
+  // Sync with existing receipts when they change (e.g., when editing an expense)
+  useEffect(() => {
+    setReceipts(existingReceipts);
+  }, [existingReceipts]);
 
   // Handle file selection
   const handleFileSelect = (files: FileList | null) => {

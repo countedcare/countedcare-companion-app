@@ -1,18 +1,10 @@
 /**
  * Supabase Edge Function: gemini-receipt-ocr
  *
- * Robust version with:
- *  - Accepts raw base64 OR data URLs
- *  - Auto-detects mime type
- *  - Strict JSON output with responseMimeType
- *  - Model fallback (flash -> pro)
- *  - Debug mode support (?debug=1)
- *  - HEIC detection and proper error messages
- *  - Larger maxOutputTokens for complex receipts
+ * Now using Lovable AI Gateway for more reliable Gemini access
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -143,14 +135,15 @@ function safeParseJSONFromText(text: string): any | null {
   return null;
 }
 
-async function callGeminiOnce(
-  genAI: GoogleGenerativeAI,
+async function callLovableAI(
   imageBase64: string,
   mimeType: string,
-  modelName = "gemini-1.5-flash",
-  strongerJsonOnly = false
-) {
-  const systemInstruction = "You extract data from U.S. receipts. Output only valid JSON matching the schema.";
+  stricterPrompt = false
+): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    throw new Error("LOVABLE_API_KEY not configured");
+  }
 
   const allowed = ALLOWED_CATEGORIES.map(c => `"${c}"`).join(", ");
   const userInstruction =
@@ -162,29 +155,44 @@ async function callGeminiOnce(
   "date": string (ISO YYYY-MM-DD),
   "fieldConfidence": { "vendor": number, "category": number, "amount": number, "date": number }
 }
-${strongerJsonOnly ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
+${stricterPrompt ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
 
-  const model = genAI.getGenerativeModel({ model: modelName, systemInstruction });
-
-  const result = await model.generateContent({
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: userInstruction },
-          { inlineData: { data: imageBase64, mimeType } },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 2048,
-      responseMimeType: "application/json",
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userInstruction },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ],
+    }),
   });
 
-  const text = typeof result?.response?.text === "function" ? result.response.text() : "";
-  return text ?? "";
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Lovable AI error:", response.status, errorText);
+    throw new Error(`Lovable AI request failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("No content in AI response");
+  
+  return text;
 }
 
 /** Parses payload.imageBase64 supporting raw base64 or data URLs. */
@@ -202,7 +210,7 @@ function parseImagePayload(imageBase64: string): { cleanBase64: string; mimeType
   // Remove whitespace/newlines that sometimes get introduced by mobile scanners
   base64 = base64.replace(/\s+/g, "");
 
-  // Autodetect MIME if data URL didn’t specify one
+  // Autodetect MIME if data URL didn't specify one
   if (!mimeType) mimeType = detectMimeFromBase64(base64);
 
   return { cleanBase64: base64, mimeType };
@@ -223,10 +231,10 @@ serve(async (req) => {
   const debugMode = url.searchParams.get("debug") === "1";
 
   try {
-    const apiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API");
-    if (!apiKey) {
-      console.error("Gemini OCR: Missing API key. Expected GEMINI_API_KEY, GOOGLE_API_KEY, or GEMINI_API");
-      return new Response(JSON.stringify({ success: false, error: "Gemini API key not configured on the server" }), {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("LOVABLE_API_KEY not configured");
+      return new Response(JSON.stringify({ success: false, error: "AI service not configured on the server" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -253,8 +261,7 @@ serve(async (req) => {
     // Handle data URLs, strip whitespace/newlines, detect MIME reliably
     const { cleanBase64, mimeType } = parseImagePayload(imageBase64);
 
-    // Optional: guard rail on payload size (Supabase default function payload limit is generous but keep some sanity)
-    // ~10MB base64 ≈ 7.5MB binary
+    // Optional: guard rail on payload size (~10MB base64 ≈ 7.5MB binary)
     if (cleanBase64.length > 14_000_000) {
       return new Response(JSON.stringify({ success: false, error: "Image too large; please upload a smaller file (< ~10MB base64)" }), {
         status: 413,
@@ -262,41 +269,31 @@ serve(async (req) => {
       });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    // First attempt with gemini-1.5-flash
+    // Call Lovable AI with Gemini
     let text: string;
     let rawModelOutput = "";
     try {
-      text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash", false);
+      text = await callLovableAI(cleanBase64, mimeType, false);
       rawModelOutput = text;
     } catch (e) {
-      console.error("Gemini API error (first attempt with flash):", e);
-      // Retry with pro model
-      try {
-        console.log("Retrying with gemini-1.5-pro...");
-        text = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-pro", false);
-        rawModelOutput = text;
-      } catch (e2) {
-        console.error("Gemini API error (retry with pro):", e2);
-        return new Response(JSON.stringify({ success: false, error: "Gemini API request failed" }), {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      console.error("Lovable AI error:", e);
+      return new Response(JSON.stringify({ success: false, error: "AI request failed" }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let json = safeParseJSONFromText(text);
 
-    // Retry once with stronger constraint if parsing failed
+    // Retry once with stricter prompt if parsing failed
     if (!json) {
       try {
-        console.log("JSON parse failed, retrying with stronger prompt...");
-        const retryText = await callGeminiOnce(genAI, cleanBase64, mimeType, "gemini-1.5-flash", true);
+        console.log("JSON parse failed, retrying with stricter prompt...");
+        const retryText = await callLovableAI(cleanBase64, mimeType, true);
         json = safeParseJSONFromText(retryText);
         rawModelOutput = retryText;
       } catch (e) {
-        console.error("Gemini API error (retry):", e);
+        console.error("Lovable AI retry error:", e);
       }
     }
 

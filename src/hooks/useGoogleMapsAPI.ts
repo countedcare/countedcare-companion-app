@@ -1,191 +1,113 @@
-// src/hooks/useGoogleMapsAPI.ts
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-/**
- * How this works:
- * - Tries to get a BROWSER key from VITE_GOOGLE_MAPS_API_KEY
- * - If not found, fetches from your Supabase Edge Function hosted at:
- *     https://<PROJECT_REF>.functions.supabase.co/get-google-maps-browser-key
- *   (or VITE_SUPABASE_FUNCTIONS_URL if provided)
- * - Loads Maps JS only once with libraries=places
- * - Exposes global singletons for AutocompleteService and PlacesService
- */
+type State = {
+  apiKey?: string;
+  isConfigured: boolean;
+  isLoading: boolean;
+  error?: string | null;
+};
 
 declare global {
   interface Window {
-    __GMAPS_LOADED__?: boolean;
-    __GMAPS_LOADING__?: boolean;
-    __GMAPS_KEY__?: string;
-    __AUTOCOMPLETE_SERVICE__?: google.maps.places.AutocompleteService;
-    __PLACES_SERVICE__?: google.maps.places.PlacesService;
+    __mapsLoaderPromise?: Promise<void>;
   }
 }
 
-const SCRIPT_ATTR = "data-google-maps-loader";
-
-function loadScript(key: string): Promise<void> {
-  if (window.google?.maps?.places) {
-    window.__GMAPS_LOADED__ = true;
-    return Promise.resolve();
-  }
-  if (window.__GMAPS_LOADING__) {
-    // already loading: wait for it
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Maps load timeout")), 20000);
-      const poll = () => {
-        if (window.google?.maps?.places) {
-          clearTimeout(timer);
-          resolve();
-        } else {
-          setTimeout(poll, 50);
-        }
-      };
-      poll();
+function loadScriptOnce(src: string) {
+  if (!window.__mapsLoaderPromise) {
+    window.__mapsLoaderPromise = new Promise<void>((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = src;
+      el.async = true;
+      el.onerror = () => reject(new Error("Failed to load Google Maps JS API script."));
+      el.onload = () => resolve();
+      document.head.appendChild(el);
     });
   }
+  return window.__mapsLoaderPromise!;
+}
 
-  const existing = document.querySelector<HTMLScriptElement>(`script[${SCRIPT_ATTR}="true"]`);
-  if (existing) {
-    // attach listeners
-    return new Promise((resolve, reject) => {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("Maps script error")));
-    });
-  }
+export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
+  const [isConfigured, setConfigured] = useState(false);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  window.__GMAPS_LOADING__ = true;
-  const s = document.createElement("script");
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-    key
-  )}&libraries=places`;
-  s.async = true;
-  s.defer = true;
-  s.setAttribute(SCRIPT_ATTR, "true");
+  const apiKey = useMemo(
+    () => apiKeyOverride || import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    [apiKeyOverride]
+  );
 
-  return new Promise((resolve, reject) => {
-    s.onload = () => {
-      window.__GMAPS_LOADING__ = false;
-      if (window.google?.maps?.places) {
-        window.__GMAPS_LOADED__ = true;
-        resolve();
-      } else {
-        reject(new Error("Google Maps Places library did not initialize"));
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      setLoading(true);
+      setError(null);
+
+      if (!apiKey) {
+        setError("Missing Google Maps API key (VITE_GOOGLE_MAPS_API_KEY).");
+        setLoading(false);
+        return;
       }
+
+      try {
+        // Always request the Places library — required for Autocomplete
+        const url = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+          apiKey
+        )}&libraries=places&v=weekly`;
+
+        await loadScriptOnce(url);
+
+        // If the script returns 200 but the key is blocked/restricted,
+        // Google logs an error in the console *and* the Places lib is missing.
+        const ok = !!(window.google?.maps?.places);
+        if (!ok) {
+          // Common cases → give actionable help
+          const origin = window.location.origin;
+          setError(
+            `Google Maps Places library not available.
+• Ensure "Maps JavaScript API" AND "Places API" are enabled.
+• In Credentials → your key → Application restrictions: include referrer ${origin}/*
+• If API restrictions are on, allow both "Maps JavaScript API" and "Places API".`
+          );
+          setConfigured(false);
+        } else {
+          setConfigured(true);
+        }
+      } catch (e: any) {
+        const msg = String(e?.message || e);
+        // When referrer is blocked, Google often throws in console:
+        // "RefererNotAllowedMapError"
+        const help = msg.includes("RefererNotAllowed")
+          ? `API key blocked for this domain. Add referrer ${window.location.origin}/* to your key restrictions.`
+          : msg;
+        if (!cancelled) setError(help);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    boot();
+    return () => {
+      cancelled = true;
     };
-    s.onerror = () => {
-      window.__GMAPS_LOADING__ = false;
-      reject(new Error("Failed to load Google Maps API"));
-    };
-    document.head.appendChild(s);
-  });
+  }, [apiKey]);
+
+  return { apiKey, isConfigured, isLoading, error };
 }
 
+// Helper functions for components that need the services directly
 export function areGoogleMapsServicesReady(): boolean {
   return !!(window.google?.maps?.places);
 }
 
 export function getGlobalAutocompleteService(): google.maps.places.AutocompleteService {
   if (!areGoogleMapsServicesReady()) throw new Error("Maps not ready");
-  if (!window.__AUTOCOMPLETE_SERVICE__) {
-    window.__AUTOCOMPLETE_SERVICE__ = new google.maps.places.AutocompleteService();
-  }
-  return window.__AUTOCOMPLETE_SERVICE__;
+  return new google.maps.places.AutocompleteService();
 }
 
 export function getGlobalPlacesService(): google.maps.places.PlacesService {
   if (!areGoogleMapsServicesReady()) throw new Error("Maps not ready");
-  if (!window.__PLACES_SERVICE__) {
-    const dummy = document.createElement("div");
-    window.__PLACES_SERVICE__ = new google.maps.places.PlacesService(dummy);
-  }
-  return window.__PLACES_SERVICE__;
+  const dummy = document.createElement("div");
+  return new google.maps.places.PlacesService(dummy);
 }
-
-async function fetchKeyFromFunction(): Promise<string | null> {
-  try {
-    const base = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || "/functions/v1";
-    const res = await fetch(`${base}/get-google-maps-browser-key`, { method: "GET" });
-
-    if (!res.ok) {
-      console.error(
-        "get-google-maps-browser-key failed:",
-        res.status,
-        await res.text().catch(() => "")
-      );
-      return null;
-    }
-
-    const json = await res.json().catch(() => ({}));
-    return json?.apiKey || null;
-  } catch (e) {
-    console.error("fetchKeyFromFunction error:", e);
-    return null;
-  }
-}
-
-export default function useGoogleMapsAPI() {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isConfigured, setIsConfigured] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const initRef = useRef(false);
-
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-
-    (async () => {
-      try {
-        // Check if Google Maps is already loaded
-        if (areGoogleMapsServicesReady()) {
-          // Warm up singletons
-          getGlobalAutocompleteService();
-          getGlobalPlacesService();
-          setIsConfigured(true);
-          setIsLoading(false);
-          return;
-        }
-
-        // 1) try env
-        let key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-
-        // 2) otherwise try edge function
-        if (!key) {
-          key = (await fetchKeyFromFunction()) || undefined;
-        }
-
-        if (!key) {
-          setError("Missing Google Maps browser API key");
-          setIsConfigured(false);
-          setIsLoading(false);
-          return;
-        }
-        window.__GMAPS_KEY__ = key;
-
-        // 3) load script once
-        await loadScript(key);
-
-        // 4) verify places present
-        if (!areGoogleMapsServicesReady()) {
-          setError("Google Maps Places library did not initialize");
-          setIsConfigured(false);
-          setIsLoading(false);
-          return;
-        }
-
-        // 5) warm up singletons
-        getGlobalAutocompleteService();
-        getGlobalPlacesService();
-
-        setIsConfigured(true);
-        setIsLoading(false);
-      } catch (e: any) {
-        setError(e?.message || "Failed to load Google Maps API");
-        setIsConfigured(false);
-        setIsLoading(false);
-      }
-    })();
-  }, []);
-
-  return { isConfigured, isLoading, error, apiKey: window.__GMAPS_KEY__ || "" };
-}
-

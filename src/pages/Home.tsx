@@ -23,12 +23,22 @@ const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useSupabaseProfile();
-  const { expenses, stats } = useExpenseData();
+  const { expenses, stats, reloadExpenses } = useExpenseData();
   const { accounts } = useLinkedAccounts();
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showLoadingExperience, setShowLoadingExperience] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showChecklist, setShowChecklist] = useState(true);
+
+  // Reload expenses when returning to home page
+  React.useEffect(() => {
+    const handleFocus = () => {
+      reloadExpenses();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [reloadExpenses]);
 
   // Calculate completion for checklist logic
   const recipients = [];

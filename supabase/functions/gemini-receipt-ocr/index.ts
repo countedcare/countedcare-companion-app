@@ -355,6 +355,12 @@ serve(async (req) => {
 
     // Log the parsed JSON to debug
     console.log("Parsed JSON from Gemini:", JSON.stringify(json));
+    
+    // Handle if Gemini returns an array (multi-item receipt)
+    if (Array.isArray(json)) {
+      console.log(`Gemini returned array with ${json.length} items, using first item`);
+      json = json[0]; // Use the first item
+    }
 
     // Post-processing & validation
     const vendor: string = typeof json.vendor === "string" ? json.vendor.trim() : (json.vendor ?? "");

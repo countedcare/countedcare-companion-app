@@ -351,6 +351,9 @@ serve(async (req) => {
       });
     }
 
+    // Log the parsed JSON to debug
+    console.log("Parsed JSON from Gemini:", JSON.stringify(json));
+
     // Post-processing & validation
     const vendor: string = typeof json.vendor === "string" ? json.vendor.trim() : (json.vendor ?? "");
 
@@ -375,15 +378,20 @@ serve(async (req) => {
       });
     }
 
-    // Date normalization
+    // Date normalization - use today's date if missing or invalid
     let isoDate: string;
     try {
-      isoDate = normalizeDate(json.date);
+      if (!json.date || json.date === null || String(json.date).trim() === "") {
+        console.log("Date field missing or empty, using today's date");
+        const today = new Date();
+        isoDate = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+      } else {
+        isoDate = normalizeDate(json.date);
+      }
     } catch (e) {
-      return new Response(JSON.stringify({ success: false, error: `Invalid date: ${e instanceof Error ? e.message : String(e)}` }), {
-        status: 422,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.log(`Date parsing failed for value "${json.date}", using today's date. Error: ${e instanceof Error ? e.message : String(e)}`);
+      const today = new Date();
+      isoDate = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
     }
 
     // Field confidences (default 0.6 and clamp)

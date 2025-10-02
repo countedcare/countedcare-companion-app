@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 type State = {
   apiKey?: string;
@@ -31,11 +32,7 @@ export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
   const [isConfigured, setConfigured] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const apiKey = useMemo(
-    () => apiKeyOverride || import.meta.env.VITE_GOOGLE_MAPS_BROWSER_API_KEY,
-    [apiKeyOverride]
-  );
+  const [apiKey, setApiKey] = useState<string | undefined>(apiKeyOverride);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,25 +41,45 @@ export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
       setLoading(true);
       setError(null);
 
-      if (!apiKey) {
-        setError("Missing Google Maps API key (VITE_GOOGLE_MAPS_BROWSER_API_KEY).");
-        setLoading(false);
-        return;
-      }
-
       try {
-        // Always request the Places library — required for Autocomplete
+        // 1. Fetch API key from Edge Function if not provided as override
+        let key = apiKeyOverride;
+        
+        if (!key) {
+          console.log("Fetching Google Maps API key from edge function...");
+          const { data, error: fetchError } = await supabase.functions.invoke(
+            'get-google-maps-browser-key'
+          );
+
+          if (fetchError) {
+            throw new Error(`Failed to fetch API key: ${fetchError.message}`);
+          }
+
+          if (!data?.apiKey) {
+            throw new Error("API key not returned from edge function");
+          }
+
+          key = data.apiKey;
+          setApiKey(key);
+          console.log("Successfully fetched Google Maps API key");
+        }
+
+        if (!key) {
+          setError("Missing Google Maps API key.");
+          setLoading(false);
+          return;
+        }
+
+        // 2. Load Google Maps script with the fetched key
         const url = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-          apiKey
+          key
         )}&libraries=places&v=weekly`;
 
         await loadScriptOnce(url);
 
-        // If the script returns 200 but the key is blocked/restricted,
-        // Google logs an error in the console *and* the Places lib is missing.
+        // 3. Verify Places library loaded successfully
         const ok = !!(window.google?.maps?.places);
         if (!ok) {
-          // Common cases → give actionable help
           const origin = window.location.origin;
           setError(
             `Google Maps Places library not available.
@@ -76,12 +93,11 @@ export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
         }
       } catch (e: any) {
         const msg = String(e?.message || e);
-        // When referrer is blocked, Google often throws in console:
-        // "RefererNotAllowedMapError"
         const help = msg.includes("RefererNotAllowed")
           ? `API key blocked for this domain. Add referrer ${window.location.origin}/* to your key restrictions.`
           : msg;
         if (!cancelled) setError(help);
+        console.error("Error loading Google Maps:", e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -91,7 +107,7 @@ export default function useGoogleMapsAPI(apiKeyOverride?: string): State {
     return () => {
       cancelled = true;
     };
-  }, [apiKey]);
+  }, [apiKeyOverride]);
 
   return { apiKey, isConfigured, isLoading, error };
 }

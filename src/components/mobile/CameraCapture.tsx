@@ -6,7 +6,7 @@ import { Camera, ImageIcon, Scan, Loader2 } from 'lucide-react';
 import { CameraService } from '@/services/cameraService';
 import { useToast } from '@/components/ui/use-toast';
 import { Photo } from '@capacitor/camera';
-import { supabase } from '@/integrations/supabase/client';
+import { runReceiptOcr } from '@/lib/ocrClient';
 
 interface CameraCaptureProps {
   onImageCaptured: (imageUri: string, photo: Photo) => void;
@@ -24,7 +24,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const convertImageToBase64 = async (imageUri: string): Promise<string> => {
+  const convertImageToDataUrl = async (imageUri: string): Promise<string> => {
     try {
       const response = await fetch(imageUri);
       const blob = await response.blob();
@@ -32,16 +32,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          const base64String = reader.result as string;
-          // Remove the data:image/jpeg;base64, prefix
-          const base64Data = base64String.split(',')[1];
-          resolve(base64Data);
+          resolve(reader.result as string);
         };
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error('Error converting image to base64:', error);
+      console.error('Error converting image to data URL:', error);
       throw error;
     }
   };
@@ -55,34 +52,22 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
         description: "Extracting expense data from your receipt..."
       });
 
-      const base64Image = await convertImageToBase64(imageUri);
-      
-      const { data, error } = await supabase.functions.invoke('gemini-receipt-ocr', {
-        body: { imageBase64: base64Image }
+      const dataUrl = await convertImageToDataUrl(imageUri);
+      const result = await runReceiptOcr(dataUrl);
+
+      toast({
+        title: "Receipt Processed!",
+        description: "Expense data extracted successfully"
       });
-
-      if (error) {
-        console.error('OCR processing error:', error);
-        throw new Error(error.message || 'Failed to process receipt');
+      
+      if (onReceiptProcessed) {
+        onReceiptProcessed(result);
       }
-
-      if (data?.success && data?.data) {
-        toast({
-          title: "Receipt Processed!",
-          description: "Expense data extracted successfully"
-        });
-        
-        if (onReceiptProcessed) {
-          onReceiptProcessed(data.data);
-        }
-      } else {
-        throw new Error('Failed to extract data from receipt');
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing receipt:', error);
       toast({
-        title: "Processing Error",
-        description: "Could not extract data from receipt. You can still add the expense manually.",
+        title: "OCR Processing Failed",
+        description: String(error?.message ?? error),
         variant: "destructive"
       });
     } finally {

@@ -18,6 +18,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { EXPENSE_CATEGORIES } from '@/types/User';
 import * as pdfjsLib from 'pdfjs-dist';
+import { fileToDataUrl, runReceiptOcr } from '@/lib/ocrClient';
 
 interface ExpenseReceiptUploadProps {
   receiptUrl: string | undefined;
@@ -141,14 +142,7 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
     if (data.date) form.setValue('date', new Date(data.date));
   };
 
-  // Base64 util
-  const fileToBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string).split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  // Removed old fileToBase64 - now using fileToDataUrl from ocrClient
 
   // Render first page of a PDF to a JPEG file (for OCR)
   const pdfFirstPageToImageFile = async (pdfArrayBuffer: ArrayBuffer): Promise<File> => {
@@ -180,35 +174,27 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
       setIsProcessingDocument(true);
       toast({ title: 'Processing', description: 'Extracting expense data...' });
 
-      const base64Data = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke('gemini-receipt-ocr', {
-        body: { imageBase64: base64Data, wantFields: ['title', 'amount', 'date', 'vendor', 'location', 'category'] },
-      });
-      if (error) throw new Error(error.message || 'Failed to process document');
+      const dataUrl = await fileToDataUrl(file);
+      const result = await runReceiptOcr(dataUrl);
 
-      if (data?.success && data?.data) {
-        const ex = data.data || {};
-        const normalized = {
-          title: ex.title || undefined,
-          vendor: ex.vendor || undefined,
-          location: ex.location || undefined,
-          category: ex.category || undefined,
-          amount: ex.amount != null ? Number(ex.amount) : undefined,
-          date: ex.date || undefined,
-        };
-        setExtractedValues(normalized);
-        setFieldConfidence(ex.fieldConfidence || {});
-        applyExtractedToForm(normalized);
-        onReceiptProcessed?.(ex);
-        toast({ title: 'Done', description: 'Data extracted successfully.' });
-      } else {
-        throw new Error('Failed to extract data from document');
-      }
+      const normalized = {
+        title: undefined, // Not extracted by OCR
+        vendor: result.vendor || undefined,
+        location: undefined, // Not extracted by OCR
+        category: result.category || undefined,
+        amount: result.amount != null ? Number(result.amount) : undefined,
+        date: result.date || undefined,
+      };
+      setExtractedValues(normalized);
+      setFieldConfidence(result.fieldConfidence || {});
+      applyExtractedToForm(normalized);
+      onReceiptProcessed?.(result);
+      toast({ title: 'Done', description: 'Data extracted successfully.' });
     } catch (err) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : 'Could not extract data. You can still enter it manually.';
       toast({
-        title: 'Processing Error',
+        title: 'OCR Processing Failed',
         description: errorMessage,
         variant: 'destructive',
       });

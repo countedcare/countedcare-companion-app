@@ -376,10 +376,13 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       // Extraction for images and PDFs (PDF -> image first)
       if (file.type === 'application/pdf') {
+        console.log("Converting PDF to image for OCR...");
         const buf = await file.arrayBuffer();
         const imageFromPdf = await pdfFirstPageToImageFile(buf);
+        console.log("PDF converted to image:", imageFromPdf.type, imageFromPdf.size, "bytes");
         await processDocumentWithGemini(imageFromPdf);
       } else {
+        console.log("Processing image directly for OCR:", file.type, file.size, "bytes");
         await processDocumentWithGemini(file);
       }
     } catch (error) {

@@ -34,7 +34,9 @@ type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 function detectMimeFromBase64(b64: string): string {
   const head = b64.slice(0, 32);
-  if (head.startsWith("JVBERi0x")) return "application/pdf"; // %PDF
+  if (head.startsWith("JVBERi0x")) {
+    throw new Error("PDF format not supported. The receipt must be converted to an image (JPG/PNG) first.");
+  }
   if (head.startsWith("iVBORw0KGgo")) return "image/png";    // PNG
   if (head.startsWith("/9j/")) return "image/jpeg";            // JPEG
   // HEIC detection

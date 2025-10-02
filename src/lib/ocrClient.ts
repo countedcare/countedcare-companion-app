@@ -33,6 +33,7 @@ export async function runReceiptOcr(imageBase64: string) {
     headers.Authorization = `Bearer ${ANON_KEY}`;
   }
 
+  console.log("Calling OCR function:", FN_URL);
   const res = await fetch(FN_URL, {
     method: "POST",
     headers,
@@ -40,13 +41,18 @@ export async function runReceiptOcr(imageBase64: string) {
   });
 
   const bodyText = await res.text();
+  console.log("OCR response status:", res.status, "body length:", bodyText.length);
+  
   let bodyJson: any = null;
   try { bodyJson = JSON.parse(bodyText); } catch {}
 
   if (!res.ok || !bodyJson?.success) {
     const msg = bodyJson?.error ?? bodyText ?? res.statusText;
+    console.error("OCR error response:", { status: res.status, bodyJson, bodyText });
     throw new Error(`HTTP ${res.status} ${res.statusText} — ${msg}`);
   }
+
+  console.log("OCR success:", bodyJson);
 
   return bodyJson.data as {
     vendor: string;

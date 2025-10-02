@@ -128,18 +128,44 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
   const [lastProcessedBlob, setLastProcessedBlob] = useState<Blob | null>(null);
 
   const applyExtractedToForm = (data: any) => {
-    if (data.title) form.setValue('title', data.title);
+    console.log("Applying extracted data to form:", data);
+    
+    if (data.title) {
+      console.log("Setting title:", data.title);
+      form.setValue('title', data.title);
+    }
     if (!data.title) {
       // derive a reasonable default
       const d = data.date ? new Date(data.date) : undefined;
       const dateStr = d ? d.toLocaleDateString() : '';
-      if (data.vendor || dateStr) form.setValue('title', [data.vendor, dateStr].filter(Boolean).join(' — '));
+      if (data.vendor || dateStr) {
+        const derivedTitle = [data.vendor, dateStr].filter(Boolean).join(' — ');
+        console.log("Setting derived title:", derivedTitle);
+        form.setValue('title', derivedTitle);
+      }
     }
-    if (data.vendor) form.setValue('vendor', data.vendor);
-    if (data.location) form.setValue('location', data.location);
-    if (data.category) form.setValue('category', data.category);
-    if (data.amount) form.setValue('amount', Number(data.amount));
-    if (data.date) form.setValue('date', new Date(data.date));
+    if (data.vendor) {
+      console.log("Setting vendor:", data.vendor);
+      form.setValue('vendor', data.vendor);
+    }
+    if (data.location) {
+      console.log("Setting location:", data.location);
+      form.setValue('location', data.location);
+    }
+    if (data.category) {
+      console.log("Setting category:", data.category);
+      form.setValue('category', data.category);
+    }
+    if (data.amount) {
+      console.log("Setting amount:", data.amount);
+      form.setValue('amount', Number(data.amount));
+    }
+    if (data.date) {
+      console.log("Setting date:", data.date);
+      form.setValue('date', new Date(data.date));
+    }
+    
+    console.log("Form values after applying:", form.getValues());
   };
 
   // Removed old fileToBase64 - now using fileToDataUrl from ocrClient
@@ -176,6 +202,8 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
 
       const dataUrl = await fileToDataUrl(file);
       const result = await runReceiptOcr(dataUrl);
+      
+      console.log("OCR Result received:", result);
 
       const normalized = {
         title: undefined, // Not extracted by OCR
@@ -185,13 +213,28 @@ const ExpenseReceiptUpload: React.FC<ExpenseReceiptUploadProps> = ({
         amount: result.amount != null ? Number(result.amount) : undefined,
         date: result.date || undefined,
       };
+      
+      console.log("Normalized data:", normalized);
+      
       setExtractedValues(normalized);
       setFieldConfidence(result.fieldConfidence || {});
       applyExtractedToForm(normalized);
       onReceiptProcessed?.(result);
-      toast({ title: 'Done', description: 'Data extracted successfully.' });
+      
+      // Show what was actually extracted
+      const extractedFields = Object.entries(normalized)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key]) => key)
+        .join(', ');
+      
+      toast({ 
+        title: 'Receipt Processed!', 
+        description: extractedFields 
+          ? `Extracted: ${extractedFields}` 
+          : 'No data could be extracted. Please enter manually.'
+      });
     } catch (err) {
-      console.error(err);
+      console.error('OCR processing error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Could not extract data. You can still enter it manually.';
       toast({
         title: 'OCR Processing Failed',

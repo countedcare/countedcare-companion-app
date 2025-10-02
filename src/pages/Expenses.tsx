@@ -55,10 +55,8 @@ const Expenses = () => {
   const [amountRange, setAmountRange] = useState<[number, number]>([0, 10000]);
   const [showLinkAccountModal, setShowLinkAccountModal] = useState(false);
 
-  // Reload expenses when page loads or comes into focus
+  // Reload expenses when returning to the page
   useEffect(() => {
-    reloadExpenses();
-    
     const handleFocus = () => {
       reloadExpenses();
     };

@@ -32,10 +32,13 @@ interface MileageResult {
   irsRate: number;
 }
 
-const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculated }) => {
+  const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculated }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { apiKey, isConfigured, isLoading, error: mapsError } = useGoogleMapsAPI();
+  
+  // Check if there's a persistent Google Maps API error
+  const hasMapsApiError = !!(mapsError && mapsError.includes('RefererNotAllowedMapError'));
 
   const [fromAddress, setFromAddress] = useState('');
   const [toAddress, setToAddress] = useState('');
@@ -317,7 +320,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
       <div className="grid grid-cols-1 gap-4">
         {/* From Address */}
         <div className="space-y-2">
-          {(isConfigured && !mapsApiError && !mapsError) ? (
+          {(isConfigured && !mapsApiError && !hasMapsApiError) ? (
             <MileageLocationInput
               label="From Address"
               placeholder="Enter starting address"
@@ -359,7 +362,7 @@ const MileageCalculator: React.FC<MileageCalculatorProps> = ({ onAmountCalculate
 
         {/* To Address */}
         <div className="space-y-2">
-          {(isConfigured && !mapsApiError && !mapsError) ? (
+          {(isConfigured && !mapsApiError && !hasMapsApiError) ? (
             <MileageLocationInput
               label="To Address"
               placeholder="Enter destination address"

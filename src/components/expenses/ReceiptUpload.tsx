@@ -394,11 +394,9 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                           className="w-full h-full object-contain"
                         />
                       ) : (
-                        <iframe
-                          src={item.url}
-                          className="w-full h-full border-0"
-                          title={`Receipt ${displayIndex + 1}`}
-                        />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileText className="h-16 w-16 text-muted-foreground" />
+                        </div>
                       )}
                     </div>
                     

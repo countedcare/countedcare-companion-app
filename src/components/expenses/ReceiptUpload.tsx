@@ -299,6 +299,24 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
   };
 
 
+  // Combine existing receipts and uploading files for display
+  const allReceiptItems = [
+    ...receipts.map((url, idx) => ({
+      type: 'existing' as const,
+      url,
+      isPdf: url.endsWith('.pdf'),
+      index: idx,
+      status: 'success' as const
+    })),
+    ...uploadedFiles.map((fileObj, idx) => ({
+      type: 'uploading' as const,
+      fileObj,
+      isPdf: fileObj.file.type === 'application/pdf',
+      index: idx,
+      status: fileObj.status
+    }))
+  ];
+
   const totalReceipts = receipts.length + uploadedFiles.filter(f => f.status === 'success').length;
 
   return (
@@ -359,139 +377,123 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
         </CardContent>
       </Card>
 
-      {/* Existing Receipts */}
-      {receipts.length > 0 && (
+      {/* All Receipts (existing and uploading) */}
+      {allReceiptItems.length > 0 && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Uploaded Receipts</Label>
+          <Label className="text-sm font-medium">Receipts</Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {receipts.map((receiptUrl, index) => {
-              const isPdf = receiptUrl.endsWith('.pdf');
-              return (
-                <Card key={receiptUrl} className="overflow-hidden">
-                  {/* Image Preview */}
-                  {!isPdf && (
+            {allReceiptItems.map((item, displayIndex) => {
+              if (item.type === 'existing') {
+                return (
+                  <Card key={`existing-${item.url}`} className="overflow-hidden">
                     <div className="relative w-full h-48 bg-muted">
-                      <img 
-                        src={receiptUrl} 
-                        alt={`Receipt ${index + 1}`}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  )}
-                  
-                  {/* PDF Indicator */}
-                  {isPdf && (
-                    <div className="relative w-full h-48 bg-muted flex items-center justify-center">
-                      <FileText className="h-16 w-16 text-muted-foreground" />
-                    </div>
-                  )}
-                  
-                  {/* Actions */}
-                  <div className="p-3 border-t">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium">Receipt {index + 1}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {isPdf ? 'PDF Document' : 'Image'}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <ReceiptViewer
-                          receipts={[receiptUrl]}
-                          trigger={
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title="View full size"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          }
+                      {!item.isPdf ? (
+                        <img 
+                          src={item.url} 
+                          alt={`Receipt ${displayIndex + 1}`}
+                          className="w-full h-full object-contain"
                         />
+                      ) : (
+                        <iframe
+                          src={item.url}
+                          className="w-full h-full border-0"
+                          title={`Receipt ${displayIndex + 1}`}
+                        />
+                      )}
+                    </div>
+                    
+                    <div className="p-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">Receipt {displayIndex + 1}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.isPdf ? 'PDF Document' : 'Image'}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <ReceiptViewer
+                            receipts={[item.url]}
+                            trigger={
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="View full size"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            }
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeExistingReceipt(item.url)}
+                            title="Remove receipt"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              } else {
+                const fileObj = item.fileObj;
+                return (
+                  <Card key={`uploading-${item.index}`} className="overflow-hidden">
+                    <div className="relative w-full h-48 bg-muted">
+                      {!item.isPdf && fileObj.preview ? (
+                        <img 
+                          src={fileObj.preview} 
+                          alt={fileObj.file.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileText className="h-16 w-16 text-muted-foreground" />
+                        </div>
+                      )}
+                      
+                      {/* Upload Status Overlay */}
+                      {fileObj.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <div className="text-center text-white">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                            <p className="text-sm font-medium">{fileObj.progress}%</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="p-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{fileObj.file.name}</p>
+                          <div className="mt-1">
+                            {fileObj.status === 'error' && (
+                              <p className="text-xs text-destructive">{fileObj.error}</p>
+                            )}
+                            {fileObj.status === 'success' && (
+                              <p className="text-xs text-green-600 flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Uploaded
+                              </p>
+                            )}
+                          </div>
+                        </div>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => removeExistingReceipt(receiptUrl)}
-                          title="Remove receipt"
+                          onClick={() => removeFile(item.index, fileObj.url)}
+                          className="ml-2"
+                          disabled={fileObj.status === 'uploading'}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Uploading Files */}
-      {uploadedFiles.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Processing</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {uploadedFiles.map((fileObj, index) => {
-              const isPdf = fileObj.file.type === 'application/pdf';
-              return (
-                <Card key={index} className="overflow-hidden">
-                  {/* Image Preview or PDF Placeholder */}
-                  <div className="relative w-full h-48 bg-muted">
-                    {!isPdf && fileObj.preview ? (
-                      <img 
-                        src={fileObj.preview} 
-                        alt={fileObj.file.name}
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <FileText className="h-16 w-16 text-muted-foreground" />
-                      </div>
-                    )}
-                    
-                    {/* Upload Status Overlay */}
-                    {fileObj.status === 'uploading' && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                          <p className="text-sm font-medium">{fileObj.progress}%</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* File Info */}
-                  <div className="p-3 border-t">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{fileObj.file.name}</p>
-                        <div className="mt-1">
-                          {fileObj.status === 'uploading' && (
-                            <Progress value={fileObj.progress} className="h-2" />
-                          )}
-                          {fileObj.status === 'error' && (
-                            <p className="text-xs text-destructive">{fileObj.error}</p>
-                          )}
-                          {fileObj.status === 'success' && (
-                            <p className="text-xs text-green-600 flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3" />
-                              Upload complete
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeFile(index, fileObj.url)}
-                        className="ml-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              );
+                  </Card>
+                );
+              }
             })}
           </div>
         </div>

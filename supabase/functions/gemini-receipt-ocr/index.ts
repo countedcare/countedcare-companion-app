@@ -303,21 +303,21 @@ serve(async (req) => {
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Try with flash model first (using correct versioned model name)
+    // Try with Gemini 2.0 Flash-Lite (faster, cheaper)
     let text: string;
     let rawModelOutput = "";
     try {
-      text = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-flash-002", false);
+      text = await callGemini(genAI, cleanBase64, mimeType, "gemini-2.0-flash-lite", false);
       rawModelOutput = text;
     } catch (e) {
-      console.error("Gemini flash error:", e);
-      // Fallback to pro model
+      console.error("Gemini flash-lite error:", e);
+      // Fallback to Gemini 2.0 Flash (more capable)
       try {
-        console.log("Retrying with gemini-1.5-pro-002...");
-        text = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-pro-002", false);
+        console.log("Retrying with gemini-2.0-flash...");
+        text = await callGemini(genAI, cleanBase64, mimeType, "gemini-2.0-flash", false);
         rawModelOutput = text;
       } catch (e2) {
-        console.error("Gemini pro error:", e2);
+        console.error("Gemini flash error:", e2);
         return new Response(JSON.stringify({ success: false, error: "Gemini API request failed" }), {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -331,7 +331,7 @@ serve(async (req) => {
     if (!json) {
       try {
         console.log("JSON parse failed, retrying with stricter prompt...");
-        const retryText = await callGemini(genAI, cleanBase64, mimeType, "gemini-1.5-flash-002", true);
+        const retryText = await callGemini(genAI, cleanBase64, mimeType, "gemini-2.0-flash-lite", true);
         json = safeParseJSONFromText(retryText);
         rawModelOutput = retryText;
       } catch (e) {

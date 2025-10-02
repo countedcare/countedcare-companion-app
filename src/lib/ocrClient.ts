@@ -5,7 +5,8 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 // Set to false if you use `supabase functions serve` (function on 9999).
 const USE_LOCAL_GATEWAY = false;
 
-const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+// Force production for testing since local requires .env file
+const isLocal = false; // Set to true for local testing with .env file
 
 const FN_URL = isLocal
   ? (USE_LOCAL_GATEWAY

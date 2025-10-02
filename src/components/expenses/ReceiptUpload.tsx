@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { fileToDataUrl, runReceiptOcr } from '@/lib/ocrClient';
+import ReceiptViewer from './ReceiptViewer';
 
 interface ReceiptUploadProps {
   expenseId?: string;
@@ -297,10 +298,6 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     }
   };
 
-  // View receipt
-  const viewReceipt = (url: string) => {
-    window.open(url, '_blank');
-  };
 
   const totalReceipts = receipts.length + uploadedFiles.filter(f => f.status === 'success').length;
 
@@ -399,14 +396,18 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                         </p>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => viewReceipt(receiptUrl)}
-                          title="View full size"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <ReceiptViewer
+                          receipts={[receiptUrl]}
+                          trigger={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="View full size"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
                         <Button
                           size="sm"
                           variant="ghost"

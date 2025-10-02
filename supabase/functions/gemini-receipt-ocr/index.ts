@@ -145,6 +145,17 @@ async function callLovableAI(
     throw new Error("LOVABLE_API_KEY not configured");
   }
 
+  // Validate base64 string
+  console.log(`Image info: mimeType=${mimeType}, base64Length=${imageBase64.length}`);
+  
+  // Ensure clean base64 with no whitespace or newlines
+  const cleanBase64 = imageBase64.replace(/[\s\n\r]/g, '');
+  
+  // Validate base64 format (basic check)
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+    throw new Error("Invalid base64 format");
+  }
+
   const allowed = ALLOWED_CATEGORIES.map(c => `"${c}"`).join(", ");
   const userInstruction =
     `Extract ONLY these fields as JSON with this exact schema (no extra fields):
@@ -157,34 +168,39 @@ async function callLovableAI(
 }
 ${stricterPrompt ? "Return ONLY valid JSON. No explanations or markdown." : "Return valid JSON only."}`;
 
+  const payload = {
+    model: "google/gemini-2.5-flash",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: userInstruction },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${cleanBase64}`
+            }
+          }
+        ]
+      }
+    ],
+  };
+
+  console.log(`Calling Lovable AI with image: ${mimeType}, ${cleanBase64.length} chars`);
+
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: userInstruction },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`
-              }
-            }
-          ]
-        }
-      ],
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Lovable AI error:", response.status, errorText);
+    console.error("Request details - mimeType:", mimeType, "base64Length:", cleanBase64.length);
     throw new Error(`Lovable AI request failed: ${response.status} ${errorText}`);
   }
 
@@ -207,11 +223,18 @@ function parseImagePayload(imageBase64: string): { cleanBase64: string; mimeType
     base64 = dataUrlMatch[2];
   }
 
-  // Remove whitespace/newlines that sometimes get introduced by mobile scanners
-  base64 = base64.replace(/\s+/g, "");
+  // Remove ALL whitespace/newlines/carriage returns
+  base64 = base64.replace(/[\s\n\r\t]/g, "");
 
   // Autodetect MIME if data URL didn't specify one
-  if (!mimeType) mimeType = detectMimeFromBase64(base64);
+  if (!mimeType) {
+    mimeType = detectMimeFromBase64(base64);
+  }
+
+  // Normalize MIME type for AI gateway compatibility
+  if (mimeType === "image/jpg") mimeType = "image/jpeg";
+
+  console.log(`Parsed image: ${mimeType}, ${base64.length} chars`);
 
   return { cleanBase64: base64, mimeType };
 }
@@ -260,6 +283,24 @@ serve(async (req) => {
 
     // Handle data URLs, strip whitespace/newlines, detect MIME reliably
     const { cleanBase64, mimeType } = parseImagePayload(imageBase64);
+
+    // Validate the base64 is well-formed
+    if (cleanBase64.length < 100) {
+      return new Response(JSON.stringify({ success: false, error: "Image data too short to be valid" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if base64 is valid format
+    if (!/^[A-Za-z0-9+/]+=*$/.test(cleanBase64)) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid base64 format detected" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Processing image: ${mimeType}, ${cleanBase64.length} chars, first 50 chars: ${cleanBase64.substring(0, 50)}`);
 
     // Optional: guard rail on payload size (~10MB base64 ≈ 7.5MB binary)
     if (cleanBase64.length > 14_000_000) {

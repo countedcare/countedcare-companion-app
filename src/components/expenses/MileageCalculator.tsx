@@ -167,6 +167,8 @@ interface MileageResult {
   };
 
   const calculateMileage = async () => {
+    console.log('Calculate button clicked', { fromAddress, toAddress });
+    
     if (!fromAddress.trim() || !toAddress.trim()) {
       toast({
         title: 'Missing Information',
@@ -181,6 +183,7 @@ interface MileageResult {
     setResult(null);
 
     try {
+      console.log('Calling calculate-mileage edge function...');
       const { data, error } = await supabase.functions.invoke('calculate-mileage', {
         body: {
           from: fromAddress.trim(),
@@ -189,6 +192,8 @@ interface MileageResult {
           toPlaceId: toPlaceId ?? undefined,
         }
       });
+
+      console.log('Edge function response:', { data, error });
 
       if (error) throw new Error(error.message || 'Failed to calculate mileage');
 
@@ -217,6 +222,7 @@ interface MileageResult {
       });
 
     } catch (err) {
+      console.error('Calculate mileage error:', err);
       let errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       
       // Handle specific Google Maps API errors
@@ -278,6 +284,10 @@ interface MileageResult {
     }
   };
 
+  // Debug log to check button state
+  const isButtonDisabled = isCalculating || !fromAddress.trim() || !toAddress.trim();
+  console.log('Button state:', { isButtonDisabled, fromAddress, toAddress, isCalculating });
+
   return (
     <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
       <div className="flex items-center gap-2">
@@ -338,7 +348,12 @@ interface MileageResult {
                 id="from-address"
                 placeholder="Enter starting address or coordinates (e.g., '123 Main St' or '34.0522,-118.2437')"
                 value={fromAddress}
-                onChange={(e) => { setFromAddress(e.target.value); setFromPlaceId(null); setResult(null); }}
+                onChange={(e) => { 
+                  console.log('From address changed:', e.target.value);
+                  setFromAddress(e.target.value); 
+                  setFromPlaceId(null); 
+                  setResult(null); 
+                }}
                 className="bg-white"
               />
             </>
@@ -380,7 +395,12 @@ interface MileageResult {
                 id="to-address"
                 placeholder="Enter destination address or coordinates (e.g., '456 Oak Ave' or '34.0522,-118.2437')"
                 value={toAddress}
-                onChange={(e) => { setToAddress(e.target.value); setToPlaceId(null); setResult(null); }}
+                onChange={(e) => { 
+                  console.log('To address changed:', e.target.value);
+                  setToAddress(e.target.value); 
+                  setToPlaceId(null); 
+                  setResult(null); 
+                }}
                 className="bg-white"
               />
             </>
@@ -410,7 +430,7 @@ interface MileageResult {
 
       <Button
         onClick={calculateMileage}
-        disabled={isCalculating || !fromAddress.trim() || !toAddress.trim()}
+        disabled={isButtonDisabled}
         className="w-full"
       >
         {isCalculating ? (
@@ -473,10 +493,6 @@ interface MileageResult {
           </Button>
         </div>
       )}
-
-      <p className="text-xs text-blue-600">
-        * Based on 2024 IRS standard mileage rate of $0.21 per mile
-      </p>
     </div>
   );
 };

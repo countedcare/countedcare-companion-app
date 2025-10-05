@@ -7,7 +7,7 @@ export interface CareRecipient {
   name: string;
   relationship: string;
   date_of_birth?: string;
-  ssn_last_four?: string;
+  ssn_last_four?: string; // Note: This is encrypted at rest. Pass plaintext to add/update, it will be encrypted automatically
   notes?: string;
   user_id: string;
   created_at?: string;
@@ -28,6 +28,9 @@ export function useSupabaseCareRecipients() {
     }
 
     try {
+      // Note: SSN data is encrypted at rest using pgsodium
+      // The ssn_last_four field will be NULL in responses (stored encrypted)
+      // To decrypt, use the get_care_recipient_ssn(id) database function
       const { data, error } = await supabase
         .from('care_recipients')
         .select('*')
@@ -48,6 +51,8 @@ export function useSupabaseCareRecipients() {
     if (!user) throw new Error('User not authenticated');
 
     try {
+      // Note: SSN data (if provided in ssn_last_four) will be automatically encrypted
+      // by the care_recipient_encrypt_ssn trigger before insertion
       const { data, error } = await supabase
         .from('care_recipients')
         .insert([{ ...recipientData, user_id: user.id }])
@@ -67,6 +72,8 @@ export function useSupabaseCareRecipients() {
     if (!user) throw new Error('User not authenticated');
 
     try {
+      // Note: SSN data (if provided in ssn_last_four) will be automatically encrypted
+      // by the care_recipient_encrypt_ssn trigger before update
       const { data, error } = await supabase
         .from('care_recipients')
         .update(updates)

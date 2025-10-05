@@ -22,8 +22,6 @@ export type Database = {
           name: string
           notes: string | null
           relationship: string
-          ssn_last_four: string | null
-          ssn_last_four_encrypted: string | null
           updated_at: string | null
           user_id: string
         }
@@ -34,8 +32,6 @@ export type Database = {
           name: string
           notes?: string | null
           relationship: string
-          ssn_last_four?: string | null
-          ssn_last_four_encrypted?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -46,8 +42,6 @@ export type Database = {
           name?: string
           notes?: string | null
           relationship?: string
-          ssn_last_four?: string | null
-          ssn_last_four_encrypted?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -762,10 +756,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      encrypt_ssn: {
-        Args: { ssn_value: string }
-        Returns: string
-      }
       get_all_user_transactions: {
         Args: {
           p_filter?: string
@@ -796,10 +786,6 @@ export type Database = {
           triage_created_at: string
           triage_decision: string
         }[]
-      }
-      get_care_recipient_ssn: {
-        Args: { recipient_id: string }
-        Returns: string
       }
       get_online_user_count: {
         Args: Record<PropertyKey, never>

@@ -28,10 +28,27 @@
     <script id="ze-snippet" src="https://static.zdassets.com/ekr/snippet.js?key=9e8468e0-c956-4723-8498-19caacac2b63"> </script>
     <script>
       // Hide Zendesk widget by default - only shown on Help page
-      window.addEventListener('load', function() {
-        if (window.zE) {
-          window.zE('messenger', 'hide');
+      window.zESettings = {
+        webWidget: {
+          offset: {
+            horizontal: '0px',
+            vertical: '0px'
+          }
         }
+      };
+      
+      // Ensure widget is hidden on initial load
+      if (window.zE) {
+        window.zE('messenger', 'hide');
+      }
+      
+      // Also hide after script loads
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (window.zE) {
+            window.zE('messenger', 'hide');
+          }
+        }, 100);
       });
     </script>
     <!-- End of countedcare Zendesk Widget script -->

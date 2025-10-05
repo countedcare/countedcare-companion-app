@@ -37,13 +37,16 @@ const Help = () => {
 
   // Show Zendesk widget on this page only
   useEffect(() => {
-    // Show Zendesk when component mounts
-    if (window.zE) {
-      window.zE('messenger', 'show');
-    }
+    // Show Zendesk when component mounts (with small delay to ensure it's loaded)
+    const showTimer = setTimeout(() => {
+      if (window.zE) {
+        window.zE('messenger', 'show');
+      }
+    }, 100);
 
     // Hide Zendesk when component unmounts
     return () => {
+      clearTimeout(showTimer);
       if (window.zE) {
         window.zE('messenger', 'hide');
       }

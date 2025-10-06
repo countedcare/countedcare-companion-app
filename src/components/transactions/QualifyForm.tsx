@@ -15,6 +15,7 @@ import { CalendarIcon, Upload, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
 
 import { Transaction } from '@/hooks/useTransactionReview';
 
@@ -43,6 +44,7 @@ const formSchema = z.object({
   vendor: z.string().min(1, 'Vendor is required'),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
   category: z.string().min(1, 'Category is required'),
+  care_recipient_id: z.string().min(1, 'Care recipient is required'),
   notes: z.string().optional(),
   is_tax_deductible: z.boolean().default(true),
 });
@@ -53,6 +55,7 @@ export function QualifyForm({ open, onOpenChange, transaction, onSubmit }: Quali
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const { toast } = useToast();
+  const { recipients } = useSupabaseCareRecipients();
 
   const form = useForm<ExpenseFormData>({
     resolver: zodResolver(formSchema),
@@ -61,6 +64,7 @@ export function QualifyForm({ open, onOpenChange, transaction, onSubmit }: Quali
       vendor: '',
       amount: 0,
       category: '',
+      care_recipient_id: '',
       notes: '',
       is_tax_deductible: true,
     },
@@ -82,6 +86,7 @@ export function QualifyForm({ open, onOpenChange, transaction, onSubmit }: Quali
         vendor: transaction.merchant_name || transaction.description.split(' ').slice(0, 3).join(' '),
         amount: Math.abs(transaction.amount), // Ensure positive amount
         category: transaction.category || 'Medical Visits',
+        care_recipient_id: '',
         notes: `Original description: ${transaction.description}`,
         is_tax_deductible: isLikelyMedical, // Default based on medical likelihood
       });
@@ -246,6 +251,33 @@ export function QualifyForm({ open, onOpenChange, transaction, onSubmit }: Quali
                       {EXPENSE_CATEGORIES.map((category) => (
                         <SelectItem key={category} value={category}>
                           {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Care Recipient */}
+            <FormField
+              control={form.control}
+              name="care_recipient_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Care Recipient *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Who is this expense for?" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="myself">Myself</SelectItem>
+                      {recipients.filter(recipient => recipient.id?.trim()).map((recipient) => (
+                        <SelectItem key={recipient.id} value={recipient.id}>
+                          {recipient.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

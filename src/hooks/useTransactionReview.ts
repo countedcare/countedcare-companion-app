@@ -25,6 +25,7 @@ interface ExpenseFormData {
   vendor: string;
   amount: number;
   category: string;
+  care_recipient_id: string;
   notes?: string;
   is_tax_deductible: boolean;
 }
@@ -165,6 +166,7 @@ export function useTransactionReview({ sort = 'newest', filter = 'all' }: UseTra
             vendor: expenseData.vendor,
             amount: expenseData.amount,
             category: expenseData.category,
+            care_recipient_id: expenseData.care_recipient_id === 'myself' ? null : expenseData.care_recipient_id,
             notes: expenseData.notes,
             is_tax_deductible: expenseData.is_tax_deductible,
             is_potentially_deductible: expenseData.is_tax_deductible,

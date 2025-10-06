@@ -23,37 +23,5 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Start of countedcare Zendesk Widget script -->
-    <script id="ze-snippet" src="https://static.zdassets.com/ekr/snippet.js?key=9e8468e0-c956-4723-8498-19caacac2b63"> </script>
-    <script>
-      // Hide Zendesk widget by default - only shown on Help page
-      window.zESettings = {
-        webWidget: {
-          offset: {
-            horizontal: '0px',
-            vertical: '0px'
-          },
-          launcher: {
-            visible: false
-          }
-        }
-      };
-      
-      // Ensure widget is hidden on initial load
-      if (window.zE) {
-        window.zE('messenger', 'hide');
-      }
-      
-      // Also hide after script loads
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          if (window.zE) {
-            window.zE('messenger', 'hide');
-          }
-        }, 100);
-      });
-    </script>
-    <!-- End of countedcare Zendesk Widget script -->
   </body>
 </html>

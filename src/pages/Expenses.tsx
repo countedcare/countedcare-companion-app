@@ -222,9 +222,15 @@ const Expenses = () => {
     if (!authUser) return;
 
     try {
+      // When updating an expense, mark it as 'kept' to indicate it's been reviewed
+      const updateData = {
+        ...updates,
+        triage_status: 'kept'
+      };
+
       const { error } = await supabase
         .from('expenses')
-        .update(updates)
+        .update(updateData)
         .eq('id', expenseId)
         .eq('user_id', authUser.id);
 

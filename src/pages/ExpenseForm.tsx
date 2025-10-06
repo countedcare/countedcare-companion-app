@@ -253,6 +253,7 @@ const ExpenseForm = () => {
         linked_account_id: sourceAccountId || null,
         is_tax_deductible: isTaxDeductible,
         is_potentially_deductible: isTaxDeductible,
+        triage_status: 'kept', // Mark as reviewed since user is manually creating/editing
       };
 
       if (id) {

@@ -13,6 +13,7 @@ import { InteractiveDashboard } from '@/components/home/InteractiveDashboard';
 import { EnhancedRecentActivity } from '@/components/home/EnhancedRecentActivity';
 import { PersonalizedInsights } from '@/components/home/PersonalizedInsights';
 import { SignInLoadingExperience } from '@/components/home/SignInLoadingExperience';
+import { SpendingByCareRecipient } from '@/components/home/SpendingByCareRecipient';
 import GettingStartedChecklist from '@/components/help/GettingStartedChecklist';
 import InteractiveTutorial from '@/components/help/InteractiveTutorial';
 import ReceiptCaptureModal from '@/components/ReceiptCaptureModal';
@@ -142,6 +143,13 @@ const Home = () => {
             <div data-tour="dashboard" className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
               <InteractiveDashboard />
             </div>
+            
+            {/* Spending by Care Recipient */}
+            {stats.total > 0 && (
+              <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                <SpendingByCareRecipient />
+              </div>
+            )}
             
             {/* Transaction Triage - Only show if user has linked accounts */}
             {accounts.length > 0 && (

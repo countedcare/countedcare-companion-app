@@ -46,7 +46,8 @@ const EnhancedExpenseTable: React.FC<EnhancedExpenseTableProps> = ({
   }, [selectedExpenses]);
 
   const getRecipientName = (careRecipientId: string) => {
-    if (careRecipientId === 'self') return 'Self';
+    // Handle empty string, null, or undefined as "Myself"
+    if (!careRecipientId || careRecipientId === 'self' || careRecipientId === 'myself') return 'Myself';
     const recipient = recipients.find(r => r.id === careRecipientId);
     return recipient?.name || 'Unknown';
   };

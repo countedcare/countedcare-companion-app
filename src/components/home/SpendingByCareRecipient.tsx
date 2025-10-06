@@ -20,15 +20,20 @@ export function SpendingByCareRecipient() {
     let unassignedCount = 0;
 
     expenses.forEach(expense => {
-      if (expense.care_recipient_id) {
-        const recipient = recipients.find(r => r.id === expense.care_recipient_id);
+      // Use careRecipientId (camelCase) which is the transformed property name
+      if (expense.careRecipientId && expense.careRecipientId !== 'myself') {
+        const recipient = recipients.find(r => r.id === expense.careRecipientId);
         if (recipient) {
-          const current = spending.get(expense.care_recipient_id) || { name: recipient.name, amount: 0, count: 0 };
-          spending.set(expense.care_recipient_id, {
+          const current = spending.get(expense.careRecipientId) || { name: recipient.name, amount: 0, count: 0 };
+          spending.set(expense.careRecipientId, {
             name: recipient.name,
             amount: current.amount + Number(expense.amount),
             count: current.count + 1
           });
+        } else {
+          // Recipient ID exists but not found - count as unassigned
+          unassignedAmount += Number(expense.amount);
+          unassignedCount += 1;
         }
       } else {
         unassignedAmount += Number(expense.amount);

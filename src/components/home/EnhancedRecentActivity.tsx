@@ -21,9 +21,10 @@ export function EnhancedRecentActivity() {
   const recentExpenses = getRecentExpenses(5);
 
   const getRecipientName = (recipientId: string | undefined) => {
-    if (!recipientId) return null;
+    // Handle empty string, null, or undefined as "Myself"
+    if (!recipientId || recipientId === 'self' || recipientId === 'myself') return 'Myself';
     const recipient = recipients.find(r => r.id === recipientId);
-    return recipient?.name;
+    return recipient?.name || 'Unknown';
   };
 
   const getRecipientInitials = (name: string) => {

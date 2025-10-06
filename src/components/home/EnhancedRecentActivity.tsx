@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Receipt, Calendar, MapPin, DollarSign, Star, TrendingUp } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ArrowRight, Receipt, Calendar, MapPin, DollarSign, Star, TrendingUp, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useExpenseData } from '@/hooks/useExpenseData';
+import { useSupabaseCareRecipients } from '@/hooks/useSupabaseCareRecipients';
 import ExpenseDetailsModal from '@/components/expenses/ExpenseDetailsModal';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { Expense } from '@/types/User';
@@ -12,10 +14,26 @@ import { Expense } from '@/types/User';
 export function EnhancedRecentActivity() {
   const navigate = useNavigate();
   const { getRecentExpenses, loading, stats, reloadExpenses } = useExpenseData();
+  const { recipients } = useSupabaseCareRecipients();
   const [hoveredExpense, setHoveredExpense] = useState<string | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const recentExpenses = getRecentExpenses(5);
+
+  const getRecipientName = (recipientId: string | undefined) => {
+    if (!recipientId) return null;
+    const recipient = recipients.find(r => r.id === recipientId);
+    return recipient?.name;
+  };
+
+  const getRecipientInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -176,13 +194,27 @@ export function EnhancedRecentActivity() {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-gray-900 truncate group-hover:text-primary transition-colors">
-                          {expense.vendor || expense.description || 'Expense'}
-                          {expense.is_tax_deductible && (
-                            <Star className="inline h-3 w-3 ml-1 text-yellow-500 fill-current" />
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <h4 className="font-medium text-gray-900 truncate group-hover:text-primary transition-colors">
+                            {expense.vendor || expense.description || 'Expense'}
+                            {expense.is_tax_deductible && (
+                              <Star className="inline h-3 w-3 ml-1 text-yellow-500 fill-current" />
+                            )}
+                          </h4>
+                          {getRecipientName(expense.care_recipient_id) && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 rounded-full shrink-0">
+                              <Avatar className="h-4 w-4">
+                                <AvatarFallback className="text-[8px] bg-primary/20 text-primary">
+                                  {getRecipientInitials(getRecipientName(expense.care_recipient_id)!)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs font-medium text-primary">
+                                {getRecipientName(expense.care_recipient_id)}
+                              </span>
+                            </div>
                           )}
-                        </h4>
-                        <span className={`font-semibold transition-all duration-300 ${
+                        </div>
+                        <span className={`font-semibold transition-all duration-300 ml-2 ${
                           hoveredExpense === expense.id ? 'text-primary text-lg' : 'text-gray-900'
                         }`}>
                           {formatCurrency(expense.amount)}
@@ -236,7 +268,7 @@ export function EnhancedRecentActivity() {
         isOpen={isModalOpen}
         onClose={handleModalClose}
         expense={selectedExpense}
-        recipients={[]}
+        recipients={recipients}
       />
     </div>
   );

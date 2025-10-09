@@ -119,9 +119,6 @@ export function useExpenseData() {
     
     const thisMonthAmount = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     
-    // This year deductible amount for tax calculations
-    const thisYearDeductibleExpenses = thisYearExpenses.filter(e => e.is_tax_deductible);
-    const thisYearDeductibleAmount = thisYearDeductibleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const thisYearAmount = thisYearExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
     return {
@@ -138,7 +135,7 @@ export function useExpenseData() {
       totalAmount,
       deductibleAmount,
       thisMonthAmount,
-      thisYearAmount: thisYearDeductibleAmount, // Use deductible amount for tax calculations
+      thisYearAmount, // All expenses for the year (consistent with thisMonthAmount)
     };
   };
 

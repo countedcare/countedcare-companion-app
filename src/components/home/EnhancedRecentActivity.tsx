@@ -202,15 +202,15 @@ export function EnhancedRecentActivity() {
                               <Star className="inline h-3 w-3 ml-1 text-yellow-500 fill-current" />
                             )}
                           </h4>
-                          {getRecipientName(expense.care_recipient_id) && (
+                          {getRecipientName(expense.careRecipientId) && (
                             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 rounded-full shrink-0">
                               <Avatar className="h-4 w-4">
                                 <AvatarFallback className="text-[8px] bg-primary/20 text-primary">
-                                  {getRecipientInitials(getRecipientName(expense.care_recipient_id)!)}
+                                  {getRecipientInitials(getRecipientName(expense.careRecipientId)!)}
                                 </AvatarFallback>
                               </Avatar>
                               <span className="text-xs font-medium text-primary">
-                                {getRecipientName(expense.care_recipient_id)}
+                                {getRecipientName(expense.careRecipientId)}
                               </span>
                             </div>
                           )}

@@ -225,6 +225,12 @@ async function handleCreateSandboxToken(body: PlaidSandboxTokenRequest, userId: 
     throw new Error(`Failed to fetch accounts: ${accountsData.error?.error_message || 'Unknown error'}`)
   }
 
+  // Create service role client for encryption operations
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   // Store each account in our database
   const accounts = [];
   for (const account of accountsData.accounts) {
@@ -235,7 +241,6 @@ async function handleCreateSandboxToken(body: PlaidSandboxTokenRequest, userId: 
         account_name: `${body.institution_id} ${account.name}`,
         account_type: account.subtype === 'checking' || account.subtype === 'savings' ? 'bank' : 'credit_card',
         institution_name: body.institution_id,
-        plaid_access_token: exchangeData.access_token,
         plaid_account_id: account.account_id,
         is_active: true,
         last_sync_at: new Date().toISOString(),
@@ -246,6 +251,23 @@ async function handleCreateSandboxToken(body: PlaidSandboxTokenRequest, userId: 
     if (error) {
       console.error('Database error:', error);
       throw new Error(`Failed to save account: ${error.message}`)
+    }
+
+    // Store encrypted Plaid access token
+    const { error: encryptError } = await supabaseAdmin.rpc(
+      'store_encrypted_plaid_token',
+      {
+        p_user_id: userId,
+        p_account_id: data.id,
+        p_token: exchangeData.access_token
+      }
+    );
+
+    if (encryptError) {
+      console.error('Failed to encrypt token:', encryptError);
+      // Clean up the account record
+      await supabaseClient.from('linked_accounts').delete().eq('id', data.id);
+      throw new Error('Failed to store access token securely');
     }
 
     accounts.push(data);
@@ -311,6 +333,12 @@ async function handleExchangePublicToken(body: PlaidExchangeTokenRequest, userId
     throw new Error(`Failed to fetch accounts: ${accountsData.error?.error_message || 'Unknown error'}`)
   }
 
+  // Create service role client for encryption operations
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   // Store each account in our database
   const accounts = [];
   for (const account of accountsData.accounts) {
@@ -321,7 +349,6 @@ async function handleExchangePublicToken(body: PlaidExchangeTokenRequest, userId
         account_name: body.account_name || account.name,
         account_type: account.subtype === 'checking' || account.subtype === 'savings' ? 'bank' : 'credit_card',
         institution_name: accountsData.item?.institution_id || 'Bank',
-        plaid_access_token: tokenData.access_token,
         plaid_account_id: account.account_id,
         is_active: true,
         last_sync_at: new Date().toISOString(),
@@ -332,6 +359,23 @@ async function handleExchangePublicToken(body: PlaidExchangeTokenRequest, userId
     if (error) {
       console.error('Database error:', error);
       throw new Error(`Failed to save account: ${error.message}`)
+    }
+
+    // Store encrypted Plaid access token
+    const { error: encryptError } = await supabaseAdmin.rpc(
+      'store_encrypted_plaid_token',
+      {
+        p_user_id: userId,
+        p_account_id: data.id,
+        p_token: tokenData.access_token
+      }
+    );
+
+    if (encryptError) {
+      console.error('Failed to encrypt token:', encryptError);
+      // Clean up the account record
+      await supabaseClient.from('linked_accounts').delete().eq('id', data.id);
+      throw new Error('Failed to store access token securely');
     }
 
     accounts.push(data);
@@ -345,7 +389,7 @@ async function handleExchangePublicToken(body: PlaidExchangeTokenRequest, userId
 async function handleSyncTransactions(body: PlaidSyncTransactionsRequest, userId: string, supabaseClient: any) {
   console.log('Syncing transactions for account:', body.account_id);
   
-  // Get the account details to fetch access token
+  // Get the account details
   const { data: account, error: accountError } = await supabaseClient
     .from('linked_accounts')
     .select('*')
@@ -357,7 +401,20 @@ async function handleSyncTransactions(body: PlaidSyncTransactionsRequest, userId
     throw new Error('Account not found or access denied');
   }
 
-  if (!account.plaid_access_token) {
+  // Create service role client for decryption
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  // Get the decrypted Plaid access token
+  const { data: accessToken, error: tokenError } = await supabaseAdmin.rpc(
+    'get_decrypted_plaid_token',
+    { p_account_id: body.account_id }
+  );
+
+  if (tokenError || !accessToken) {
+    console.error('Failed to decrypt access token:', tokenError);
     throw new Error('No Plaid access token found for this account');
   }
 
@@ -381,7 +438,7 @@ async function handleSyncTransactions(body: PlaidSyncTransactionsRequest, userId
     body: JSON.stringify({
       client_id: plaidClientId,
       secret: plaidSecret,
-      access_token: account.plaid_access_token,
+      access_token: accessToken,
       start_date: startDate.toISOString().split('T')[0],
       end_date: endDate.toISOString().split('T')[0],
       count: 100,

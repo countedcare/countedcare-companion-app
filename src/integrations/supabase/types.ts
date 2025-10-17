@@ -47,6 +47,44 @@ export type Database = {
         }
         Relationships: []
       }
+      encrypted_plaid_tokens: {
+        Row: {
+          created_at: string
+          encrypted_access_token: string
+          id: string
+          linked_account_id: string
+          nonce: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_access_token: string
+          id?: string
+          linked_account_id: string
+          nonce: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_access_token?: string
+          id?: string
+          linked_account_id?: string
+          nonce?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encrypted_plaid_tokens_linked_account_id_fkey"
+            columns: ["linked_account_id"]
+            isOneToOne: true
+            referencedRelation: "linked_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -787,6 +825,10 @@ export type Database = {
           triage_decision: string
         }[]
       }
+      get_decrypted_plaid_token: {
+        Args: { p_account_id: string }
+        Returns: string
+      }
       get_online_user_count: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -826,6 +868,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      migrate_plaid_tokens_to_encryption: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          error_details: string[]
+          failed_count: number
+          migrated_count: number
+        }[]
+      }
       search_resources: {
         Args: {
           p_category?: Database["public"]["Enums"]["resource_category"]
@@ -846,6 +896,10 @@ export type Database = {
           tags: string[]
           title: string
         }[]
+      }
+      store_encrypted_plaid_token: {
+        Args: { p_account_id: string; p_token: string; p_user_id: string }
+        Returns: string
       }
       update_triage_stats: {
         Args: { p_decision: string; p_user_id: string }

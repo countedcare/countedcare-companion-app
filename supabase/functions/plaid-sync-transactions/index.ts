@@ -139,15 +139,28 @@ serve(async (req) => {
     let totalUpdated = 0;
     let totalProcessed = 0;
 
-    for (const account of accounts) {
-      if (!account.plaid_access_token) {
-        console.log(`Skipping account ${account.id} - no Plaid access token`);
-        continue;
-      }
+    // Create service role client for decryption
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
 
+    for (const account of accounts) {
       try {
         console.log(`Fetching transactions for account ${account.id}`);
-        const transactions = await fetchPlaidTransactions(account.plaid_access_token, days);
+        
+        // Get the decrypted Plaid access token
+        const { data: accessToken, error: tokenError } = await supabaseAdmin.rpc(
+          'get_decrypted_plaid_token',
+          { p_account_id: account.id }
+        );
+
+        if (tokenError || !accessToken) {
+          console.log(`Skipping account ${account.id} - failed to decrypt access token:`, tokenError);
+          continue;
+        }
+
+        const transactions = await fetchPlaidTransactions(accessToken, days);
         
         for (const tx of transactions) {
           const isMedical = isLikelyMedicalExpense(tx.name, tx.merchant_name);

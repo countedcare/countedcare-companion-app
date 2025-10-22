@@ -300,40 +300,37 @@ export type Database = {
       }
       profiles: {
         Row: {
-          caregiving_for: string[] | null
+          avatar_url: string | null
+          bio: string | null
           created_at: string | null
-          email: string | null
-          household_agi: number | null
+          full_name: string | null
           id: string
-          is_caregiver: boolean | null
-          name: string | null
-          onboarding_complete: boolean | null
+          location: string | null
           updated_at: string | null
-          zip_code: string | null
+          username: string | null
+          website: string | null
         }
         Insert: {
-          caregiving_for?: string[] | null
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string | null
-          email?: string | null
-          household_agi?: number | null
+          full_name?: string | null
           id: string
-          is_caregiver?: boolean | null
-          name?: string | null
-          onboarding_complete?: boolean | null
+          location?: string | null
           updated_at?: string | null
-          zip_code?: string | null
+          username?: string | null
+          website?: string | null
         }
         Update: {
-          caregiving_for?: string[] | null
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string | null
-          email?: string | null
-          household_agi?: number | null
+          full_name?: string | null
           id?: string
-          is_caregiver?: boolean | null
-          name?: string | null
-          onboarding_complete?: boolean | null
+          location?: string | null
           updated_at?: string | null
-          zip_code?: string | null
+          username?: string | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -442,7 +439,7 @@ export type Database = {
           estimated_benefit_min: number | null
           id: string
           is_active: boolean | null
-          search_tsv: unknown | null
+          search_tsv: unknown
           source_url: string | null
           state_code: string | null
           tags: string[] | null
@@ -466,7 +463,7 @@ export type Database = {
           estimated_benefit_min?: number | null
           id?: string
           is_active?: boolean | null
-          search_tsv?: unknown | null
+          search_tsv?: unknown
           source_url?: string | null
           state_code?: string | null
           tags?: string[] | null
@@ -490,7 +487,7 @@ export type Database = {
           estimated_benefit_min?: number | null
           id?: string
           is_active?: boolean | null
-          search_tsv?: unknown | null
+          search_tsv?: unknown
           source_url?: string | null
           state_code?: string | null
           tags?: string[] | null
@@ -693,6 +690,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_saved_resources: {
         Row: {
           created_at: string
@@ -829,12 +847,9 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: string
       }
-      get_online_user_count: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      get_online_user_count: { Args: never; Returns: number }
       get_online_users: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           display_name: string
           email: string
@@ -862,6 +877,19 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      get_user_roles: {
+        Args: { _user_id: string }
+        Returns: {
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_session_active: {
         Args: {
           session_row: Database["public"]["Tables"]["user_sessions"]["Row"]
@@ -869,7 +897,7 @@ export type Database = {
         Returns: boolean
       }
       migrate_plaid_tokens_to_encryption: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           error_details: string[]
           failed_count: number
@@ -907,6 +935,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       resource_category: "federal" | "state" | "county" | "nonprofit"
     }
     CompositeTypes: {
@@ -1035,6 +1064,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       resource_category: ["federal", "state", "county", "nonprofit"],
     },
   },

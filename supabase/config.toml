@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.plaid-financial-connections]
 verify_jwt = true
+
+[functions.plaid-webhooks]
+verify_jwt = false

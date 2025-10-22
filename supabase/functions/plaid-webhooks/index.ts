@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createHmac } from "https://deno.land/std@0.168.0/node/crypto.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, plaid-verification',
 }
 
 interface PlaidWebhook {
@@ -28,7 +29,41 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    const webhook: PlaidWebhook = await req.json()
+    // Verify Plaid webhook signature
+    const webhookVerificationKey = Deno.env.get('PLAID_WEBHOOK_VERIFICATION_KEY');
+    let webhook: PlaidWebhook;
+    
+    if (webhookVerificationKey) {
+      const signature = req.headers.get('plaid-verification');
+      const bodyText = await req.text();
+      
+      if (!signature) {
+        console.error('Missing Plaid signature header');
+        return new Response(JSON.stringify({ error: 'Unauthorized: Missing signature' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const hmac = createHmac('sha256', webhookVerificationKey);
+      hmac.update(bodyText);
+      const expectedSignature = hmac.digest('hex');
+
+      if (signature !== expectedSignature) {
+        console.error('Invalid Plaid signature - Expected:', expectedSignature, 'Got:', signature);
+        return new Response(JSON.stringify({ error: 'Unauthorized: Invalid signature' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log('Webhook signature verified successfully');
+      webhook = JSON.parse(bodyText);
+    } else {
+      console.warn('⚠️ PLAID_WEBHOOK_VERIFICATION_KEY not set - webhook signature verification disabled');
+      webhook = await req.json();
+    }
+    
     console.log('Webhook data:', webhook);
 
     // Handle different webhook types

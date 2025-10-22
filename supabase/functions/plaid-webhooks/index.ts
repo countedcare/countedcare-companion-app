@@ -107,8 +107,17 @@ async function syncAccountTransactions(account: any, supabaseClient: any) {
   const plaidClientId = Deno.env.get('PLAID_CLIENT_ID')
   const plaidSecret = Deno.env.get('PLAID_SECRET')
   
-  if (!plaidClientId || !plaidSecret || !account.plaid_access_token) {
-    console.error('Missing Plaid credentials or access token');
+  // Retrieve decrypted token from encrypted storage
+  const { data: decryptedToken, error: tokenError } = await supabaseClient
+    .rpc('get_decrypted_plaid_token', { p_account_id: account.id });
+  
+  if (tokenError || !decryptedToken) {
+    console.error('Failed to retrieve Plaid access token:', tokenError);
+    return;
+  }
+  
+  if (!plaidClientId || !plaidSecret) {
+    console.error('Missing Plaid credentials');
     return;
   }
 
@@ -125,7 +134,7 @@ async function syncAccountTransactions(account: any, supabaseClient: any) {
     body: JSON.stringify({
       client_id: plaidClientId,
       secret: plaidSecret,
-      access_token: account.plaid_access_token,
+      access_token: decryptedToken,
       start_date: startDate.toISOString().split('T')[0],
       end_date: endDate.toISOString().split('T')[0],
       count: 100,

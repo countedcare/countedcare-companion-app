@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,40 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
+    // Get client IP for rate limiting
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || 
+                     req.headers.get("x-real-ip") || 
+                     "unknown";
+    
+    // Initialize Supabase client for rate limiting
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Check rate limit: 60 requests per minute per IP
+    const { data: rateLimitOk, error: rateLimitError } = await supabase
+      .rpc("check_rate_limit", {
+        p_endpoint: "get-google-maps-key",
+        p_identifier: clientIP,
+        p_max_requests: 60,
+        p_window_minutes: 1
+      });
+    
+    if (rateLimitError) {
+      console.error("Rate limit check error:", rateLimitError);
+    } else if (!rateLimitOk) {
+      console.warn("Rate limit exceeded for IP:", clientIP);
+      return new Response(
+        JSON.stringify({ 
+          error: "Rate limit exceeded. Please try again in a moment." 
+        }), 
+        {
+          status: 429,
+          headers: { ...CORS, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
     const key = Deno.env.get("GOOGLE_MAPS_BROWSER_API_KEY");
     if (!key) {
       return new Response(JSON.stringify({ error: "Browser API key not configured" }), {

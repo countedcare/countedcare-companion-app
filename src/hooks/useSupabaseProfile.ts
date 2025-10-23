@@ -36,7 +36,7 @@ export function useSupabaseProfile() {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data as any);
     } catch (err) {
       console.error('Error loading profile:', err);
       setError(err instanceof Error ? err.message : 'Failed to load profile');
@@ -57,7 +57,7 @@ export function useSupabaseProfile() {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data as any);
       return data;
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -76,7 +76,7 @@ export function useSupabaseProfile() {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data as any);
       return data;
     } catch (err) {
       console.error('Error creating profile:', err);

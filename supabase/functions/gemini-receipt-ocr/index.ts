@@ -6,6 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -246,6 +247,38 @@ serve(async (req) => {
   const debugMode = url.searchParams.get("debug") === "1";
 
   try {
+    // Get client IP for rate limiting
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || 
+                     req.headers.get("x-real-ip") || 
+                     "unknown";
+    
+    // Initialize Supabase client for rate limiting
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Check rate limit: 10 requests per minute per IP
+    const { data: rateLimitOk, error: rateLimitError } = await supabase
+      .rpc("check_rate_limit", {
+        p_endpoint: "gemini-receipt-ocr",
+        p_identifier: clientIP,
+        p_max_requests: 10,
+        p_window_minutes: 1
+      });
+    
+    if (rateLimitError) {
+      console.error("Rate limit check error:", rateLimitError);
+    } else if (!rateLimitOk) {
+      console.warn("Rate limit exceeded for IP:", clientIP);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Rate limit exceeded. Please try again in a moment." 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
       console.error("GEMINI_API_KEY not configured");

@@ -68,25 +68,30 @@ export function useTaxExport() {
     let receiptCount = 0;
     
     for (const expense of expenses) {
-      const receiptUrls = [];
-      if (expense.receiptUrl) receiptUrls.push(expense.receiptUrl);
-      if (expense.receipt_url) receiptUrls.push(expense.receipt_url);
-      if (expense.receiptUrls && Array.isArray(expense.receiptUrls)) receiptUrls.push(...expense.receiptUrls);
+      const receiptPaths = [];
+      if (expense.receiptUrl) receiptPaths.push(expense.receiptUrl);
+      if (expense.receipt_url) receiptPaths.push(expense.receipt_url);
+      if (expense.receiptUrls && Array.isArray(expense.receiptUrls)) receiptPaths.push(...expense.receiptUrls);
       
-      for (const receiptUrl of receiptUrls) {
+      for (const receiptPath of receiptPaths) {
         try {
+          // Extract just the path (remove any URL parts if present)
+          const path = receiptPath.includes('/storage/v1/object/') 
+            ? receiptPath.split('/storage/v1/object/public/receipts/')[1] || receiptPath
+            : receiptPath;
+          
           const { data } = await supabase.storage
             .from('receipts')
-            .download(receiptUrl);
+            .download(path);
           
           if (data) {
-            const fileExtension = receiptUrl.split('.').pop() || 'jpg';
+            const fileExtension = path.split('.').pop() || 'jpg';
             const fileName = `${expense.date}_${expense.category.replace(/[^a-zA-Z0-9]/g, '_')}_${expense.amount}_${receiptCount + 1}.${fileExtension}`;
             receiptsFolder?.file(fileName, data);
             receiptCount++;
           }
         } catch (error) {
-          console.error(`Error downloading receipt: ${receiptUrl}`, error);
+          console.error(`Error downloading receipt: ${receiptPath}`, error);
         }
       }
     }
@@ -280,35 +285,25 @@ export function useTaxExport() {
     const receiptsWithFiles = [];
     
     for (const expense of expenses) {
-      if (expense.receiptUrl) {
-        try {
-          const { data } = await supabase.storage
-            .from('receipts')
-            .download(expense.receiptUrl);
-          
-          if (data) {
-            receiptsWithFiles.push({
-              expenseId: expense.id,
-              filename: expense.receiptUrl,
-              data: data,
-              description: expense.description
-            });
-          }
-        } catch (error) {
-          console.error(`Error downloading receipt for expense ${expense.id}:`, error);
-        }
-      }
+      const receiptPaths = [expense.receiptUrl, expense.receipt_url].filter(Boolean);
       
-      if (expense.receipt_url) {
+      for (const receiptPath of receiptPaths) {
+        if (!receiptPath) continue;
+        
         try {
+          // Extract just the path (remove any URL parts if present)
+          const path = receiptPath.includes('/storage/v1/object/') 
+            ? receiptPath.split('/storage/v1/object/public/receipts/')[1] || receiptPath
+            : receiptPath;
+          
           const { data } = await supabase.storage
             .from('receipts')
-            .download(expense.receipt_url);
+            .download(path);
           
           if (data) {
             receiptsWithFiles.push({
               expenseId: expense.id,
-              filename: expense.receipt_url,
+              filename: path,
               data: data,
               description: expense.description
             });

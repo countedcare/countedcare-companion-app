@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as pdfjsLib from 'pdfjs-dist';
+import { generateSignedUrls } from '@/hooks/useSignedReceiptUrl';
 
 interface ReceiptViewerProps {
   receipts: string[];
@@ -26,11 +27,30 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = ({
   const [rotation, setRotation] = useState(0);
   const [pdfImage, setPdfImage] = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Map<string, string>>(new Map());
+  const [isLoadingUrls, setIsLoadingUrls] = useState(true);
 
   if (!receipts.length) return null;
 
-  const currentReceipt = receipts[currentIndex];
-  const isPdf = currentReceipt?.endsWith('.pdf');
+  // Generate signed URLs for all receipts
+  useEffect(() => {
+    const loadSignedUrls = async () => {
+      setIsLoadingUrls(true);
+      try {
+        const urls = await generateSignedUrls(receipts, 60 * 60); // 1 hour expiry
+        setSignedUrls(urls);
+      } catch (error) {
+        console.error('Error loading signed URLs:', error);
+      } finally {
+        setIsLoadingUrls(false);
+      }
+    };
+
+    loadSignedUrls();
+  }, [receipts]);
+
+  const currentReceipt = signedUrls.get(receipts[currentIndex]) || receipts[currentIndex];
+  const isPdf = receipts[currentIndex]?.endsWith('.pdf');
 
   // Configure PDF.js worker
   useEffect(() => {
@@ -128,6 +148,12 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = ({
               <Badge variant="outline">
                 {currentIndex + 1} of {receipts.length}
               </Badge>
+              {isLoadingUrls && (
+                <Badge variant="outline">
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  Loading...
+                </Badge>
+              )}
             </DialogTitle>
             <div className="flex items-center space-x-2">
               {receipts.length > 1 && (
@@ -220,33 +246,36 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = ({
             <Separator />
             <div className="p-4">
               <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
-                {receipts.map((receipt, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setCurrentIndex(index);
-                      resetView();
-                    }}
-                    className={cn(
-                      "aspect-square rounded-md border-2 p-2 hover:bg-gray-50 transition-colors",
-                      index === currentIndex 
-                        ? "border-primary bg-primary/5" 
-                        : "border-gray-200"
-                    )}
-                  >
-                    {receipt.endsWith('.pdf') ? (
-                      <div className="h-full w-full flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-gray-600" />
-                      </div>
-                    ) : (
-                      <img
-                        src={receipt}
-                        alt={`Receipt ${index + 1}`}
-                        className="h-full w-full object-cover rounded"
-                      />
-                    )}
-                  </button>
-                ))}
+                {receipts.map((receiptPath, index) => {
+                  const signedUrl = signedUrls.get(receiptPath) || receiptPath;
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setCurrentIndex(index);
+                        resetView();
+                      }}
+                      className={cn(
+                        "aspect-square rounded-md border-2 p-2 hover:bg-gray-50 transition-colors",
+                        index === currentIndex 
+                          ? "border-primary bg-primary/5" 
+                          : "border-gray-200"
+                      )}
+                    >
+                      {receiptPath.endsWith('.pdf') ? (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-gray-600" />
+                        </div>
+                      ) : (
+                        <img
+                          src={signedUrl}
+                          alt={`Receipt ${index + 1}`}
+                          className="h-full w-full object-cover rounded"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </>

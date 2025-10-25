@@ -171,12 +171,14 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       // Update progress
       updateFileStatus(index, { progress: 60 });
 
-      // Get public URL (bucket is now public)
-      const { data: urlData } = supabase.storage
+      // Get signed URL (bucket is now private)
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('receipts')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year expiry
 
-      const newReceipts = [...receipts, urlData.publicUrl];
+      if (signedError) throw signedError;
+
+      const newReceipts = [...receipts, fileName]; // Store path, not URL
       setReceipts(newReceipts);
       onReceiptsChange?.(newReceipts);
 
@@ -184,7 +186,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       updateFileStatus(index, { 
         status: 'success', 
         progress: 100, 
-        url: urlData.publicUrl 
+        url: signedData.signedUrl 
       });
 
       toast({

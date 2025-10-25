@@ -46,7 +46,13 @@ const ExpenseDetailsModal: React.FC<ExpenseDetailsModalProps> = ({
   };
 
   const isAutoImported = !!expense.synced_transaction_id;
-  const receipts = expense.receiptUrls || (expense.receiptUrl ? [expense.receiptUrl] : []);
+  
+  // Collect all receipt paths (stored as paths, not URLs)
+  const receipts = [
+    ...(expense.receiptUrls || []),
+    expense.receiptUrl,
+    expense.receipt_url
+  ].filter((path): path is string => Boolean(path));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

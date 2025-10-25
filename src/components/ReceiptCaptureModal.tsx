@@ -168,12 +168,9 @@ const ReceiptCaptureModal: React.FC<ReceiptCaptureModalProps> = ({ isOpen, onClo
     });
     if (error) throw error;
 
-    const { data: signed, error: signError } = await supabase.storage
-      .from("receipts")
-      .createSignedUrl(data.path, 60 * 60);
-    if (signError) throw signError;
-
-    return signed.signedUrl;
+    // Return the file path, not signed URL
+    // Signed URLs will be generated when viewing
+    return data.path;
   };
 
   const processReceiptWithOCR = async (file: File) => {

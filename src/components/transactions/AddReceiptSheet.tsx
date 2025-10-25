@@ -83,10 +83,10 @@ export const AddReceiptSheet = ({
 
     setUploading(true);
     try {
-      // Generate filename
+      // Generate filename with user ID prefix
       const fileExt = file.name.split('.').pop();
       const fileName = `${new Date().toISOString().slice(0, 10)}_${expenseId.slice(0, 8)}.${fileExt}`;
-      const filePath = `receipts/${user.id}/${expenseId}/${fileName}`;
+      const filePath = `${user.id}/${fileName}`;
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -95,17 +95,10 @@ export const AddReceiptSheet = ({
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('receipts')
-        .getPublicUrl(filePath);
+      // Run OCR validation with file path (not URL)
+      await performOCRValidation(file, uploadData.path);
 
-      const receiptUrl = urlData.publicUrl;
-
-      // Run OCR validation
-      await performOCRValidation(file, receiptUrl);
-
-      return receiptUrl;
+      return uploadData.path; // Return path instead of URL
     } catch (error) {
       console.error('Error uploading file:', error);
       toast({

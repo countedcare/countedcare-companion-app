@@ -44,13 +44,23 @@ export function useBetaAccess() {
         isPaid: data.isPaid,
         loading: false
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking beta access:', error);
-      setStatus({
-        hasBetaAccess: false,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to check beta access'
-      });
+      
+      // Handle rate limiting specifically
+      if (error?.message?.includes('Too many requests') || error?.status === 429) {
+        setStatus({
+          hasBetaAccess: false,
+          loading: false,
+          error: 'Too many requests. Please wait a moment before trying again.'
+        });
+      } else {
+        setStatus({
+          hasBetaAccess: false,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Failed to check beta access'
+        });
+      }
     }
   };
 

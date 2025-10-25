@@ -663,6 +663,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_beta_access: {
+        Row: {
+          checked_at: string
+          created_at: string
+          free_trial_expenses: number | null
+          free_trial_limit: number | null
+          has_access: boolean
+          is_paid: boolean | null
+          payment_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checked_at?: string
+          created_at?: string
+          free_trial_expenses?: number | null
+          free_trial_limit?: number | null
+          has_access: boolean
+          is_paid?: boolean | null
+          payment_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checked_at?: string
+          created_at?: string
+          free_trial_expenses?: number | null
+          free_trial_limit?: number | null
+          has_access?: boolean
+          is_paid?: boolean | null
+          payment_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_documents: {
         Row: {
           content: string | null

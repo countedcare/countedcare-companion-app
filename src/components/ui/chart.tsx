@@ -74,27 +74,35 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // Generate CSS custom properties for light theme (default)
+  const lightStyleVars = colorConfig.reduce((acc, [key, itemConfig]) => {
+    const color = itemConfig.theme?.light || itemConfig.color
+    if (color) {
+      acc[`--color-${key}` as any] = color
+    }
+    return acc
+  }, {} as React.CSSProperties)
+
+  // Generate CSS custom properties for dark theme
+  const darkStyleVars = colorConfig.reduce((acc, [key, itemConfig]) => {
+    const color = itemConfig.theme?.dark || itemConfig.color
+    if (color) {
+      acc[`--color-${key}` as any] = color
+    }
+    return acc
+  }, {} as React.CSSProperties)
+
   return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
-      }}
-    />
+    <>
+      <style>{`
+        [data-chart="${id}"] {
+          ${Object.entries(lightStyleVars).map(([key, value]) => `${key}: ${value};`).join('\n          ')}
+        }
+        .dark [data-chart="${id}"] {
+          ${Object.entries(darkStyleVars).map(([key, value]) => `${key}: ${value};`).join('\n          ')}
+        }
+      `}</style>
+    </>
   )
 }
 

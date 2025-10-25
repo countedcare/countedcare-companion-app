@@ -21,7 +21,7 @@ const Onboarding = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
-  const { profile, updateProfile, loading: profileLoading } = useSupabaseProfile();
+  const { profile, updateProfile, createProfile, loading: profileLoading } = useSupabaseProfile();
   const [tempProfileData, setTempProfileData] = useState({
     name: '',
     email: '',
@@ -84,7 +84,12 @@ const Onboarding = () => {
           onboarding_complete: true
         };
         
-        await updateProfile(dbData);
+        // Create or update profile depending on whether it exists
+        if (profile) {
+          await updateProfile(dbData);
+        } else {
+          await createProfile(dbData as any);
+        }
         
         // Save care recipients to the care_recipients table
         if (careRecipients.length > 0) {

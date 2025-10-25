@@ -1,11 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Search, Star, Filter, Check, Loader2 } from 'lucide-react';
+import { Search, Star, Filter, Check, Loader2, Package } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useProducts } from '@/hooks/useProducts';
 import { Product } from '@/lib/products';
@@ -23,6 +23,8 @@ const Shop = () => {
     showHsaOnly,
     setShowHsaOnly,
   } = useProducts();
+
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const handleProductClick = (product: Product) => {
     // For demo purposes, just show an alert
@@ -115,16 +117,18 @@ const Shop = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="h-32 mb-4 flex items-center justify-center bg-gray-100 rounded-md overflow-hidden">
-                        <img 
-                          src={product.imageUrl} 
-                          alt={product.imageAlt || product.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full"><svg class="h-12 w-12 text-gray-300" fill="currentColor" viewBox="0 0 24 24"><path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v10z"/></svg></div>';
-                          }}
-                        />
+                        {imageErrors[product.id] ? (
+                          <div className="flex items-center justify-center h-full">
+                            <Package className="h-12 w-12 text-gray-300" />
+                          </div>
+                        ) : (
+                          <img 
+                            src={product.imageUrl} 
+                            alt={product.imageAlt || product.title}
+                            className="w-full h-full object-cover"
+                            onError={() => setImageErrors(prev => ({ ...prev, [product.id]: true }))}
+                          />
+                        )}
                       </div>
                       <div className="flex justify-between items-center">
                         <div className="flex items-center">

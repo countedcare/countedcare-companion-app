@@ -367,15 +367,13 @@ CountedCare helps you track these separately from medical deductions.`,
             }
             return (
               <p key={index} className="mb-3 leading-relaxed">
-                {paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                  .split(/(<strong>.*?<\/strong>)/)
-                  .map((part, i) =>
-                    part.startsWith('<strong>') ? (
-                      <span key={i} dangerouslySetInnerHTML={{ __html: part }} />
-                    ) : (
-                      part
-                    )
-                  )}
+                {paragraph.split(/(\*\*.*?\*\*)/).map((part, i) => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                    const text = part.slice(2, -2);
+                    return <strong key={i}>{text}</strong>;
+                  }
+                  return <span key={i}>{part}</span>;
+                })}
               </p>
             );
           })}

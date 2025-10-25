@@ -23,7 +23,7 @@ import { Play } from 'lucide-react';
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useSupabaseProfile();
+  const { profile, loading: profileLoading, error: profileError } = useSupabaseProfile();
   const { expenses, stats, reloadExpenses } = useExpenseData();
   const { accounts } = useLinkedAccounts();
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -53,12 +53,14 @@ const Home = () => {
   
   const items = [1, 2, 3, 4, 5]; // Mock for calculation
 
-  // Redirect to onboarding if not completed (only after profile loads)
+  // Redirect to onboarding if profile doesn't exist or onboarding not completed
   React.useEffect(() => {
-    if (profile && !profile.onboarding_complete) {
-      navigate('/onboarding');
+    if (!profileLoading && user) {
+      if (!profile || !profile.onboarding_complete) {
+        navigate('/onboarding');
+      }
     }
-  }, [profile, navigate]);
+  }, [profile, profileLoading, user, navigate]);
 
   // SEO
   React.useEffect(() => {
@@ -82,7 +84,7 @@ const Home = () => {
     sessionStorage.setItem('hasSeenLoadingExperience', 'true');
   };
 
-  if (!profile || !user) {
+  if (profileLoading || !user) {
     return (
       <Layout>
         <div className="container-padding py-6 flex items-center justify-center min-h-[60vh]">
@@ -93,6 +95,11 @@ const Home = () => {
         </div>
       </Layout>
     );
+  }
+
+  // If profile doesn't exist after loading, redirect will happen in useEffect above
+  if (!profile) {
+    return null;
   }
 
   // Show engaging loading experience for first-time or returning users

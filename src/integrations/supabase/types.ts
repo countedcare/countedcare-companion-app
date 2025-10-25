@@ -332,35 +332,56 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          caregiving_for: string[] | null
           created_at: string | null
+          email: string | null
           full_name: string | null
+          household_agi: number | null
           id: string
+          is_caregiver: boolean | null
           location: string | null
+          name: string | null
+          onboarding_complete: boolean | null
           updated_at: string | null
           username: string | null
           website: string | null
+          zip_code: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          caregiving_for?: string[] | null
           created_at?: string | null
+          email?: string | null
           full_name?: string | null
+          household_agi?: number | null
           id: string
+          is_caregiver?: boolean | null
           location?: string | null
+          name?: string | null
+          onboarding_complete?: boolean | null
           updated_at?: string | null
           username?: string | null
           website?: string | null
+          zip_code?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          caregiving_for?: string[] | null
           created_at?: string | null
+          email?: string | null
           full_name?: string | null
+          household_agi?: number | null
           id?: string
+          is_caregiver?: boolean | null
           location?: string | null
+          name?: string | null
+          onboarding_complete?: boolean | null
           updated_at?: string | null
           username?: string | null
           website?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }

@@ -83,9 +83,12 @@ const LinkedAccountsSection = () => {
       <Card>
         <CardHeader>
           <CardTitle>Linked Financial Accounts</CardTitle>
-          <p className="text-sm text-gray-500">
-            Connect your bank accounts, HSA, and FSA to automatically track qualifying expenses
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Connect your bank accounts, HSA, and FSA to automatically track qualifying expenses
+            </p>
+            <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+          </div>
         </CardHeader>
         <CardContent>
           {accounts.length > 0 ? (
@@ -128,17 +131,10 @@ const LinkedAccountsSection = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleSyncTransactions(account.id)}
-                        disabled={syncingAccounts.has(account.id)}
+                        disabled={true}
                       >
-                        {syncingAccounts.has(account.id) ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Download className="h-4 w-4 mr-2" />
-                            Sync
-                          </>
-                        )}
+                        <Download className="h-4 w-4 mr-2" />
+                        Sync
                       </Button>
                     )}
                     <Button 
@@ -158,15 +154,19 @@ const LinkedAccountsSection = () => {
             </div>
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex-col gap-2">
           <Button 
             onClick={() => setShowAddDialog(true)} 
             className="w-full"
             variant="outline"
+            disabled={true}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
             Link New Account
           </Button>
+          <p className="text-xs text-center text-muted-foreground">
+            Bank account linking is currently in beta development and will be available soon
+          </p>
         </CardFooter>
       </Card>
 

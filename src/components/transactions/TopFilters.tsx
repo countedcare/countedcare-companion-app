@@ -33,15 +33,18 @@ export function TopFilters({
           <Filter className="w-4 h-4 text-muted-foreground" />
           <span className="font-medium">Transaction Review</span>
         </div>
-        <Button
-          onClick={onSync}
-          disabled={isSyncing || linkedAccountsCount === 0}
-          variant="outline"
-          size="sm"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-          {isSyncing ? 'Syncing...' : 'Sync from Bank'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={onSync}
+            disabled={true}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Sync from Bank
+          </Button>
+          <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -81,11 +84,9 @@ export function TopFilters({
 
       {/* Summary badges */}
       <div className="flex gap-2 flex-wrap">
-        {linkedAccountsCount === 0 && (
-          <Badge variant="outline" className="text-amber-600 border-amber-200">
-            No linked accounts - link an account in Profile to sync
-          </Badge>
-        )}
+        <Badge variant="outline" className="text-blue-600 border-blue-200">
+          Bank sync feature coming soon - currently in beta development
+        </Badge>
         {totalPending > 0 && (
           <Badge variant="outline">
             {totalPending} pending review
